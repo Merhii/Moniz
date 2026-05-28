@@ -4,85 +4,143 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/asset.dart';
 import '../models/portfolio_snapshot.dart';
 import '../providers/asset_provider.dart';
+import '../providers/metal_price_provider.dart';
 import '../providers/portfolio_snapshot_provider.dart';
+import '../services/position_performance.dart';
 import '../services/transaction_history_service.dart';
+import '../theme/app_theme.dart';
+import '../ui/kinetic/kinetic_widgets.dart';
 
 class TransactionHistoryScreen extends ConsumerWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.kinetic;
     final assets = ref.watch(assetProvider);
     final snapshots = ref.watch(portfolioSnapshotProvider);
     final events = TransactionHistoryService.eventsFor(assets);
-    final profitLoss = TransactionHistoryService.realizedProfitLossFor(assets);
+    final performance = PositionPerformance.calculate(
+      assets,
+      ref.watch(metalPriceProvider).snapshot,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction History')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Realized Profit / Loss',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 10),
-          if (profitLoss.isEmpty)
-            const Text(
-              'No completed buy/sell transactions with prices yet.',
-              style: TextStyle(color: Colors.grey),
-            )
-          else
-            ...profitLoss.map(_ProfitLossTile.new),
-          const SizedBox(height: 22),
-          Text('Timeline', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
-          if (events.isEmpty)
-            const Text(
-              'Add holding start or sold dates to build your timeline.',
-              style: TextStyle(color: Colors.grey),
-            )
-          else
-            ...events.map(_EventTile.new),
-          const SizedBox(height: 22),
-          Text(
-            'Net Worth Snapshots',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 10),
-          if (snapshots.isEmpty)
-            const Text(
-              'Save a snapshot from Wealth Breakdown to begin tracking history.',
-              style: TextStyle(color: Colors.grey),
-            )
-          else
-            ...snapshots.map(_SnapshotTile.new),
-        ],
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: colors.border, width: 2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BrutalistButton(
+                      label: 'BACK',
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(height: 18),
+                    KineticText(
+                      'TRANSACTION HISTORY',
+                      style: AppTheme.displayStyle(colors).copyWith(
+                        fontSize: 52,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList.list(
+                children: [
+                  KineticText(
+                    'PAID VS NOW',
+                    style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                  ),
+                  const SizedBox(height: 10),
+                  if (!performance.hasComparablePositions)
+                    const LedgerFrame(
+                      child: KineticText(
+                        'ADD BOUGHT PRICES TO ACTIVE USD HOLDINGS TO COMPARE PAID VS CURRENT WORTH.',
+                        muted: true,
+                      ),
+                    )
+                  else
+                    _PerformanceTile(performance),
+                  const SizedBox(height: 22),
+                  KineticText(
+                    'TIMELINE',
+                    style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                  ),
+                  const SizedBox(height: 10),
+                  if (events.isEmpty)
+                    const LedgerFrame(
+                      child: KineticText(
+                        'ADD HOLDING START OR SOLD DATES TO BUILD YOUR TIMELINE.',
+                        muted: true,
+                      ),
+                    )
+                  else
+                    ...events.map(_EventTile.new),
+                  const SizedBox(height: 22),
+                  KineticText(
+                    'NET WORTH SNAPSHOTS',
+                    style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                  ),
+                  const SizedBox(height: 10),
+                  if (snapshots.isEmpty)
+                    const LedgerFrame(
+                      child: KineticText(
+                        'SAVE A SNAPSHOT FROM WEALTH TO BEGIN TRACKING HISTORY.',
+                        muted: true,
+                      ),
+                    )
+                  else
+                    ...snapshots.map(_SnapshotTile.new),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ProfitLossTile extends StatelessWidget {
-  const _ProfitLossTile(this.item);
+class _PerformanceTile extends StatelessWidget {
+  const _PerformanceTile(this.summary);
 
-  final RealizedProfitLoss item;
+  final PositionPerformanceSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final isGain = item.amount >= 0;
-    return Card(
-      child: ListTile(
-        title: Text(item.asset.type.label),
-        subtitle: const Text('Realized result'),
-        trailing: Text(
-          '${isGain ? '+' : '-'}${item.currency} '
-          '${item.amount.abs().toStringAsFixed(2)}',
-          style: TextStyle(
-            color: isGain ? const Color(0xFF22C55E) : Colors.redAccent,
-            fontWeight: FontWeight.bold,
+    final colors = context.kinetic;
+    final change = summary.changeUsd;
+    final isGain = change >= 0;
+    return LedgerFrame(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: KineticText(
+              'PAID \$${summary.paidUsd.toStringAsFixed(2)} / '
+              'NOW \$${summary.currentUsd.toStringAsFixed(2)}',
+              style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+            ),
           ),
-        ),
+          KineticText(
+            '${isGain ? '+' : '-'}\$${change.abs().toStringAsFixed(2)}',
+            style: AppTheme.labelStyle(colors).copyWith(
+              color: isGain ? colors.profit : colors.loss,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -95,18 +153,43 @@ class _EventTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.kinetic;
     final isSale = event.type == TransactionEventType.sold;
     final price = event.price == null
-        ? ''
-        : ' | ${event.asset.currency} ${event.price!.toStringAsFixed(2)}';
-    return Card(
-      child: ListTile(
-        leading: Icon(isSale ? Icons.sell_outlined : Icons.add_circle_outline),
-        title: Text(
-          '${isSale ? 'Sold' : 'Acquired'} ${event.asset.type.label}',
+        ? 'NO PRICE'
+        : '${event.asset.currency} ${event.price!.toStringAsFixed(2)}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: LedgerFrame(
+        padding: const EdgeInsets.all(12),
+        borderWidth: 1,
+        child: Row(
+          children: [
+            Container(
+              height: 44,
+              width: 12,
+              color: isSale ? colors.loss : colors.profit,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  KineticText(
+                    '${isSale ? 'Sold' : 'Acquired'} ${event.asset.type.label}',
+                    style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+                  ),
+                  const SizedBox(height: 4),
+                  KineticText(
+                    '${_formatDate(event.date)} / $price',
+                    muted: true,
+                  ),
+                ],
+              ),
+            ),
+            KineticText('${event.asset.amount} ${event.asset.unit}'),
+          ],
         ),
-        subtitle: Text('${_formatDate(event.date)}$price'),
-        trailing: Text('${event.asset.amount} ${event.asset.unit}'),
       ),
     );
   }
@@ -119,14 +202,36 @@ class _SnapshotTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text('\$${snapshot.totalUsd.toStringAsFixed(2)}'),
-        subtitle: Text(_formatDateTime(snapshot.capturedAt)),
-        trailing: Text(
-          'Gold \$${snapshot.goldUsd.toStringAsFixed(0)}\n'
-          'Cash \$${(snapshot.cashUsd + snapshot.bankSavingsUsd).toStringAsFixed(0)}',
-          textAlign: TextAlign.end,
+    final colors = context.kinetic;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: LedgerFrame(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  KineticNumber(
+                    '\$${snapshot.totalUsd.toStringAsFixed(2)}',
+                    fontSize: 28,
+                  ),
+                  const SizedBox(height: 4),
+                  KineticText(
+                    _formatDateTime(snapshot.capturedAt),
+                    muted: true,
+                  ),
+                ],
+              ),
+            ),
+            KineticText(
+              'GOLD \$${snapshot.goldUsd.toStringAsFixed(0)}\n'
+              'CASH \$${(snapshot.cashUsd + snapshot.bankSavingsUsd).toStringAsFixed(0)}',
+              align: TextAlign.end,
+              style: AppTheme.labelStyle(colors).copyWith(fontSize: 12),
+            ),
+          ],
         ),
       ),
     );

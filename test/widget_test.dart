@@ -12,6 +12,7 @@ import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/metal_price_provider.dart';
 import 'package:moniz/services/metal_price_service.dart';
+import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 import 'package:moniz/widgets/asset_form_dialog.dart';
 
 void main() {
@@ -34,6 +35,7 @@ void main() {
     await Hive.openBox<ZakatSettings>('zakatSettings');
     await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
     await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
+    await Hive.openBox<dynamic>('uiPreferences');
   });
 
   setUp(() async {
@@ -42,6 +44,7 @@ void main() {
     await Hive.box<ZakatSettings>('zakatSettings').clear();
     await Hive.box<ZakatPaymentRecord>('zakatPayments').clear();
     await Hive.box<PortfolioSnapshot>('portfolioSnapshots').clear();
+    await Hive.box<dynamic>('uiPreferences').clear();
   });
 
   tearDownAll(() async {
@@ -52,11 +55,11 @@ void main() {
   testWidgets('shows the empty persisted assets dashboard', (tester) async {
     await tester.pumpWidget(_buildApp());
 
-    expect(find.text('Moniz - Dashboard'), findsOneWidget);
-    expect(find.text('Total Wealth'), findsOneWidget);
+    expect(find.text('WEALTH'), findsOneWidget);
+    expect(find.text('TOTAL WEALTH'), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
-    await tester.pumpAndSettle();
-    expect(find.text('No assets yet'), findsOneWidget);
+    await _pumpKinetic(tester);
+    expect(find.text('NO ASSETS YET'), findsOneWidget);
   });
 
   testWidgets('fetches metals on startup and exposes refresh in settings', (
@@ -64,16 +67,16 @@ void main() {
   ) async {
     final service = _RecordingUnavailableMetalPriceService();
     await tester.pumpWidget(_buildApp(service: service));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
     expect(service.callCount, 1);
     expect(find.byKey(const Key('refresh_metal_prices')), findsNothing);
 
     await tester.tap(find.byKey(const Key('settings_nav')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     expect(find.byKey(const Key('refresh_metal_prices')), findsOneWidget);
     expect(
-      find.text('Tap refresh to load gold and silver prices.'),
+      find.text('TAP REFRESH TO LOAD GOLD AND SILVER PRICES.'),
       findsOneWidget,
     );
   });
@@ -108,19 +111,19 @@ void main() {
 
     expect(find.text(r'$450.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_nav')));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text(r'$90.00 / gram'), 300);
-    expect(find.text(r'$90.00 / gram'), findsOneWidget);
-    expect(find.textContaining('Cached price'), findsOneWidget);
+    await _pumpKinetic(tester);
+    await tester.scrollUntilVisible(find.text(r'$90.00'), 300);
+    expect(find.text(r'$90.00'), findsOneWidget);
+    expect(find.textContaining('CACHED PRICE'), findsOneWidget);
     await tester.tap(find.byKey(const Key('dashboard_nav')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     await tester.scrollUntilVisible(
       find.byKey(const Key('portfolio_pie_chart')),
       300,
     );
     expect(find.byKey(const Key('portfolio_pie_chart')), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     expect(find.byKey(const Key('asset_tag_chip_gold')), findsOneWidget);
   });
 
@@ -143,23 +146,23 @@ void main() {
     );
 
     await tester.tap(find.text('Open form'));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     await tester.tap(find.byKey(const Key('asset_currency_eur')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     await tester.tap(find.byKey(const Key('asset_type_gold')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     await tester.ensureVisible(find.byKey(const Key('asset_tag_gift')));
     await tester.tap(find.byKey(const Key('asset_tag_gift')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
-    expect(find.text('Weight (grams)'), findsOneWidget);
-    expect(find.text('Purity'), findsOneWidget);
+    expect(find.text('WEIGHT (GRAMS)'), findsOneWidget);
+    expect(find.text('PURITY'), findsOneWidget);
     expect(find.text('24K'), findsOneWidget);
     expect(find.text('22K'), findsOneWidget);
     expect(find.text('18K'), findsOneWidget);
-    expect(find.text('Holding Start Date'), findsOneWidget);
-    expect(find.text('This asset has been sold'), findsOneWidget);
-    expect(find.text('Sold Date'), findsNothing);
+    expect(find.text('HOLDING START DATE'), findsOneWidget);
+    expect(find.text('THIS ASSET HAS BEEN SOLD'), findsOneWidget);
+    expect(find.text('SOLD DATE'), findsNothing);
 
     await tester.enterText(find.byKey(const Key('asset_amount_field')), '30.5');
     await tester.ensureVisible(find.byKey(const Key('asset_purity_gold_24k')));
@@ -169,7 +172,7 @@ void main() {
       'Wedding gold',
     );
     await tester.tap(find.byKey(const Key('asset_save_button')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
     expect(submittedAsset?.type, AssetType.gold);
     expect(submittedAsset?.amount, 30.5);
@@ -212,11 +215,11 @@ void main() {
     );
 
     await tester.tap(find.text('Edit active gold'));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
-    expect(find.text('Sold Date'), findsNothing);
+    expect(find.text('SOLD DATE'), findsNothing);
     await tester.tap(find.byKey(const Key('asset_save_button')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
     expect(submittedAsset?.boughtPrice, 1200);
     expect(submittedAsset?.soldDate, isNull);
@@ -241,10 +244,10 @@ void main() {
     expect(find.byKey(const Key('asset_type_cash')), findsOneWidget);
     expect(find.byKey(const Key('asset_type_gold')), findsOneWidget);
     expect(find.byKey(const Key('asset_type_silver')), findsOneWidget);
-    expect(find.text('Bank Savings'), findsNothing);
+    expect(find.text('BANK SAVINGS'), findsNothing);
 
     await tester.tap(find.byKey(const Key('asset_type_silver')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
     await tester.ensureVisible(
       find.byKey(const Key('asset_purity_silver_995')),
@@ -255,7 +258,7 @@ void main() {
     expect(find.text('18K'), findsNothing);
   });
 
-  testWidgets('offers optional icon-backed asset tags', (tester) async {
+  testWidgets('offers optional brutalist asset tags', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
 
     expect(find.byKey(const Key('asset_tag_none')), findsOneWidget);
@@ -271,14 +274,12 @@ void main() {
   ) async {
     await tester.pumpWidget(_buildApp());
 
-    await tester.tap(find.byKey(const Key('settings_nav')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('view_zakat_breakdown')));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('zakat_nav')));
+    await _pumpKinetic(tester);
 
-    expect(find.text('Zakat Breakdown'), findsOneWidget);
-    expect(find.text('Pay each Ramadan'), findsOneWidget);
-    expect(find.text('Silver nisab'), findsOneWidget);
+    expect(find.text('DUE / NISAB'), findsOneWidget);
+    expect(find.text('PAY EACH RAMADAN'), findsOneWidget);
+    expect(find.text('SILVER NISAB'), findsWidgets);
     expect(find.byKey(const Key('select_ramadan_due_date')), findsOneWidget);
   });
 
@@ -288,20 +289,35 @@ void main() {
     await tester.pumpWidget(_buildApp());
 
     expect(
-      find.text('Track, compare, and filter your wealth.'),
+      find.text('WEALTH / LIVE POSITION'),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const Key('holdings_nav')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     expect(
-      find.text('Add, edit, and organize your asset records.'),
+      find.text('Add, edit, and scan asset records without visual fog.'),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const Key('settings_nav')));
-    await tester.pumpAndSettle();
-    expect(find.text('Zakat Settings & Payments'), findsOneWidget);
+    await _pumpKinetic(tester);
+    expect(find.text('MODE / PRICES'), findsOneWidget);
+    expect(find.text('THEME MODE'), findsOneWidget);
+  });
+
+  testWidgets('persists the kinetic theme mode toggle', (tester) async {
+    await tester.pumpWidget(_buildApp());
+
+    await tester.tap(find.byKey(const Key('settings_nav')));
+    await _pumpKinetic(tester);
+    expect(find.text('DARK / DEFAULT'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('theme_mode_toggle')));
+    await _pumpKinetic(tester);
+
+    expect(Hive.box<dynamic>('uiPreferences').get('themeMode'), 'light');
+    expect(find.text('LIGHT / INVERTED'), findsOneWidget);
   });
 
   testWidgets('dashboard filters holdings by tag', (tester) async {
@@ -332,35 +348,45 @@ void main() {
     await tester.pumpWidget(_buildApp());
 
     expect(find.text(r'$150.00'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('filter_tag_salary')),
-      100,
-    );
-    await tester.tap(find.byKey(const Key('filter_tag_salary')));
-    await tester.pumpAndSettle();
+    tester
+        .widget<FilterBlock>(find.byKey(const Key('filter_tag_salary')))
+        .onTap();
+    await _pumpKinetic(tester);
 
-    expect(find.text('Showing 1 of 2 holdings'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Filtered Wealth'), -300);
-    expect(find.text('Filtered Wealth'), findsOneWidget);
+    expect(find.text('SHOWING 1 OF 2 HOLDINGS'), findsOneWidget);
+    expect(find.text('FILTERED WEALTH'), findsOneWidget);
     expect(find.text(r'$100.00'), findsOneWidget);
   });
 
-  testWidgets('dashboard displays trend and realized profit loss charts', (
+  testWidgets('dashboard displays trend and paid vs now position card', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     await tester.runAsync(() async {
       await Hive.box<Asset>('assets').put(
-        'sold-gold',
-        Asset(
-          id: 'sold-gold',
+        'active-gold',
+        const Asset(
+          id: 'active-gold',
           type: AssetType.gold,
           amount: 5,
           unit: 'g',
           currency: 'USD',
           purity: 99.9,
           boughtPrice: 200,
-          soldDate: DateTime(2026, 1, 1),
-          soldPrice: 275,
+        ),
+      );
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 55,
+          silverPerGramUsd: 1.1,
+          priceTimestamp: DateTime.utc(2026, 5, 27, 10),
+          fetchedAt: DateTime.utc(2026, 5, 27, 10),
         ),
       );
       await Hive.box<PortfolioSnapshot>('portfolioSnapshots').putAll({
@@ -386,38 +412,28 @@ void main() {
     });
     await tester.pumpWidget(_buildApp());
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('portfolio_line_chart')),
-      300,
-    );
+    await _pumpKinetic(tester);
     expect(find.byKey(const Key('portfolio_line_chart')), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('profit_loss_sold-gold')),
-      300,
-    );
-    expect(find.text('+USD 75.00'), findsOneWidget);
+    expect(find.byKey(const Key('paid_vs_now_amount')), findsOneWidget);
   });
 
   testWidgets('opens transaction history from wealth breakdown', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1000, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('open_transaction_history')));
+    await _pumpKinetic(tester);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('open_transaction_history')),
-      300,
-    );
-    tester
-        .widget<OutlinedButton>(
-          find.byKey(const Key('open_transaction_history')),
-        )
-        .onPressed!();
-    await tester.pumpAndSettle();
-
-    expect(find.text('Transaction History'), findsOneWidget);
-    expect(find.text('Realized Profit / Loss'), findsOneWidget);
-    expect(find.text('Net Worth Snapshots'), findsOneWidget);
+    expect(find.text('TRANSACTION HISTORY'), findsOneWidget);
+    expect(find.text('PAID VS NOW'), findsOneWidget);
+    expect(find.text('NET WORTH SNAPSHOTS'), findsOneWidget);
   });
 
   testWidgets('edits an existing rich asset', (tester) async {
@@ -451,14 +467,14 @@ void main() {
     );
 
     await tester.tap(find.text('Edit form'));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
     await tester.enterText(find.byKey(const Key('asset_amount_field')), '125');
     await tester.enterText(
       find.byKey(const Key('asset_notes_field')),
       'Updated holding',
     );
     await tester.tap(find.byKey(const Key('asset_save_button')));
-    await tester.pumpAndSettle();
+    await _pumpKinetic(tester);
 
     expect(submittedAsset?.id, asset.id);
     expect(submittedAsset?.amount, 125);
@@ -561,6 +577,10 @@ Widget _buildApp({MetalPriceService? service}) {
     ],
     child: const MonizApp(),
   );
+}
+
+Future<void> _pumpKinetic(WidgetTester tester) {
+  return tester.pump(const Duration(milliseconds: 180));
 }
 
 class _UnavailableMetalPriceService implements MetalPriceService {

@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/asset.dart';
 import '../providers/portfolio_snapshot_provider.dart';
 import '../services/portfolio_analytics.dart';
+import '../theme/app_theme.dart';
+import '../ui/kinetic/kinetic_widgets.dart';
 
 class PortfolioInsightsCard extends ConsumerWidget {
   const PortfolioInsightsCard({
@@ -21,135 +23,131 @@ class PortfolioInsightsCard extends ConsumerWidget {
   final VoidCallback onOpenHistory;
   final bool isFiltered;
 
-  static const _categoryColors = {
-    AssetType.cash: Color(0xFF22C55E),
-    AssetType.bankSavings: Color(0xFF3B82F6),
-    AssetType.gold: Color(0xFFD4AF37),
-    AssetType.silver: Color(0xFFCBD5E1),
-  };
+  static Color categoryColor(AssetType type, KineticColors colors) {
+    return switch (type) {
+      AssetType.cash => colors.profit,
+      AssetType.bankSavings => const Color(0xFF60A5FA),
+      AssetType.gold => colors.accent,
+      AssetType.silver => colors.mutedForeground,
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: const Color(0xFF1A1D24),
-      ),
+    final colors = context.kinetic;
+    return LedgerFrame(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Asset Allocation',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          KineticText(
+            'ASSET ALLOCATION',
+            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Current valued holdings',
-            style: TextStyle(color: Colors.grey),
-          ),
+          const SizedBox(height: 5),
+          KineticText('CURRENT VALUED HOLDINGS', muted: true),
           const SizedBox(height: 20),
           if (analytics.totalUsd == 0)
-            const Text(
-              'Add valued holdings to see category analytics.',
-              style: TextStyle(color: Colors.grey),
+            const KineticText(
+              'ADD VALUED HOLDINGS TO SEE CATEGORY ANALYTICS.',
+              muted: true,
             )
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final categoryRows = Column(
-                  children: AssetType.values
-                      .where(
-                        (type) => (analytics.categoryValuesUsd[type] ?? 0) > 0,
-                      )
-                      .map(
-                        (type) => _CategoryRow(
-                          type: type,
-                          valueUsd: analytics.categoryValuesUsd[type]!,
-                          percentage: analytics.percentageFor(type),
-                        ),
-                      )
-                      .toList(),
-                );
-                final donut = _DonutHero(analytics: analytics);
-                if (constraints.maxWidth < 560) {
+                final categories = AssetType.values
+                    .where(
+                      (type) => (analytics.categoryValuesUsd[type] ?? 0) > 0,
+                    )
+                    .map(
+                      (type) => _CategoryDatum(
+                        type: type,
+                        valueUsd: analytics.categoryValuesUsd[type]!,
+                        percentage: analytics.percentageFor(type),
+                      ),
+                    )
+                    .toList();
+                final legend = _AllocationLegend(categories: categories);
+                final spotlight = _DonutHero(analytics: analytics);
+                if (constraints.maxWidth < 620) {
                   return Column(
-                    children: [donut, const SizedBox(height: 20), categoryRows],
+                    children: [
+                      SizedBox(height: 280, child: spotlight),
+                      const SizedBox(height: 14),
+                      legend,
+                    ],
                   );
                 }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    donut,
-                    const SizedBox(width: 34),
-                    Expanded(child: categoryRows),
-                  ],
+                return SizedBox(
+                  height: 340,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(flex: 4, child: spotlight),
+                      const SizedBox(width: 20),
+                      Expanded(flex: 1, child: legend),
+                    ],
+                  ),
                 );
               },
             ),
-          const SizedBox(height: 22),
-          Row(
+          const SizedBox(height: 18),
+          BrutalistGrid(
+            minTileWidth: 150,
             children: [
-              _CountBadge(
+              MetricBlock(
                 label: 'Active',
-                count: analytics.activeAssetCount,
-                color: const Color(0xFF22C55E),
+                value: analytics.activeAssetCount.toString(),
+                valueColor: colors.profit,
               ),
-              const SizedBox(width: 10),
-              _CountBadge(
+              MetricBlock(
                 label: 'Sold',
-                count: analytics.soldAssetCount,
-                color: Colors.grey,
+                value: analytics.soldAssetCount.toString(),
+                valueColor: colors.mutedForeground,
               ),
+              if (analytics.unvaluedAssetCount > 0)
+                MetricBlock(
+                  label: 'Unvalued',
+                  value: analytics.unvaluedAssetCount.toString(),
+                  valueColor: colors.loss,
+                ),
             ],
           ),
-          if (analytics.unvaluedAssetCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                '${analytics.unvaluedAssetCount} holding(s) excluded until valued.',
-                style: const TextStyle(color: Colors.grey),
-              ),
+          if (isFiltered) ...[
+            const SizedBox(height: 12),
+            const KineticText(
+              'SNAPSHOT SAVES YOUR COMPLETE PORTFOLIO, NOT THIS FILTERED VIEW.',
+              muted: true,
             ),
-          if (isFiltered)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'Snapshot saves your complete portfolio, not this filtered view.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ),
+          ],
           const SizedBox(height: 18),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  key: const Key('capture_portfolio_snapshot'),
-                  onPressed: (snapshotAnalytics ?? analytics).totalUsd == 0
-                      ? null
-                      : () async {
-                          await ref
-                              .read(portfolioSnapshotProvider.notifier)
-                              .capture(snapshotAnalytics ?? analytics);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Portfolio snapshot saved.'),
-                              ),
-                            );
-                          }
-                        },
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Save Snapshot'),
-                ),
+              BrutalistButton(
+                key: const Key('capture_portfolio_snapshot'),
+                label: 'SAVE SNAPSHOT',
+                tone: BrutalistButtonTone.primary,
+                onPressed: (snapshotAnalytics ?? analytics).totalUsd == 0
+                    ? null
+                    : () async {
+                        await ref
+                            .read(portfolioSnapshotProvider.notifier)
+                            .capture(snapshotAnalytics ?? analytics);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('PORTFOLIO SNAPSHOT SAVED.'),
+                            ),
+                          );
+                        }
+                      },
               ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
+              BrutalistButton(
                 key: const Key('open_transaction_history'),
+                label: 'HISTORY',
                 onPressed: onOpenHistory,
-                icon: const Icon(Icons.history),
-                label: const Text('History'),
               ),
             ],
           ),
@@ -166,72 +164,51 @@ class _DonutHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 176,
-      width: 176,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            key: const Key('portfolio_pie_chart'),
-            size: const Size.square(176),
-            painter: _BreakdownPainter(
-              values: analytics.categoryValuesUsd,
-              total: analytics.totalUsd,
+    final colors = context.kinetic;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = math.min(constraints.maxWidth, constraints.maxHeight);
+        final numberSize = (size * 0.15).clamp(24.0, 46.0);
+        return Center(
+          child: SizedBox.square(
+            dimension: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      key: const Key('portfolio_pie_chart'),
+                      painter: _BreakdownPainter(
+                        values: analytics.categoryValuesUsd,
+                        total: analytics.totalUsd,
+                        colors: colors,
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    KineticText('TOTAL', style: AppTheme.labelStyle(colors)),
+                    const SizedBox(height: 5),
+                    KineticNumber(
+                      '\$${analytics.totalUsd.toStringAsFixed(0)}',
+                      fontSize: numberSize,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '\$${analytics.totalUsd.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({
-    required this.label,
-    required this.count,
-    required this.color,
-  });
-
-  final String label;
-  final int count;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        '$count $label',
-        style: TextStyle(color: color, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({
+class _CategoryDatum {
+  const _CategoryDatum({
     required this.type,
     required this.valueUsd,
     required this.percentage,
@@ -240,41 +217,67 @@ class _CategoryRow extends StatelessWidget {
   final AssetType type;
   final double valueUsd;
   final double percentage;
+}
+
+class _AllocationLegend extends StatelessWidget {
+  const _AllocationLegend({required this.categories});
+
+  final List<_CategoryDatum> categories;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF20242C),
-        borderRadius: BorderRadius.circular(13),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 190;
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: categories
+              .map((category) => _CategoryRow(category, compact: compact))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow(this.category, {required this.compact});
+
+  final _CategoryDatum category;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    final color = PortfolioInsightsCard.categoryColor(category.type, colors);
+    final detail = compact
+        ? '\$${category.valueUsd.toStringAsFixed(0)}'
+        : '${(category.percentage * 100).toStringAsFixed(0)}% / '
+              '\$${category.valueUsd.toStringAsFixed(0)}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Container(
-            height: 11,
-            width: 11,
-            decoration: BoxDecoration(
-              color: PortfolioInsightsCard._categoryColors[type],
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
+          Container(width: 12, height: 36, color: color),
+          const SizedBox(width: 9),
           Expanded(
-            child: Text(
-              type.label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  category.type.label,
+                  maxLines: 1,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 15),
+                ),
+                const SizedBox(height: 3),
+                KineticText(
+                  detail,
+                  maxLines: 1,
+                  muted: true,
+                  style: AppTheme.labelStyle(colors).copyWith(fontSize: 11),
+                ),
+              ],
             ),
-          ),
-          Text(
-            '${(percentage * 100).toStringAsFixed(0)}%',
-            style: const TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(width: 14),
-          Text(
-            '\$${valueUsd.toStringAsFixed(0)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -283,31 +286,49 @@ class _CategoryRow extends StatelessWidget {
 }
 
 class _BreakdownPainter extends CustomPainter {
-  const _BreakdownPainter({required this.values, required this.total});
+  const _BreakdownPainter({
+    required this.values,
+    required this.total,
+    required this.colors,
+  });
 
   final Map<AssetType, double> values;
   final double total;
+  final KineticColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    final strokeWidth = math.max(
+      18.0,
+      math.min(size.shortestSide * 0.11, 34.0),
+    );
     var startAngle = -math.pi / 2;
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 24
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
 
     for (final type in AssetType.values) {
       final value = values[type] ?? 0;
       if (value <= 0) continue;
       final sweepAngle = (value / total) * math.pi * 2;
-      paint.color = PortfolioInsightsCard._categoryColors[type]!;
-      canvas.drawArc(rect.deflate(16), startAngle, sweepAngle, false, paint);
+      paint.color = PortfolioInsightsCard.categoryColor(type, colors);
+      canvas.drawArc(
+        rect.deflate(strokeWidth / 2 + 4),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
       startAngle += sweepAngle;
     }
   }
 
   @override
-  bool shouldRepaint(_BreakdownPainter oldDelegate) =>
-      oldDelegate.values != values || oldDelegate.total != total;
+  bool shouldRepaint(_BreakdownPainter oldDelegate) {
+    return oldDelegate.values != values ||
+        oldDelegate.total != total ||
+        oldDelegate.colors != colors;
+  }
 }

@@ -4,83 +4,68 @@ import 'package:flutter/material.dart';
 
 import '../models/asset.dart';
 import '../models/portfolio_snapshot.dart';
-import '../services/transaction_history_service.dart';
+import '../services/position_performance.dart';
+import '../theme/app_theme.dart';
+import '../ui/kinetic/kinetic_widgets.dart';
 
 class PortfolioTrendCard extends StatelessWidget {
-  const PortfolioTrendCard({super.key, required this.snapshots});
+  const PortfolioTrendCard({
+    super.key,
+    required this.snapshots,
+    required this.performance,
+  });
 
   final List<PortfolioSnapshot> snapshots;
+  final PositionPerformanceSummary performance;
 
   @override
   Widget build(BuildContext context) {
-    final points = [...snapshots]
-      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-    final series = _trendSeriesFor(points);
-    final latest = points.isEmpty ? null : points.last;
-    final change = points.length < 2
-        ? null
-        : points.last.totalUsd - points[points.length - 2].totalUsd;
+    final colors = context.kinetic;
+    final points = _historyPointsFor(snapshots, performance);
+    final series = _trendSeriesFor(points, performance, colors);
 
-    return _DashboardCard(
+    return LedgerFrame(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Portfolio History',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          KineticText(
+            'PORTFOLIO HISTORY',
+            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Value over time by asset class',
-            style: TextStyle(color: Colors.grey),
-          ),
+          const SizedBox(height: 5),
+          KineticText('CASH / GOLD / SILVER BOUGHT VS CURRENT', muted: true),
           const SizedBox(height: 18),
           if (points.isEmpty)
-            const Text(
-              'Save snapshots to build your portfolio history chart.',
-              style: TextStyle(color: Colors.grey),
+            const KineticText(
+              'ADD CURRENT VALUES OR SAVE SNAPSHOTS TO BUILD YOUR PORTFOLIO HISTORY CHART.',
+              muted: true,
             )
           else ...[
-            SizedBox(
-              key: const Key('portfolio_line_chart'),
-              height: 238,
-              width: double.infinity,
-              child: CustomPaint(painter: _TrendPainter(points, series)),
+            RepaintBoundary(
+              child: SizedBox(
+                key: const Key('portfolio_line_chart'),
+                height: 238,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _TrendPainter(points, series, colors),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 16,
-              runSpacing: 9,
+              runSpacing: 12,
               children: series
                   .map(
-                    (item) =>
-                        _SeriesLegend(label: item.label, color: item.color),
+                    (item) => _SeriesLegend(
+                      label: item.label,
+                      color: item.color,
+                      paidUsd: item.paidUsd,
+                      currentUsd: item.currentUsd,
+                    ),
                   )
                   .toList(),
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1, color: Color(0xFF30343D)),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Latest: \$${latest!.totalUsd.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (change != null)
-                  Text(
-                    '${change >= 0 ? '+' : '-'}\$'
-                    '${change.abs().toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: change >= 0
-                          ? const Color(0xFF22C55E)
-                          : Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-              ],
             ),
           ],
         ],
@@ -89,191 +74,283 @@ class PortfolioTrendCard extends StatelessWidget {
   }
 }
 
-List<_TrendSeries> _trendSeriesFor(List<PortfolioSnapshot> snapshots) {
-  final series = <_TrendSeries>[
-    const _TrendSeries(
-      label: 'Total',
-      color: Color(0xFF60A5FA),
-      valueOf: _totalValue,
-    ),
-  ];
-  if (snapshots.any((point) => point.cashUsd > 0)) {
+List<_TrendPoint> _historyPointsFor(
+  List<PortfolioSnapshot> snapshots,
+  PositionPerformanceSummary performance,
+) {
+  final sortedSnapshots = [...snapshots]
+    ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+  final points = sortedSnapshots
+      .map(
+        (snapshot) => _TrendPoint(
+          label: _shortDate(snapshot.capturedAt),
+          cashUsd: snapshot.cashUsd + snapshot.bankSavingsUsd,
+          goldUsd: snapshot.goldUsd,
+          silverUsd: snapshot.silverUsd,
+        ),
+      )
+      .toList();
+
+  if (points.isEmpty) {
+    if (!performance.hasTrackedCurrentWorth &&
+        !performance.hasComparablePositions) {
+      return const [];
+    }
+    return [
+      _TrendPoint(
+        label: 'Bought',
+        cashUsd: performance.paidFor(AssetType.cash),
+        goldUsd: performance.paidFor(AssetType.gold),
+        silverUsd: performance.paidFor(AssetType.silver),
+      ),
+      _TrendPoint(
+        label: 'Now',
+        cashUsd: performance.currentWorthFor(AssetType.cash),
+        goldUsd: performance.currentWorthFor(AssetType.gold),
+        silverUsd: performance.currentWorthFor(AssetType.silver),
+      ),
+    ];
+  }
+
+  if (performance.hasTrackedCurrentWorth) {
+    points.add(
+      _TrendPoint(
+        label: 'Now',
+        cashUsd: performance.currentWorthFor(AssetType.cash),
+        goldUsd: performance.currentWorthFor(AssetType.gold),
+        silverUsd: performance.currentWorthFor(AssetType.silver),
+      ),
+    );
+  }
+  return points;
+}
+
+List<_TrendSeries> _trendSeriesFor(
+  List<_TrendPoint> points,
+  PositionPerformanceSummary performance,
+  KineticColors colors,
+) {
+  final series = <_TrendSeries>[];
+  if (_hasValue(points, _cashValue) ||
+      performance.paidFor(AssetType.cash) > 0 ||
+      performance.currentWorthFor(AssetType.cash) > 0) {
     series.add(
-      const _TrendSeries(
+      _TrendSeries(
         label: 'Cash',
-        color: Color(0xFF22C55E),
+        color: colors.profit,
         valueOf: _cashValue,
+        paidUsd: performance.paidFor(AssetType.cash),
+        currentUsd: performance.currentWorthFor(AssetType.cash),
       ),
     );
   }
-  if (snapshots.any((point) => point.bankSavingsUsd > 0)) {
+  if (_hasValue(points, _goldValue) ||
+      performance.paidFor(AssetType.gold) > 0 ||
+      performance.currentWorthFor(AssetType.gold) > 0) {
     series.add(
-      const _TrendSeries(
-        label: 'Savings',
-        color: Color(0xFFA78BFA),
-        valueOf: _savingsValue,
-      ),
-    );
-  }
-  if (snapshots.any((point) => point.goldUsd > 0)) {
-    series.add(
-      const _TrendSeries(
+      _TrendSeries(
         label: 'Gold',
-        color: Color(0xFFD4AF37),
+        color: colors.accent,
         valueOf: _goldValue,
+        paidUsd: performance.paidFor(AssetType.gold),
+        currentUsd: performance.currentWorthFor(AssetType.gold),
       ),
     );
   }
-  if (snapshots.any((point) => point.silverUsd > 0)) {
+  if (_hasValue(points, _silverValue) ||
+      performance.paidFor(AssetType.silver) > 0 ||
+      performance.currentWorthFor(AssetType.silver) > 0) {
     series.add(
-      const _TrendSeries(
+      _TrendSeries(
         label: 'Silver',
-        color: Color(0xFFCBD5E1),
+        color: Color(0xFFE4E4E7),
         valueOf: _silverValue,
+        paidUsd: performance.paidFor(AssetType.silver),
+        currentUsd: performance.currentWorthFor(AssetType.silver),
       ),
     );
   }
   return series;
 }
 
-double _totalValue(PortfolioSnapshot point) => point.totalUsd;
-double _cashValue(PortfolioSnapshot point) => point.cashUsd;
-double _savingsValue(PortfolioSnapshot point) => point.bankSavingsUsd;
-double _goldValue(PortfolioSnapshot point) => point.goldUsd;
-double _silverValue(PortfolioSnapshot point) => point.silverUsd;
+bool _hasValue(
+  List<_TrendPoint> points,
+  double Function(_TrendPoint point) valueOf,
+) {
+  return points.any((point) => valueOf(point) > 0);
+}
+
+double _cashValue(_TrendPoint point) => point.cashUsd;
+double _goldValue(_TrendPoint point) => point.goldUsd;
+double _silverValue(_TrendPoint point) => point.silverUsd;
+
+String _shortDate(DateTime date) {
+  return '${date.month.toString().padLeft(2, '0')}/'
+      '${date.day.toString().padLeft(2, '0')}';
+}
+
+class _TrendPoint {
+  const _TrendPoint({
+    required this.label,
+    required this.cashUsd,
+    required this.goldUsd,
+    required this.silverUsd,
+  });
+
+  final String label;
+  final double cashUsd;
+  final double goldUsd;
+  final double silverUsd;
+}
 
 class _TrendSeries {
   const _TrendSeries({
     required this.label,
     required this.color,
     required this.valueOf,
+    required this.paidUsd,
+    required this.currentUsd,
   });
 
   final String label;
   final Color color;
-  final double Function(PortfolioSnapshot point) valueOf;
+  final double Function(_TrendPoint point) valueOf;
+  final double paidUsd;
+  final double currentUsd;
 }
 
 class _SeriesLegend extends StatelessWidget {
-  const _SeriesLegend({required this.label, required this.color});
+  const _SeriesLegend({
+    required this.label,
+    required this.color,
+    required this.paidUsd,
+    required this.currentUsd,
+  });
 
   final String label;
   final Color color;
+  final double paidUsd;
+  final double currentUsd;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 18,
-          height: 3,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(99),
+    final colors = context.kinetic;
+    return SizedBox(
+      width: 168,
+      child: Row(
+        children: [
+          Container(width: 22, height: 5, color: color),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  label,
+                  style: AppTheme.labelStyle(colors).copyWith(fontSize: 11),
+                ),
+                const SizedBox(height: 3),
+                KineticText(
+                  'Bought ${_compactMoney(paidUsd)} / '
+                  'Now ${_compactMoney(currentUsd)}',
+                  muted: true,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 11),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 7),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-      ],
+        ],
+      ),
     );
   }
 }
 
 class ProfitLossCard extends StatelessWidget {
-  const ProfitLossCard({super.key, required this.results});
+  const ProfitLossCard({super.key, required this.summary});
 
-  final List<RealizedProfitLoss> results;
+  final PositionPerformanceSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final largestMagnitude = results.fold<double>(
-      0,
-      (largest, result) => math.max(largest, result.amount.abs()),
-    );
+    final colors = context.kinetic;
+    final change = summary.changeUsd;
+    final isGain = change >= 0;
 
-    return _DashboardCard(
+    return LedgerFrame(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Realized Profit / Loss',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          KineticText(
+            'PAID VS NOW',
+            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Completed investment sales in recorded currency',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 14),
-          if (results.isEmpty)
-            const Text(
-              'No completed buy/sell investments match these filters.',
-              style: TextStyle(color: Colors.grey),
+          const SizedBox(height: 5),
+          KineticText('CURRENT WORTH MINUS WHAT YOU PAID', muted: true),
+          const SizedBox(height: 16),
+          if (!summary.hasComparablePositions)
+            const KineticText(
+              'ADD BOUGHT PRICES TO ACTIVE USD HOLDINGS TO SEE THIS NUMBER.',
+              muted: true,
             )
-          else
-            ...results.map(
-              (result) => _ProfitLossBar(
-                result: result,
-                scale: largestMagnitude == 0
-                    ? 0
-                    : result.amount.abs() / largestMagnitude,
-              ),
+          else ...[
+            KineticNumber(
+              '${isGain ? '+' : '-'}\$${change.abs().toStringAsFixed(2)}',
+              key: const Key('paid_vs_now_amount'),
+              fontSize: 58,
+              color: isGain ? colors.profit : colors.loss,
             ),
+            const SizedBox(height: 10),
+            KineticText(
+              'PAID ${_formatMoney(summary.paidUsd)} / '
+              'NOW ${_formatMoney(summary.currentUsd)}',
+              muted: true,
+              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+            ),
+            if (summary.missingBoughtPriceCount > 0 ||
+                summary.unpricedAssetCount > 0 ||
+                summary.unsupportedCurrencyCount > 0) ...[
+              const SizedBox(height: 8),
+              KineticText(
+                _performanceNote(summary),
+                muted: true,
+                uppercase: false,
+                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+              ),
+            ],
+          ],
         ],
       ),
     );
   }
 }
 
-class _ProfitLossBar extends StatelessWidget {
-  const _ProfitLossBar({required this.result, required this.scale});
+String _performanceNote(PositionPerformanceSummary summary) {
+  final notes = <String>[
+    if (summary.missingBoughtPriceCount > 0)
+      '${summary.missingBoughtPriceCount} active metal holding needs a bought price',
+    if (summary.unpricedAssetCount > 0)
+      '${summary.unpricedAssetCount} metal holding needs live prices',
+    if (summary.unsupportedCurrencyCount > 0)
+      '${summary.unsupportedCurrencyCount} non-USD holding is not compared',
+  ];
+  return notes.join('. ');
+}
 
-  final RealizedProfitLoss result;
-  final double scale;
+String _formatMoney(double value) => '\$${value.toStringAsFixed(2)}';
 
-  @override
-  Widget build(BuildContext context) {
-    final isGain = result.amount >= 0;
-    final color = isGain ? const Color(0xFF22C55E) : Colors.redAccent;
-    return Padding(
-      key: Key('profit_loss_${result.asset.id}'),
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text(result.asset.type.label)),
-              Text(
-                '${isGain ? '+' : '-'}${result.currency} '
-                '${result.amount.abs().toStringAsFixed(2)}',
-                style: TextStyle(color: color, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          FractionallySizedBox(
-            widthFactor: math.max(scale, 0.04),
-            child: Container(
-              height: 7,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+String _compactMoney(double value) {
+  if (value >= 1000000) return '\$${(value / 1000000).toStringAsFixed(1)}m';
+  if (value >= 1000) return '\$${(value / 1000).toStringAsFixed(1)}k';
+  return '\$${value.toStringAsFixed(0)}';
 }
 
 class _TrendPainter extends CustomPainter {
-  const _TrendPainter(this.snapshots, this.series);
+  const _TrendPainter(this.points, this.series, this.colors);
 
-  final List<PortfolioSnapshot> snapshots;
+  final List<_TrendPoint> points;
   final List<_TrendSeries> series;
+  final KineticColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -281,18 +358,16 @@ class _TrendPainter extends CustomPainter {
     const rightPadding = 12.0;
     const topPadding = 10.0;
     const bottomPadding = 29.0;
-    const gridColor = Color(0xFF30343D);
-    const labelColor = Color(0xFF8B929D);
     final graphWidth = size.width - leftPadding - rightPadding;
     final graphHeight = size.height - topPadding - bottomPadding;
     final gridPaint = Paint()
-      ..color = gridColor
+      ..color = colors.border
       ..strokeWidth = 1;
 
     final values = <double>[
       0,
       for (final item in series)
-        for (final point in snapshots) item.valueOf(point),
+        for (final point in points) item.valueOf(point),
     ];
     final maximum = values.reduce(math.max);
     final graphMaximum = maximum == 0 ? 1.0 : maximum * 1.08;
@@ -308,29 +383,26 @@ class _TrendPainter extends CustomPainter {
       _paintText(
         canvas,
         _compactCurrency(value),
-        labelColor,
+        colors.mutedForeground,
         offsetFor: (textSize) =>
             Offset(leftPadding - textSize.width - 9, y - textSize.height / 2),
       );
     }
 
-    for (var index = 0; index < snapshots.length; index++) {
-      if (snapshots.length > 6 &&
+    for (var index = 0; index < points.length; index++) {
+      if (points.length > 6 &&
           index != 0 &&
-          index != snapshots.length - 1 &&
+          index != points.length - 1 &&
           index.isOdd) {
         continue;
       }
-      final x = snapshots.length == 1
+      final x = points.length == 1
           ? leftPadding + graphWidth / 2
-          : leftPadding + graphWidth * index / (snapshots.length - 1);
-      final date = snapshots[index].capturedAt;
-      final label =
-          '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+          : leftPadding + graphWidth * index / (points.length - 1);
       _paintText(
         canvas,
-        label,
-        labelColor,
+        points[index].label,
+        colors.mutedForeground,
         offsetFor: (textSize) =>
             Offset(x - textSize.width / 2, size.height - textSize.height),
       );
@@ -339,27 +411,30 @@ class _TrendPainter extends CustomPainter {
     for (final item in series) {
       final path = Path();
       final pointPaint = Paint()..color = item.color;
-      for (var index = 0; index < snapshots.length; index++) {
-        final x = snapshots.length == 1
+      for (var index = 0; index < points.length; index++) {
+        final x = points.length == 1
             ? leftPadding + graphWidth / 2
-            : leftPadding + graphWidth * index / (snapshots.length - 1);
+            : leftPadding + graphWidth * index / (points.length - 1);
         final y =
             topPadding +
             graphHeight -
-            (item.valueOf(snapshots[index]) / graphMaximum) * graphHeight;
+            (item.valueOf(points[index]) / graphMaximum) * graphHeight;
         if (index == 0) {
           path.moveTo(x, y);
         } else {
           path.lineTo(x, y);
         }
-        canvas.drawCircle(Offset(x, y), 3.5, pointPaint);
+        canvas.drawRect(
+          Rect.fromCenter(center: Offset(x, y), width: 7, height: 7),
+          pointPaint,
+        );
       }
       canvas.drawPath(
         path,
         Paint()
           ..color = item.color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = item.label == 'Total' ? 2.6 : 2,
+          ..strokeWidth = 3,
       );
     }
   }
@@ -373,7 +448,12 @@ class _TrendPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: 10),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontFamily: AppTheme.ledgerFontFamily,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -386,25 +466,9 @@ class _TrendPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TrendPainter oldDelegate) =>
-      oldDelegate.snapshots != snapshots || oldDelegate.series != series;
-}
-
-class _DashboardCard extends StatelessWidget {
-  const _DashboardCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: const Color(0xFF1A1D24),
-      ),
-      child: child,
-    );
+  bool shouldRepaint(_TrendPainter oldDelegate) {
+    return oldDelegate.points != points ||
+        oldDelegate.series != series ||
+        oldDelegate.colors != colors;
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/asset.dart';
+import '../theme/app_theme.dart';
+import '../ui/kinetic/kinetic_widgets.dart';
 
 class AssetFormDialog extends StatefulWidget {
   const AssetFormDialog({super.key, this.asset});
@@ -18,77 +20,49 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
     _MenuOption(
       value: AssetType.cash,
       label: 'Cash',
-      icon: Icons.payments_outlined,
       key: Key('asset_type_cash'),
     ),
     _MenuOption(
       value: AssetType.gold,
       label: 'Gold',
-      icon: Icons.workspace_premium_outlined,
       key: Key('asset_type_gold'),
     ),
     _MenuOption(
       value: AssetType.silver,
       label: 'Silver',
-      icon: Icons.circle_outlined,
       key: Key('asset_type_silver'),
     ),
   ];
   static const _currencyOptions = <_MenuOption<String>>[
-    _MenuOption(
-      value: 'USD',
-      label: 'USD',
-      icon: Icons.attach_money,
-      key: Key('asset_currency_usd'),
-    ),
-    _MenuOption(
-      value: 'AED',
-      label: 'AED',
-      icon: Icons.account_balance_wallet_outlined,
-      key: Key('asset_currency_aed'),
-    ),
-    _MenuOption(
-      value: 'EUR',
-      label: 'EUR',
-      icon: Icons.euro,
-      key: Key('asset_currency_eur'),
-    ),
+    _MenuOption(value: 'USD', label: 'USD', key: Key('asset_currency_usd')),
+    _MenuOption(value: 'AED', label: 'AED', key: Key('asset_currency_aed')),
+    _MenuOption(value: 'EUR', label: 'EUR', key: Key('asset_currency_eur')),
   ];
   static const _tagOptions = <_MenuOption<AssetTag?>>[
-    _MenuOption(
-      value: null,
-      label: 'No tag',
-      icon: Icons.label_off_outlined,
-      key: Key('asset_tag_none'),
-    ),
+    _MenuOption(value: null, label: 'No tag', key: Key('asset_tag_none')),
     _MenuOption(
       value: AssetTag.freelance,
       label: 'Freelance',
-      icon: Icons.laptop_mac_outlined,
       key: Key('asset_tag_freelance'),
     ),
     _MenuOption(
       value: AssetTag.emergency,
       label: 'Emergency',
-      icon: Icons.warning_amber_outlined,
       key: Key('asset_tag_emergency'),
     ),
     _MenuOption(
       value: AssetTag.gift,
       label: 'Gift',
-      icon: Icons.card_giftcard,
       key: Key('asset_tag_gift'),
     ),
     _MenuOption(
       value: AssetTag.salary,
       label: 'Salary',
-      icon: Icons.payments_outlined,
       key: Key('asset_tag_salary'),
     ),
     _MenuOption(
       value: AssetTag.businessProfit,
       label: 'Business Profit',
-      icon: Icons.trending_up,
       key: Key('asset_tag_business_profit'),
     ),
   ];
@@ -97,21 +71,18 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
       value: 99.9,
       label: '24K',
       detail: '99.9%',
-      icon: Icons.workspace_premium_outlined,
       key: Key('asset_purity_gold_24k'),
     ),
     _MenuOption(
       value: 91.7,
       label: '22K',
       detail: '91.7%',
-      icon: Icons.workspace_premium_outlined,
       key: Key('asset_purity_gold_22k'),
     ),
     _MenuOption(
       value: 75,
       label: '18K',
       detail: '75%',
-      icon: Icons.workspace_premium_outlined,
       key: Key('asset_purity_gold_18k'),
     ),
   ];
@@ -120,7 +91,6 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
       value: 99.5,
       label: '99.5%',
       detail: 'Fine silver',
-      icon: Icons.circle_outlined,
       key: Key('asset_purity_silver_995'),
     ),
   ];
@@ -177,177 +147,232 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_isEditing ? 'Edit Asset' : 'Add Asset'),
-      content: SizedBox(
-        width: 420,
+    final colors = context.kinetic;
+    return Material(
+      color: colors.background,
+      child: SafeArea(
         child: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _SelectionMenu<AssetType>(
-                  key: const Key('asset_type_field'),
-                  label: 'Asset Type',
-                  options: _availableTypeOptions,
-                  value: _selectedType,
-                  onChanged: _setType,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('asset_amount_field'),
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+          child: Column(
+            children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: colors.border, width: 2),
+                    ),
                   ),
-                  decoration: InputDecoration(
-                    labelText: _isMetal ? 'Weight (grams)' : 'Amount',
-                  ),
-                  validator: (value) => _requiredPositiveNumber(
-                    value,
-                    _isMetal ? 'Weight' : 'Amount',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _SelectionMenu<String>(
-                  key: const Key('asset_currency_field'),
-                  label: _isMetal ? 'Price Currency' : 'Currency',
-                  options: _currencyOptions,
-                  value: _selectedCurrency,
-                  onChanged: (currency) {
-                    setState(() => _selectedCurrency = currency);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _SelectionMenu<AssetTag?>(
-                  key: const Key('asset_tag_field'),
-                  label: 'Tag',
-                  options: _tagOptions,
-                  value: _selectedTag,
-                  onChanged: (tag) {
-                    setState(() => _selectedTag = tag);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _DateField(
-                  label: 'Holding Start Date',
-                  date: _boughtDate,
-                  onTap: () => _selectDate(isBoughtDate: true),
-                  onClear: () => _clearDate(isBoughtDate: true),
-                ),
-                if (_isMetal) ...[
-                  const SizedBox(height: 12),
-                  _SelectionMenu<double>(
-                    key: const Key('asset_purity_field'),
-                    label: 'Purity',
-                    options: _availablePurityOptions,
-                    value: _selectedPurity,
-                    onChanged: (purity) {
-                      setState(() {
-                        _selectedPurity = purity;
-                        _purityError = null;
-                      });
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cancelButton = BrutalistButton(
+                        label: 'CANCEL',
+                        onPressed: () => Navigator.pop(context),
+                      );
+                      final title = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          KineticText(
+                            _isEditing ? 'EDIT ASSET' : 'ADD ASSET',
+                            style: AppTheme.displayStyle(colors).copyWith(
+                              fontSize: (constraints.maxWidth * 0.12)
+                                  .clamp(42, 82),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          KineticText(
+                            'ENTER VALUE LIKE IT MATTERS.',
+                            muted: true,
+                            style: AppTheme.labelStyle(colors),
+                          ),
+                        ],
+                      );
+                      if (constraints.maxWidth < 620) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            title,
+                            const SizedBox(height: 14),
+                            cancelButton,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(child: title),
+                          cancelButton,
+                        ],
+                      );
                     },
                   ),
-                  if (_purityError != null) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _purityError!,
-                        key: const Key('asset_purity_error'),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 12,
-                        ),
-                      ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        children: [
+                    _SelectionMenu<AssetType>(
+                      key: const Key('asset_type_field'),
+                      label: 'Asset Type',
+                      options: _availableTypeOptions,
+                      value: _selectedType,
+                      onChanged: _setType,
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    key: const Key('asset_bought_price_field'),
-                    controller: _boughtPriceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Bought Price ($_selectedCurrency)',
-                    ),
-                    validator: _validateBoughtPrice,
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    key: const Key('asset_is_sold_toggle'),
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('This asset has been sold'),
-                    subtitle: const Text(
-                      'Turn this on only when recording a completed sale.',
-                    ),
-                    value: _isSold,
-                    onChanged: _setSold,
-                  ),
-                  if (_isSold) ...[
-                    const SizedBox(height: 12),
-                    _DateField(
-                      label: 'Sold Date',
-                      date: _soldDate,
-                      onTap: () => _selectDate(isBoughtDate: false),
-                      onClear: () => _clearDate(isBoughtDate: false),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      key: const Key('asset_sold_price_field'),
-                      controller: _soldPriceController,
+                    const SizedBox(height: 18),
+                    KineticInput(
+                      fieldKey: const Key('asset_amount_field'),
+                      controller: _amountController,
+                      label: _isMetal ? 'Weight (grams)' : 'Amount',
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: InputDecoration(
-                        labelText: 'Sold Price ($_selectedCurrency)',
+                      hero: true,
+                      validator: (value) => _requiredPositiveNumber(
+                        value,
+                        _isMetal ? 'Weight' : 'Amount',
                       ),
-                      validator: _validateSoldPrice,
                     ),
-                  ],
-                  if (_dateError != null) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _dateError!,
-                        key: const Key('asset_date_error'),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 12,
+                    const SizedBox(height: 18),
+                    _SelectionMenu<String>(
+                      key: const Key('asset_currency_field'),
+                      label: _isMetal ? 'Price Currency' : 'Currency',
+                      options: _currencyOptions,
+                      value: _selectedCurrency,
+                      onChanged: (currency) {
+                        setState(() => _selectedCurrency = currency);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _SelectionMenu<AssetTag?>(
+                      key: const Key('asset_tag_field'),
+                      label: 'Tag',
+                      options: _tagOptions,
+                      value: _selectedTag,
+                      onChanged: (tag) {
+                        setState(() => _selectedTag = tag);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _DateField(
+                      label: 'Holding Start Date',
+                      date: _boughtDate,
+                      onTap: () => _selectDate(isBoughtDate: true),
+                      onClear: () => _clearDate(isBoughtDate: true),
+                    ),
+                    if (_isMetal) ...[
+                      const SizedBox(height: 18),
+                      _SelectionMenu<double>(
+                        key: const Key('asset_purity_field'),
+                        label: 'Purity',
+                        options: _availablePurityOptions,
+                        value: _selectedPurity,
+                        onChanged: (purity) {
+                          setState(() {
+                            _selectedPurity = purity;
+                            _purityError = null;
+                          });
+                        },
+                      ),
+                      if (_purityError != null) ...[
+                        const SizedBox(height: 8),
+                        KineticText(
+                          _purityError!,
+                          key: const Key('asset_purity_error'),
+                          style: AppTheme.bodyStyle(colors).copyWith(
+                            color: colors.loss,
+                            fontSize: 12,
+                          ),
+                          uppercase: false,
                         ),
+                      ],
+                      const SizedBox(height: 18),
+                      KineticInput(
+                        fieldKey: const Key('asset_bought_price_field'),
+                        controller: _boughtPriceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        label: 'Bought Price ($_selectedCurrency)',
+                        validator: _validateBoughtPrice,
+                      ),
+                      const SizedBox(height: 18),
+                      FilterBlock(
+                        key: const Key('asset_is_sold_toggle'),
+                        label: 'This asset has been sold',
+                        detail: 'Toggle only for a completed sale',
+                        selected: _isSold,
+                        onTap: () => _setSold(!_isSold),
+                      ),
+                      if (_isSold) ...[
+                        const SizedBox(height: 18),
+                        _DateField(
+                          label: 'Sold Date',
+                          date: _soldDate,
+                          onTap: () => _selectDate(isBoughtDate: false),
+                          onClear: () => _clearDate(isBoughtDate: false),
+                        ),
+                        const SizedBox(height: 18),
+                        KineticInput(
+                          fieldKey: const Key('asset_sold_price_field'),
+                          controller: _soldPriceController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          label: 'Sold Price ($_selectedCurrency)',
+                          validator: _validateSoldPrice,
+                        ),
+                      ],
+                      if (_dateError != null) ...[
+                        const SizedBox(height: 8),
+                        KineticText(
+                          _dateError!,
+                          key: const Key('asset_date_error'),
+                          style: AppTheme.bodyStyle(colors).copyWith(
+                            color: colors.loss,
+                            fontSize: 12,
+                          ),
+                          uppercase: false,
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 18),
+                    KineticInput(
+                      fieldKey: const Key('asset_notes_field'),
+                      controller: _notesController,
+                      label: 'Notes',
+                      minLines: 2,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 18),
+                        ],
                       ),
                     ),
-                  ],
-                ],
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('asset_notes_field'),
-                  controller: _notesController,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  minLines: 2,
-                  maxLines: 3,
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: colors.background,
+                    border: Border(
+                      top: BorderSide(color: colors.border, width: 2),
+                    ),
+                  ),
+                  child: BrutalistButton(
+                    key: const Key('asset_save_button'),
+                    label: _isEditing ? 'SAVE' : 'ADD',
+                    tone: BrutalistButtonTone.primary,
+                    expand: true,
+                    onPressed: _save,
+                  ),
                 ),
               ],
             ),
-          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          key: const Key('asset_save_button'),
-          onPressed: _save,
-          child: Text(_isEditing ? 'Save' : 'Add'),
-        ),
-      ],
     );
   }
 
@@ -510,7 +535,6 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
         value: AssetType.bankSavings,
         label: 'Bank Savings',
         detail: 'Existing',
-        icon: Icons.account_balance_outlined,
         key: Key('asset_type_bank_savings_existing'),
       ),
     ];
@@ -535,7 +559,6 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
         value: selectedPurity,
         label: '${_numberText(selectedPurity)}%',
         detail: 'Existing',
-        icon: Icons.history,
         key: const Key('asset_purity_existing'),
       ),
     ];
@@ -566,7 +589,6 @@ class _MenuOption<T> {
   const _MenuOption({
     required this.value,
     required this.label,
-    required this.icon,
     required this.key,
     this.detail,
   });
@@ -574,7 +596,6 @@ class _MenuOption<T> {
   final T value;
   final String label;
   final String? detail;
-  final IconData icon;
   final Key key;
 }
 
@@ -596,22 +617,20 @@ class _SelectionMenu<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.kinetic;
     final hasDetails = options.any((option) => option.detail != null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
+        KineticText(label, style: AppTheme.labelStyle(colors)),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
             const gap = 8.0;
+            final availableColumns = constraints.maxWidth < 460 ? 2 : columns;
             final itemWidth =
-                (constraints.maxWidth - (gap * (columns - 1))) / columns;
+                (constraints.maxWidth - (gap * (availableColumns - 1))) /
+                availableColumns;
             return Wrap(
               spacing: gap,
               runSpacing: gap,
@@ -651,57 +670,50 @@ class _SelectionMenuItem<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    final colors = context.kinetic;
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.98,
+      child: AnimatedContainer(
         key: option.key,
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: showDetail ? 88 : 72,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: selected
-                ? colors.primary.withValues(alpha: 0.14)
-                : colors.surfaceContainerHighest.withValues(alpha: 0.35),
-            border: Border.all(
-              color: selected ? colors.primary : colors.outlineVariant,
-              width: selected ? 1.5 : 1,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppTheme.fast,
+        constraints: BoxConstraints(minHeight: showDetail ? 82 : 66),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.background,
+          borderRadius: BorderRadius.zero,
+          border: Border.all(
+            color: selected ? colors.accent : colors.border,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            KineticText(
+              option.label,
+              align: TextAlign.center,
+              style: AppTheme.labelStyle(colors).copyWith(
+                color: selected ? colors.accentForeground : colors.foreground,
+                letterSpacing: -0.1,
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                option.icon,
-                size: 22,
-                color: selected ? colors.primary : colors.onSurfaceVariant,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                option.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 13,
+            if (showDetail) ...[
+              const SizedBox(height: 5),
+              KineticText(
+                option.detail ?? '',
+                align: TextAlign.center,
+                style: AppTheme.bodyStyle(colors).copyWith(
+                  color: selected
+                      ? colors.accentForeground
+                      : colors.mutedForeground,
+                  fontSize: 12,
                 ),
               ),
-              if (showDetail)
-                Text(
-                  option.detail ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -723,22 +735,52 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(labelText: label),
-      child: Row(
-        children: [
-          Expanded(child: Text(date == null ? 'Not set' : _formatDate(date!))),
-          TextButton(
-            onPressed: onTap,
-            child: Text(date == null ? 'Select' : 'Change'),
-          ),
-          if (date != null)
-            IconButton(
-              tooltip: 'Clear date',
-              onPressed: onClear,
-              icon: const Icon(Icons.close),
-            ),
-        ],
+    final colors = context.kinetic;
+    return LedgerFrame(
+      padding: const EdgeInsets.all(12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              KineticText(label, style: AppTheme.labelStyle(colors)),
+              const SizedBox(height: 8),
+              KineticText(
+                date == null ? 'NOT SET' : _formatDate(date!),
+                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 18),
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              BrutalistButton(
+                label: date == null ? 'SELECT' : 'CHANGE',
+                tone: BrutalistButtonTone.primary,
+                onPressed: onTap,
+              ),
+              if (date != null)
+                BrutalistButton(label: 'CLEAR', onPressed: onClear),
+            ],
+          );
+          if (constraints.maxWidth < 520) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                labelBlock,
+                const SizedBox(height: 12),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: labelBlock),
+              actions,
+            ],
+          );
+        },
       ),
     );
   }
