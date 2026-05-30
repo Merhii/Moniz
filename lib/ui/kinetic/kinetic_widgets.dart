@@ -62,10 +62,9 @@ class KineticNumber extends StatelessWidget {
       textAlign: align,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
-      style: AppTheme.numberStyle(colors).copyWith(
-        fontSize: fontSize ?? 64,
-        color: color ?? colors.foreground,
-      ),
+      style: AppTheme.numberStyle(
+        colors,
+      ).copyWith(fontSize: fontSize ?? 64, color: color ?? colors.foreground),
     );
   }
 }
@@ -95,9 +94,10 @@ class _PressableScaleState extends State<PressableScale>
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: AppTheme.fast);
-    _scale = Tween<double>(begin: 1, end: widget.scale).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _scale = Tween<double>(
+      begin: 1,
+      end: widget.scale,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -313,19 +313,17 @@ class FilterBlock extends StatelessWidget {
           children: [
             KineticText(
               label,
-              style: AppTheme.labelStyle(colors).copyWith(
-                color: foreground,
-                letterSpacing: -0.1,
-              ),
+              style: AppTheme.labelStyle(
+                colors,
+              ).copyWith(color: foreground, letterSpacing: -0.1),
             ),
             if (detail != null) ...[
               const SizedBox(height: 5),
               KineticText(
                 detail!,
-                style: AppTheme.bodyStyle(colors).copyWith(
-                  color: foreground,
-                  fontSize: 12,
-                ),
+                style: AppTheme.bodyStyle(
+                  colors,
+                ).copyWith(color: foreground, fontSize: 12),
               ),
             ],
           ],
@@ -336,11 +334,7 @@ class FilterBlock extends StatelessWidget {
 }
 
 class TickerTape extends StatefulWidget {
-  const TickerTape({
-    super.key,
-    required this.items,
-    this.height = 44,
-  });
+  const TickerTape({super.key, required this.items, this.height = 44});
 
   final List<String> items;
   final double height;
@@ -448,10 +442,9 @@ class StickyDateHeader extends SliverPersistentHeaderDelegate {
       ),
       child: KineticText(
         label,
-        style: AppTheme.labelStyle(colors).copyWith(
-          color: colors.accentForeground,
-          fontSize: 13,
-        ),
+        style: AppTheme.labelStyle(
+          colors,
+        ).copyWith(color: colors.accentForeground, fontSize: 13),
       ),
     );
   }
@@ -487,10 +480,18 @@ class KineticInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
+    final isMultiline = maxLines != 1;
     return TextFormField(
       key: fieldKey,
       controller: controller,
       keyboardType: keyboardType,
+      textInputAction: isMultiline
+          ? TextInputAction.newline
+          : TextInputAction.done,
+      onFieldSubmitted: isMultiline
+          ? null
+          : (_) => FocusScope.of(context).unfocus(),
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
       validator: validator,
       minLines: minLines,
       maxLines: maxLines,

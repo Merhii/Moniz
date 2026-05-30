@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.example.moniz"
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = "25.2.9519653"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
