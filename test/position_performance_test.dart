@@ -31,6 +31,27 @@ void main() {
     expect(summary.currentWorthFor(AssetType.gold), 275);
     expect(summary.paidFor(AssetType.cash), 100);
   });
+
+  test('tracks AED cash in selected graph currency', () {
+    final summary = PositionPerformance.calculate(
+      const [
+        Asset(
+          id: 'aed',
+          type: AssetType.cash,
+          amount: 367.25,
+          unit: 'AED',
+          currency: 'AED',
+        ),
+      ],
+      null,
+      'AED',
+    );
+
+    expect(summary.currency, 'AED');
+    expect(summary.currentWorthFor(AssetType.cash), 367.25);
+    expect(summary.paidFor(AssetType.cash), 367.25);
+    expect(summary.hasComparablePositions, isTrue);
+  });
 }
 
 MetalPriceSnapshot _prices() {

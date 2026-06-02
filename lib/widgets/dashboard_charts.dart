@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/asset.dart';
 import '../models/portfolio_snapshot.dart';
+import '../services/currency_converter.dart';
 import '../services/position_performance.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
@@ -13,15 +14,17 @@ class PortfolioTrendCard extends StatelessWidget {
     super.key,
     required this.snapshots,
     required this.performance,
+    this.displayCurrency = CurrencyConverter.defaultCurrency,
   });
 
   final List<PortfolioSnapshot> snapshots;
   final PositionPerformanceSummary performance;
+  final String displayCurrency;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    final points = _historyPointsFor(snapshots, performance);
+    final points = _historyPointsFor(snapshots, performance, displayCurrency);
     final series = _trendSeriesFor(points, performance, colors);
 
     return LedgerFrame(
@@ -48,7 +51,12 @@ class PortfolioTrendCard extends StatelessWidget {
                 height: 238,
                 width: double.infinity,
                 child: CustomPaint(
-                  painter: _TrendPainter(points, series, colors),
+                  painter: _TrendPainter(
+                    points,
+                    series,
+                    colors,
+                    displayCurrency,
+                  ),
                 ),
               ),
             ),
@@ -63,6 +71,7 @@ class PortfolioTrendCard extends StatelessWidget {
                       color: item.color,
                       paidUsd: item.paidUsd,
                       currentUsd: item.currentUsd,
+                      currency: displayCurrency,
                     ),
                   )
                   .toList(),
@@ -77,6 +86,7 @@ class PortfolioTrendCard extends StatelessWidget {
 List<_TrendPoint> _historyPointsFor(
   List<PortfolioSnapshot> snapshots,
   PositionPerformanceSummary performance,
+  String displayCurrency,
 ) {
   final sortedSnapshots = [...snapshots]
     ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
@@ -84,9 +94,12 @@ List<_TrendPoint> _historyPointsFor(
       .map(
         (snapshot) => _TrendPoint(
           label: _shortDate(snapshot.capturedAt),
-          cashUsd: snapshot.cashUsd + snapshot.bankSavingsUsd,
-          goldUsd: snapshot.goldUsd,
-          silverUsd: snapshot.silverUsd,
+          cashUsd: _fromUsd(
+            snapshot.cashUsd + snapshot.bankSavingsUsd,
+            displayCurrency,
+          ),
+          goldUsd: _fromUsd(snapshot.goldUsd, displayCurrency),
+          silverUsd: _fromUsd(snapshot.silverUsd, displayCurrency),
         ),
       )
       .toList();
@@ -123,6 +136,10 @@ List<_TrendPoint> _historyPointsFor(
     );
   }
   return points;
+}
+
+double _fromUsd(double value, String displayCurrency) {
+  return CurrencyConverter.convertFromUsd(value, displayCurrency) ?? 0;
 }
 
 List<_TrendSeries> _trendSeriesFor(
@@ -163,7 +180,7 @@ List<_TrendSeries> _trendSeriesFor(
     series.add(
       _TrendSeries(
         label: 'Silver',
-        color: Color(0xFFE4E4E7),
+        color: AppTheme.cream,
         valueOf: _silverValue,
         paidUsd: performance.paidFor(AssetType.silver),
         currentUsd: performance.currentWorthFor(AssetType.silver),
@@ -225,12 +242,14 @@ class _SeriesLegend extends StatelessWidget {
     required this.color,
     required this.paidUsd,
     required this.currentUsd,
+    required this.currency,
   });
 
   final String label;
   final Color color;
   final double paidUsd;
   final double currentUsd;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
@@ -251,8 +270,8 @@ class _SeriesLegend extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 KineticText(
-                  'Bought ${_compactMoney(paidUsd)} / '
-                  'Now ${_compactMoney(currentUsd)}',
+                  'Bought ${_compactMoney(paidUsd, currency)} / '
+                  'Now ${_compactMoney(currentUsd, currency)}',
                   muted: true,
                   style: AppTheme.bodyStyle(colors).copyWith(fontSize: 11),
                 ),
@@ -290,20 +309,21 @@ class ProfitLossCard extends StatelessWidget {
           const SizedBox(height: 16),
           if (!summary.hasComparablePositions)
             const KineticText(
-              'ADD BOUGHT PRICES TO ACTIVE USD HOLDINGS TO SEE THIS NUMBER.',
+              'ADD BOUGHT PRICES TO ACTIVE HOLDINGS TO SEE THIS NUMBER.',
               muted: true,
             )
           else ...[
             KineticNumber(
-              '${isGain ? '+' : '-'}\$${change.abs().toStringAsFixed(2)}',
+              '${isGain ? '+' : '-'}'
+              '${_formatMoney(change.abs(), summary.currency)}',
               key: const Key('paid_vs_now_amount'),
               fontSize: 58,
               color: isGain ? colors.profit : colors.loss,
             ),
             const SizedBox(height: 10),
             KineticText(
-              'PAID ${_formatMoney(summary.paidUsd)} / '
-              'NOW ${_formatMoney(summary.currentUsd)}',
+              'PAID ${_formatMoney(summary.paidUsd, summary.currency)} / '
+              'NOW ${_formatMoney(summary.currentUsd, summary.currency)}',
               muted: true,
               style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
             ),
@@ -332,25 +352,26 @@ String _performanceNote(PositionPerformanceSummary summary) {
     if (summary.unpricedAssetCount > 0)
       '${summary.unpricedAssetCount} metal holding needs live prices',
     if (summary.unsupportedCurrencyCount > 0)
-      '${summary.unsupportedCurrencyCount} non-USD holding is not compared',
+      '${summary.unsupportedCurrencyCount} holding uses an unsupported currency',
   ];
   return notes.join('. ');
 }
 
-String _formatMoney(double value) => '\$${value.toStringAsFixed(2)}';
+String _formatMoney(double value, String currency) {
+  return CurrencyConverter.formatMoney(value, currency);
+}
 
-String _compactMoney(double value) {
-  if (value >= 1000000) return '\$${(value / 1000000).toStringAsFixed(1)}m';
-  if (value >= 1000) return '\$${(value / 1000).toStringAsFixed(1)}k';
-  return '\$${value.toStringAsFixed(0)}';
+String _compactMoney(double value, String currency) {
+  return CurrencyConverter.compactMoney(value, currency);
 }
 
 class _TrendPainter extends CustomPainter {
-  const _TrendPainter(this.points, this.series, this.colors);
+  const _TrendPainter(this.points, this.series, this.colors, this.currency);
 
   final List<_TrendPoint> points;
   final List<_TrendSeries> series;
   final KineticColors colors;
+  final String currency;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -461,14 +482,14 @@ class _TrendPainter extends CustomPainter {
   }
 
   String _compactCurrency(double value) {
-    if (value >= 1000) return '\$${(value / 1000).toStringAsFixed(1)}k';
-    return '\$${value.toStringAsFixed(0)}';
+    return CurrencyConverter.compactMoney(value, currency);
   }
 
   @override
   bool shouldRepaint(_TrendPainter oldDelegate) {
     return oldDelegate.points != points ||
         oldDelegate.series != series ||
-        oldDelegate.colors != colors;
+        oldDelegate.colors != colors ||
+        oldDelegate.currency != currency;
   }
 }

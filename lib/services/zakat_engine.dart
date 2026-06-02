@@ -1,6 +1,7 @@
 import '../models/asset.dart';
 import '../models/metal_price_snapshot.dart';
 import '../models/zakat_settings.dart';
+import 'currency_converter.dart';
 
 class ZakatAssetAssessment {
   const ZakatAssetAssessment({
@@ -178,7 +179,7 @@ class ZakatEngine {
 
   static double? _assetValueUsd(Asset asset, MetalPriceSnapshot prices) {
     if (!asset.type.isMetal) {
-      final rate = prices.usdRateFor(asset.currency);
+      final rate = CurrencyConverter.usdRateFor(asset.currency, prices: prices);
       return rate == null ? null : asset.amount * rate;
     }
     final pricePerGram = asset.type == AssetType.gold

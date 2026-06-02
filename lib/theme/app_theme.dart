@@ -58,8 +58,11 @@ class KineticColors extends ThemeExtension<KineticColors> {
       muted: Color.lerp(muted, other.muted, t)!,
       mutedForeground: Color.lerp(mutedForeground, other.mutedForeground, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
-      accentForeground:
-          Color.lerp(accentForeground, other.accentForeground, t)!,
+      accentForeground: Color.lerp(
+        accentForeground,
+        other.accentForeground,
+        t,
+      )!,
       border: Color.lerp(border, other.border, t)!,
       profit: Color.lerp(profit, other.profit, t)!,
       loss: Color.lerp(loss, other.loss, t)!,
@@ -70,35 +73,44 @@ class KineticColors extends ThemeExtension<KineticColors> {
 class AppTheme {
   AppTheme._();
 
+  static const navy = Color(0xFF0A2447);
+  static const gold = Color(0xFFF1AB3C);
+  static const lightGold = Color(0xFFF7D398);
+  static const white = Color(0xFFFCFCFC);
+  static const cream = Color(0xFFE7E3DB);
+  static const deepShadow = Color(0xFF02163B);
+
   static const fontFamily = 'SpaceGrotesk';
   static const ledgerFontFamily = 'Inter';
-  static const radius = BorderRadius.zero;
-  static const thickBorderWidth = 2.0;
+  static const radius = BorderRadius.all(Radius.circular(24));
+  static const tightRadius = BorderRadius.all(Radius.circular(16));
+  static const pillRadius = BorderRadius.all(Radius.circular(999));
+  static const thickBorderWidth = 1.4;
   static const hairlineWidth = 1.0;
-  static const fast = Duration(milliseconds: 90);
+  static const fast = Duration(milliseconds: 150);
 
   static const darkColors = KineticColors(
-    background: Color(0xFF09090B),
-    foreground: Color(0xFFFAFAFA),
-    muted: Color(0xFF27272A),
-    mutedForeground: Color(0xFFA1A1AA),
-    accent: Color(0xFFDFE104),
-    accentForeground: Color(0xFF000000),
-    border: Color(0xFF3F3F46),
-    profit: Color(0xFF00FF66),
-    loss: Color(0xFFFF0033),
+    background: navy,
+    foreground: white,
+    muted: Color(0xFF102D55),
+    mutedForeground: cream,
+    accent: gold,
+    accentForeground: deepShadow,
+    border: Color(0x99F7D398),
+    profit: lightGold,
+    loss: cream,
   );
 
   static const lightColors = KineticColors(
-    background: Color(0xFFFAFAFA),
-    foreground: Color(0xFF09090B),
-    muted: Color(0xFFE4E4E7),
-    mutedForeground: Color(0xFF52525B),
-    accent: Color(0xFFDFE104),
-    accentForeground: Color(0xFF000000),
-    border: Color(0xFFD4D4D8),
-    profit: Color(0xFF00B84D),
-    loss: Color(0xFFFF0033),
+    background: white,
+    foreground: deepShadow,
+    muted: cream,
+    mutedForeground: navy,
+    accent: gold,
+    accentForeground: deepShadow,
+    border: lightGold,
+    profit: navy,
+    loss: deepShadow,
   );
 
   static ThemeData get dark => _build(Brightness.dark, darkColors);
@@ -113,72 +125,76 @@ class AppTheme {
       fontFamily: fontFamily,
       scaffoldBackgroundColor: colors.background,
       canvasColor: colors.background,
-      cardColor: colors.background,
+      cardColor: colors.muted,
       dividerColor: colors.border,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
-      hoverColor: colors.accent.withValues(alpha: 0.08),
+      hoverColor: colors.accent.withValues(alpha: 0.12),
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: colors.accent,
         onPrimary: colors.accentForeground,
-        secondary: colors.foreground,
-        onSecondary: colors.background,
+        secondary: lightGold,
+        onSecondary: deepShadow,
         error: colors.loss,
         onError: colors.accentForeground,
         surface: colors.background,
         onSurface: colors.foreground,
       ),
-      extensions: const <ThemeExtension<dynamic>>[
-        darkColors,
-      ],
+      extensions: const <ThemeExtension<dynamic>>[darkColors],
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: colors.foreground,
         centerTitle: false,
         titleTextStyle: textTheme.headlineSmall,
-        shape: Border(bottom: BorderSide(color: colors.border, width: 2)),
+        shape: Border(bottom: BorderSide(color: colors.border, width: 1)),
       ),
       dialogTheme: DialogThemeData(
-        elevation: 0,
-        backgroundColor: colors.background,
+        elevation: 18,
+        backgroundColor: colors.muted,
         shape: const RoundedRectangleBorder(borderRadius: radius),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colors.background,
+        color: colors.muted,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: radius,
-          side: BorderSide(color: colors.border, width: 2),
+          side: BorderSide(color: colors.border, width: thickBorderWidth),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         elevation: 0,
         backgroundColor: colors.accent,
-        contentTextStyle: labelStyle(colors).copyWith(
-          color: colors.accentForeground,
-        ),
+        contentTextStyle: labelStyle(
+          colors,
+        ).copyWith(color: colors.accentForeground),
         shape: const RoundedRectangleBorder(borderRadius: radius),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
-        border: UnderlineInputBorder(
-          borderSide: BorderSide(color: colors.border, width: 2),
+        filled: true,
+        fillColor: colors.background.withValues(alpha: isDark ? 0.58 : 0.72),
+        border: OutlineInputBorder(
+          borderRadius: tightRadius,
+          borderSide: BorderSide(color: colors.border, width: thickBorderWidth),
         ),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: colors.border, width: 2),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: tightRadius,
+          borderSide: BorderSide(color: colors.border, width: thickBorderWidth),
         ),
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: colors.accent, width: 3),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: tightRadius,
+          borderSide: BorderSide(color: colors.accent, width: 2),
         ),
-        errorBorder: UnderlineInputBorder(
+        errorBorder: OutlineInputBorder(
+          borderRadius: tightRadius,
           borderSide: BorderSide(color: colors.loss, width: 2),
         ),
         labelStyle: labelStyle(colors),
+        floatingLabelStyle: labelStyle(colors).copyWith(color: colors.accent),
         errorStyle: TextStyle(
           color: colors.loss,
           fontFamily: ledgerFontFamily,
@@ -188,20 +204,23 @@ class AppTheme {
       ),
       datePickerTheme: DatePickerThemeData(
         elevation: 0,
-        backgroundColor: colors.background,
+        backgroundColor: colors.muted,
         headerBackgroundColor: colors.accent,
         headerForegroundColor: colors.accentForeground,
         shape: RoundedRectangleBorder(
           borderRadius: radius,
-          side: BorderSide(color: colors.border, width: 2),
+          side: BorderSide(color: colors.border, width: thickBorderWidth),
         ),
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: bodyStyle(colors),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(color: colors.border, width: 2),
+            borderRadius: tightRadius,
+            borderSide: BorderSide(
+              color: colors.border,
+              width: thickBorderWidth,
+            ),
           ),
         ),
       ),
@@ -235,17 +254,13 @@ class AppTheme {
             RoundedRectangleBorder(borderRadius: radius),
           ),
           side: WidgetStatePropertyAll(
-            BorderSide(color: colors.border, width: 2),
+            BorderSide(color: colors.border, width: thickBorderWidth),
           ),
           foregroundColor: WidgetStatePropertyAll(colors.foreground),
           textStyle: WidgetStatePropertyAll(labelStyle(colors)),
         ),
       ),
-    ).copyWith(
-      extensions: <ThemeExtension<dynamic>>[
-        colors,
-      ],
-    );
+    ).copyWith(extensions: <ThemeExtension<dynamic>>[colors]);
   }
 
   static TextTheme _textTheme(KineticColors colors) {
@@ -271,8 +286,8 @@ class AppTheme {
       color: colors.foreground,
       fontFamily: fontFamily,
       fontWeight: FontWeight.w800,
-      height: 0.9,
-      letterSpacing: -1.5,
+      height: 0.95,
+      letterSpacing: -1.1,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
   }
@@ -290,8 +305,8 @@ class AppTheme {
       color: colors.foreground,
       fontFamily: fontFamily,
       fontWeight: FontWeight.w800,
-      height: 0.95,
-      letterSpacing: -0.8,
+      height: 1.02,
+      letterSpacing: -0.55,
     );
   }
 
@@ -300,8 +315,8 @@ class AppTheme {
       color: colors.foreground,
       fontFamily: ledgerFontFamily,
       fontWeight: FontWeight.w500,
-      height: 1.1,
-      letterSpacing: -0.35,
+      height: 1.22,
+      letterSpacing: -0.18,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
   }
@@ -313,7 +328,7 @@ class AppTheme {
       fontWeight: FontWeight.w800,
       fontSize: 12,
       height: 1,
-      letterSpacing: 1.4,
+      letterSpacing: 1.05,
     );
   }
 
@@ -326,6 +341,7 @@ class AppTheme {
       color: color ?? colors.background,
       borderRadius: radius,
       border: Border.all(color: colors.border, width: width),
+      boxShadow: softShadow(colors),
     );
   }
 
@@ -334,7 +350,68 @@ class AppTheme {
       color: colors.accent,
       borderRadius: radius,
       border: Border.all(color: colors.accent, width: thickBorderWidth),
+      boxShadow: glowShadow(colors),
     );
+  }
+
+  static BoxDecoration brandBackground(KineticColors colors) {
+    final isLight = colors.background == white;
+    return BoxDecoration(
+      color: colors.background,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: isLight
+            ? [white, cream, lightGold.withValues(alpha: 0.84)]
+            : [
+                colors.background,
+                deepShadow,
+                colors.background.withValues(alpha: 0.96),
+              ],
+      ),
+    );
+  }
+
+  static BoxDecoration heroSurface(KineticColors colors) {
+    return BoxDecoration(
+      color: colors.background,
+      borderRadius: radius,
+      border: Border.all(
+        color: colors.border.withValues(alpha: 0.9),
+        width: thickBorderWidth,
+      ),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [colors.background, deepShadow, colors.background],
+      ),
+      boxShadow: glowShadow(colors),
+    );
+  }
+
+  static List<BoxShadow> softShadow(KineticColors colors) {
+    return [
+      BoxShadow(
+        color: deepShadow.withValues(alpha: 0.34),
+        offset: const Offset(0, 14),
+        blurRadius: 28,
+      ),
+    ];
+  }
+
+  static List<BoxShadow> glowShadow(KineticColors colors) {
+    return [
+      BoxShadow(
+        color: colors.accent.withValues(alpha: 0.20),
+        offset: const Offset(0, 18),
+        blurRadius: 34,
+      ),
+      BoxShadow(
+        color: deepShadow.withValues(alpha: 0.42),
+        offset: const Offset(0, 12),
+        blurRadius: 24,
+      ),
+    ];
   }
 }
 

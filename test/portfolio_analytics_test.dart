@@ -31,13 +31,34 @@ void main() {
     ], _prices());
 
     expect(analytics.categoryValuesUsd[AssetType.cash], 100);
-    expect(analytics.categoryValuesUsd[AssetType.bankSavings], 0);
+    expect(analytics.categoryValuesUsd[AssetType.bankSavings], closeTo(108, 0.01));
     expect(analytics.categoryValuesUsd[AssetType.gold], 400);
-    expect(analytics.totalUsd, 500);
+    expect(analytics.totalUsd, closeTo(608, 0.01));
     expect(analytics.activeAssetCount, 3);
     expect(analytics.soldAssetCount, 1);
-    expect(analytics.unvaluedAssetCount, 1);
-    expect(analytics.percentageFor(AssetType.gold), closeTo(400 / 500, 0.001));
+    expect(analytics.unvaluedAssetCount, 0);
+    expect(analytics.percentageFor(AssetType.gold), closeTo(400 / 608, 0.001));
+  });
+
+  test('converts AED cash into selected graph currency', () {
+    final analytics = PortfolioAnalytics.calculate(
+      const [
+        Asset(
+          id: 'aed-cash',
+          type: AssetType.cash,
+          amount: 367.25,
+          unit: 'AED',
+          currency: 'AED',
+        ),
+      ],
+      null,
+      'AED',
+    );
+
+    expect(analytics.currency, 'AED');
+    expect(analytics.categoryValuesUsd[AssetType.cash], 367.25);
+    expect(analytics.totalUsd, 367.25);
+    expect(analytics.unvaluedAssetCount, 0);
   });
 
   test('tracks active assets that cannot yet be valued', () {

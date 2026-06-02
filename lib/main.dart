@@ -7,11 +7,13 @@ import 'models/metal_price_snapshot.dart';
 import 'models/portfolio_snapshot.dart';
 import 'models/zakat_settings.dart';
 import 'providers/asset_provider.dart';
+import 'providers/display_currency_provider.dart';
 import 'providers/metal_price_provider.dart';
 import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
+import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
 import 'services/portfolio_analytics.dart';
 import 'services/transaction_history_service.dart';
@@ -93,19 +95,18 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
       const ZakatPage(),
       const SettingsPage(),
     ];
+    final colors = context.kinetic;
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _KineticNav(
-              selectedIndex: _selectedPage,
-              onSelected: _setPage,
-            ),
-            Expanded(
-              child: IndexedStack(index: _selectedPage, children: pages),
-            ),
-          ],
+      body: DecoratedBox(
+        decoration: AppTheme.brandBackground(colors),
+        child: SafeArea(
+          bottom: false,
+          child: IndexedStack(index: _selectedPage, children: pages),
         ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: _KineticNav(selectedIndex: _selectedPage, onSelected: _setPage),
       ),
     );
   }
@@ -116,10 +117,7 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
 }
 
 class _KineticNav extends StatelessWidget {
-  const _KineticNav({
-    required this.selectedIndex,
-    required this.onSelected,
-  });
+  const _KineticNav({required this.selectedIndex, required this.onSelected});
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -135,14 +133,19 @@ class _KineticNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
+        color: colors.background.withValues(alpha: 0.72),
         border: Border(
-          bottom: BorderSide(color: colors.border, width: 2),
+          top: BorderSide(
+            color: colors.border,
+            width: AppTheme.thickBorderWidth,
+          ),
         ),
       ),
       child: Row(
         children: [
-          for (var index = 0; index < _tabs.length; index++)
+          for (var index = 0; index < _tabs.length; index++) ...[
             Expanded(
               child: PressableScale(
                 key: _tabs[index].$2,
@@ -152,16 +155,21 @@ class _KineticNav extends StatelessWidget {
                   duration: MediaQuery.disableAnimationsOf(context)
                       ? Duration.zero
                       : AppTheme.fast,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
                     color: selectedIndex == index
                         ? colors.accent
-                        : colors.background,
-                    border: Border(
-                      right: index == _tabs.length - 1
-                          ? BorderSide.none
-                          : BorderSide(color: colors.border, width: 2),
+                        : colors.muted.withValues(alpha: 0.7),
+                    borderRadius: AppTheme.pillRadius,
+                    border: Border.all(
+                      color: selectedIndex == index
+                          ? colors.accent
+                          : colors.border.withValues(alpha: 0.74),
+                      width: AppTheme.thickBorderWidth,
                     ),
+                    boxShadow: selectedIndex == index
+                        ? AppTheme.glowShadow(colors)
+                        : null,
                   ),
                   child: KineticText(
                     _tabs[index].$1,
@@ -177,8 +185,26 @@ class _KineticNav extends StatelessWidget {
                 ),
               ),
             ),
+            if (index != _tabs.length - 1) const SizedBox(width: 8),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
@@ -198,6 +224,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final assets = ref.watch(assetProvider);
     final filteredAssets = _filter.apply(assets);
     final metalPriceState = ref.watch(metalPriceProvider);
+    final displayCurrency = ref.watch(displayCurrencyProvider);
     final zakatSettings = ref.watch(zakatProvider);
     final zakatResult = ZakatEngine.calculate(
       assets: assets,
@@ -206,32 +233,43 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       payments: ref.read(zakatProvider.notifier).payments,
       today: DateTime.now(),
     );
-    final totals = WealthCalculator.calculateUsd(
+    final totals = WealthCalculator.calculate(
       filteredAssets,
       metalPriceState.snapshot,
+      displayCurrency,
     );
     final analytics = PortfolioAnalytics.calculate(
       filteredAssets,
       metalPriceState.snapshot,
+      displayCurrency,
     );
-    final completeAnalytics = PortfolioAnalytics.calculate(
+    final completeAnalyticsUsd = PortfolioAnalytics.calculateUsd(
       assets,
       metalPriceState.snapshot,
     );
     final performance = PositionPerformance.calculate(
       filteredAssets,
       metalPriceState.snapshot,
+      displayCurrency,
     );
     final completePerformance = PositionPerformance.calculate(
       assets,
       metalPriceState.snapshot,
+      displayCurrency,
     );
     final snapshots = ref.watch(portfolioSnapshotProvider);
+    final displayZakat =
+        CurrencyConverter.convertFromUsd(
+          zakatResult.amountDueUsd,
+          displayCurrency,
+          prices: metalPriceState.snapshot,
+        ) ??
+        zakatResult.amountDueUsd;
     final summaryNote = [
       if (totals.hasUnpricedMetals)
         'Refresh metal prices in SYSTEM to include metal holdings.',
       if (totals.hasUnsupportedCurrencies)
-        'Non-USD cash holdings are excluded until FX conversion is added.',
+        'Some holdings use unsupported currencies and are excluded.',
     ].join(' ');
 
     return CustomScrollView(
@@ -239,16 +277,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         SliverToBoxAdapter(
           child: _WealthHero(
             wealthLabel: _filter.isActive ? 'Filtered Wealth' : 'Total Wealth',
-            totalWealth: totals.totalUsd,
-            zakat: zakatResult.amountDueUsd,
+            totalWealth: totals.totalValue,
+            zakat: displayZakat,
+            currency: totals.currency,
             note: summaryNote.isEmpty ? null : summaryNote,
           ),
         ),
         SliverToBoxAdapter(
           child: TickerTape(
             items: [
-              'NET ${_formatMoney(totals.totalUsd)}',
-              'ZAKAT ${_formatMoney(zakatResult.amountDueUsd)}',
+              'NET ${_formatMoney(totals.totalValue, currency: totals.currency)}',
+              'ZAKAT ${_formatMoney(displayZakat, currency: totals.currency)}',
               '${filteredAssets.length}/${assets.length} HOLDINGS',
               metalPriceState.snapshot == null
                   ? 'METALS UNPRICED'
@@ -267,7 +306,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 onTagSelected: _selectTag,
                 onSelectFromDate: () => _selectDate(isStart: true),
                 onSelectToDate: () => _selectDate(isStart: false),
-                onClear: () => setState(() => _filter = const DashboardFilter()),
+                onClear: () =>
+                    setState(() => _filter = const DashboardFilter()),
               ),
               const SizedBox(height: 14),
               KineticText(
@@ -280,16 +320,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               const SizedBox(height: 14),
               PortfolioInsightsCard(
                 analytics: analytics,
-                snapshotAnalytics: completeAnalytics,
+                snapshotAnalytics: completeAnalyticsUsd,
                 isFiltered: _filter.isActive,
-                onOpenHistory: () => Navigator.of(context).push(
-                  _kineticRoute<void>(const TransactionHistoryScreen()),
+                onOpenHistory: () => Navigator.of(context).push<void>(
+                  PageRouteBuilder<void>(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, _, _) => const TransactionHistoryScreen(),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
               PortfolioTrendCard(
                 snapshots: snapshots,
                 performance: completePerformance,
+                displayCurrency: displayCurrency,
               ),
               const SizedBox(height: 14),
               ProfitLossCard(summary: performance),
@@ -348,12 +393,14 @@ class _WealthHero extends StatelessWidget {
     required this.wealthLabel,
     required this.totalWealth,
     required this.zakat,
+    required this.currency,
     this.note,
   });
 
   final String wealthLabel;
   final double totalWealth;
   final double zakat;
+  final String currency;
   final String? note;
 
   @override
@@ -362,55 +409,105 @@ class _WealthHero extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final heroSize = (constraints.maxWidth * 0.15).clamp(64.0, 120.0);
-        return Container(
-          constraints: const BoxConstraints(minHeight: 300),
-          padding: const EdgeInsets.fromLTRB(18, 28, 18, 22),
-          decoration: BoxDecoration(
-            color: colors.background,
-            border: Border(
-              bottom: BorderSide(color: colors.border, width: 2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              KineticText(
-                'WEALTH / LIVE POSITION',
-                style: AppTheme.labelStyle(colors),
-              ),
-              const SizedBox(height: 18),
-              KineticText(
-                wealthLabel,
-                style: AppTheme.displayStyle(colors).copyWith(fontSize: 42),
-              ),
-              const SizedBox(height: 6),
-              KineticNumber(
-                _formatMoney(totalWealth),
-                key: const Key('wealth_hero_total'),
-                fontSize: heroSize,
-              ),
-              const SizedBox(height: 16),
-              BrutalistGrid(
-                minTileWidth: 210,
-                children: [
-                  MetricBlock(
-                    label: 'Zakat due',
-                    value: _formatMoney(zakat),
-                    valueColor: colors.profit,
-                    detail: 'ALL HOLDINGS',
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 300),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+            decoration: AppTheme.heroSurface(colors),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -54,
+                  top: -72,
+                  child: _GlowOrb(
+                    size: 178,
+                    color: colors.accent.withValues(alpha: 0.18),
                   ),
-                ],
-              ),
-              if (note != null) ...[
-                const SizedBox(height: 14),
-                KineticText(
-                  note!,
-                  muted: true,
-                  uppercase: false,
-                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+                ),
+                Positioned(
+                  right: 54,
+                  bottom: -88,
+                  child: _GlowOrb(
+                    size: 154,
+                    color: AppTheme.lightGold.withValues(alpha: 0.10),
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        KineticText(
+                          'WEALTH / LIVE POSITION',
+                          style: AppTheme.labelStyle(colors),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    KineticText(
+                      wealthLabel,
+                      style: AppTheme.displayStyle(
+                        colors,
+                      ).copyWith(fontSize: 42, color: colors.foreground),
+                    ),
+                    const SizedBox(height: 6),
+                    KineticNumber(
+                      _formatMoney(totalWealth, currency: currency),
+                      key: const Key('wealth_hero_total'),
+                      fontSize: heroSize,
+                      color: colors.accent,
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton(
+                          key: const Key('open_transaction_history'),
+                          onPressed: () {
+                            Navigator.of(context).push<void>(
+                              PageRouteBuilder<void>(
+                                transitionDuration: Duration.zero,
+                                reverseTransitionDuration: Duration.zero,
+                                pageBuilder: (_, _, _) =>
+                                    const TransactionHistoryScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text('HISTORY'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    BrutalistGrid(
+                      minTileWidth: 210,
+                      children: [
+                        MetricBlock(
+                          label: 'Zakat due',
+                          value: _formatMoney(zakat, currency: currency),
+                          valueColor: colors.profit,
+                          detail: 'ALL HOLDINGS',
+                        ),
+                      ],
+                    ),
+                    if (note != null) ...[
+                      const SizedBox(height: 14),
+                      KineticText(
+                        note!,
+                        muted: true,
+                        uppercase: false,
+                        style: AppTheme.bodyStyle(
+                          colors,
+                        ).copyWith(fontSize: 14),
+                      ),
+                    ],
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         );
       },
@@ -468,7 +565,9 @@ class HoldingsPage extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: KineticText(
             'TRANSACTION HISTORY',
-            style: AppTheme.displayStyle(context.kinetic).copyWith(fontSize: 34),
+            style: AppTheme.displayStyle(
+              context.kinetic,
+            ).copyWith(fontSize: 34),
           ),
         ),
       ),
@@ -544,12 +643,17 @@ class ZakatPage extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           sliver: SliverList.list(
             children: [
+              _ZakatSettingsBlock(settings: settings),
+              const SizedBox(height: 14),
               LedgerFrame(
                 padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    KineticText('AMOUNT DUE', style: AppTheme.labelStyle(colors)),
+                    KineticText(
+                      'AMOUNT DUE',
+                      style: AppTheme.labelStyle(colors),
+                    ),
                     const SizedBox(height: 10),
                     KineticNumber(
                       _formatMoney(result.amountDueUsd),
@@ -582,7 +686,9 @@ class ZakatPage extends ConsumerWidget {
                         result.message!,
                         muted: true,
                         uppercase: false,
-                        style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+                        style: AppTheme.bodyStyle(
+                          colors,
+                        ).copyWith(fontSize: 14),
                       ),
                     ],
                     if (result.hasPaymentDue) ...[
@@ -608,8 +714,6 @@ class ZakatPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              _ZakatSettingsBlock(settings: settings),
               const SizedBox(height: 14),
               KineticText(
                 'HOLDINGS',
@@ -646,7 +750,10 @@ class _ZakatSettingsBlock extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KineticText('CALCULATION SETTINGS', style: AppTheme.labelStyle(colors)),
+          KineticText(
+            'CALCULATION SETTINGS',
+            style: AppTheme.labelStyle(colors),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -695,7 +802,8 @@ class _ZakatSettingsBlock extends ConsumerWidget {
                   onPressed: () async {
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: settings.nextRamadanDueDate ?? DateTime.now(),
+                      initialDate:
+                          settings.nextRamadanDueDate ?? DateTime.now(),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
                     );
@@ -726,6 +834,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final displayCurrency = ref.watch(displayCurrencyProvider);
     final metalPriceState = ref.watch(metalPriceProvider);
     final colors = context.kinetic;
     return CustomScrollView(
@@ -749,14 +858,18 @@ class SettingsPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          KineticText('THEME MODE', style: AppTheme.labelStyle(colors)),
+                          KineticText(
+                            'THEME MODE',
+                            style: AppTheme.labelStyle(colors),
+                          ),
                           const SizedBox(height: 8),
                           KineticText(
                             themeMode == ThemeMode.dark
                                 ? 'DARK / DEFAULT'
                                 : 'LIGHT / INVERTED',
-                            style: AppTheme.displayStyle(colors)
-                                .copyWith(fontSize: 34),
+                            style: AppTheme.displayStyle(
+                              colors,
+                            ).copyWith(fontSize: 34),
                           ),
                         ],
                       ),
@@ -774,11 +887,48 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
+              LedgerFrame(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    KineticText(
+                      'DISPLAY CURRENCY',
+                      style: AppTheme.labelStyle(colors),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: CurrencyConverter.supportedCurrencies
+                          .map(
+                            (currency) => FilterBlock(
+                              key: Key('display_currency_$currency'),
+                              label: currency,
+                              selected: displayCurrency == currency,
+                              onTap: () => ref
+                                  .read(displayCurrencyProvider.notifier)
+                                  .setCurrency(currency),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    KineticText(
+                      'Totals, allocation, and history graphs use this currency.',
+                      muted: true,
+                      uppercase: false,
+                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               MetalPricesCard(state: metalPriceState),
               const SizedBox(height: 14),
               const LedgerFrame(
                 child: KineticText(
-                  'USD IS VALUED IN TOTALS. AED AND EUR REMAIN AVAILABLE FOR RECORDED TRANSACTIONS UNTIL FX CONVERSION IS ADDED.',
+                  'USD, AED, AND EUR ARE CONVERTED FOR TOTALS AND DASHBOARD GRAPHS. OTHER CURRENCIES REMAIN RECORDED BUT ARE EXCLUDED UNTIL FX RATES ARE ADDED.',
                   muted: true,
                 ),
               ),
@@ -806,54 +956,69 @@ class _PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.border, width: 2)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              KineticText(eyebrow, style: AppTheme.labelStyle(colors)),
-              const SizedBox(height: 10),
-              KineticText(
-                title,
-                style: AppTheme.displayStyle(colors).copyWith(
-                  fontSize: (constraints.maxWidth * 0.11).clamp(38, 72),
-                ),
-              ),
-              const SizedBox(height: 10),
-              KineticText(
-                detail,
-                muted: true,
-                uppercase: false,
-                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 15),
-              ),
-            ],
-          );
-          if (trailing == null || constraints.maxWidth < 560) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: AppTheme.heroSurface(colors),
+        clipBehavior: Clip.antiAlias,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final content = Stack(
               children: [
-                content,
-                if (trailing != null) ...[
-                  const SizedBox(height: 14),
-                  trailing!,
-                ],
+                Positioned(
+                  right: -42,
+                  top: -52,
+                  child: _GlowOrb(
+                    size: 132,
+                    color: colors.accent.withValues(alpha: 0.13),
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    KineticText(eyebrow, style: AppTheme.labelStyle(colors)),
+                    const SizedBox(height: 10),
+                    KineticText(
+                      title,
+                      style: AppTheme.displayStyle(colors).copyWith(
+                        fontSize: (constraints.maxWidth * 0.11).clamp(38, 72),
+                        color: colors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    KineticText(
+                      detail,
+                      muted: true,
+                      uppercase: false,
+                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 15),
+                    ),
+                  ],
+                ),
               ],
             );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(child: content),
-              const SizedBox(width: 18),
-              trailing!,
-            ],
-          );
-        },
+            if (trailing == null || constraints.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  content,
+                  if (trailing != null) ...[
+                    const SizedBox(height: 14),
+                    trailing!,
+                  ],
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: content),
+                const SizedBox(width: 18),
+                trailing!,
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1113,9 +1278,9 @@ class AssetTile extends ConsumerWidget {
                   Expanded(
                     child: KineticText(
                       asset.type.label,
-                      style: AppTheme.displayStyle(colors).copyWith(
-                        fontSize: 28,
-                      ),
+                      style: AppTheme.displayStyle(
+                        colors,
+                      ).copyWith(fontSize: 28),
                     ),
                   ),
                   if (asset.tag != null)
@@ -1127,7 +1292,12 @@ class AssetTile extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: colors.accent,
-                        border: Border.all(color: colors.foreground, width: 2),
+                        borderRadius: AppTheme.pillRadius,
+                        border: Border.all(
+                          color: colors.border,
+                          width: AppTheme.thickBorderWidth,
+                        ),
+                        boxShadow: AppTheme.glowShadow(colors),
                       ),
                       child: KineticText(
                         asset.tag!.label,
@@ -1171,9 +1341,9 @@ class AssetTile extends ConsumerWidget {
                 const SizedBox(height: 8),
                 KineticText(
                   'SOLD',
-                  style: AppTheme.labelStyle(colors).copyWith(
-                    color: colors.profit,
-                  ),
+                  style: AppTheme.labelStyle(
+                    colors,
+                  ).copyWith(color: colors.profit),
                 ),
               ],
             ],
@@ -1184,7 +1354,8 @@ class AssetTile extends ConsumerWidget {
             children: [
               BrutalistButton(
                 label: 'EDIT',
-                onPressed: () => _showAssetFormDialog(context, ref, asset: asset),
+                onPressed: () =>
+                    _showAssetFormDialog(context, ref, asset: asset),
               ),
               BrutalistButton(
                 label: 'DELETE',
@@ -1197,11 +1368,7 @@ class AssetTile extends ConsumerWidget {
           if (constraints.maxWidth < 560) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                content,
-                const SizedBox(height: 12),
-                actions,
-              ],
+              children: [content, const SizedBox(height: 12), actions],
             );
           }
           return Row(
@@ -1318,9 +1485,9 @@ Future<void> _showAssetFormDialog(
   WidgetRef ref, {
   Asset? asset,
 }) async {
-  final result = await Navigator.of(context).push<Asset>(
-    _kineticRoute<Asset>(AssetFormDialog(asset: asset)),
-  );
+  final result = await Navigator.of(
+    context,
+  ).push<Asset>(_kineticRoute<Asset>(AssetFormDialog(asset: asset)));
   if (result == null) return;
 
   final notifier = ref.read(assetProvider.notifier);
@@ -1361,8 +1528,11 @@ Map<DateTime, List<TransactionEvent>> _groupEventsByDate(
   return grouped;
 }
 
-String _formatMoney(double value) {
-  return '\$${value.toStringAsFixed(2)}';
+String _formatMoney(
+  double value, {
+  String currency = CurrencyConverter.defaultCurrency,
+}) {
+  return CurrencyConverter.formatMoney(value, currency);
 }
 
 String _formatDate(DateTime date) {

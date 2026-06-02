@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/asset.dart';
 import '../models/portfolio_snapshot.dart';
 import '../providers/asset_provider.dart';
+import '../providers/display_currency_provider.dart';
 import '../providers/metal_price_provider.dart';
 import '../providers/portfolio_snapshot_provider.dart';
+import '../services/currency_converter.dart';
 import '../services/position_performance.dart';
 import '../services/transaction_history_service.dart';
 import '../theme/app_theme.dart';
@@ -19,10 +21,12 @@ class TransactionHistoryScreen extends ConsumerWidget {
     final colors = context.kinetic;
     final assets = ref.watch(assetProvider);
     final snapshots = ref.watch(portfolioSnapshotProvider);
+    final displayCurrency = ref.watch(displayCurrencyProvider);
     final events = TransactionHistoryService.eventsFor(assets);
     final performance = PositionPerformance.calculate(
       assets,
       ref.watch(metalPriceProvider).snapshot,
+      displayCurrency,
     );
 
     return Scaffold(
@@ -30,28 +34,27 @@ class TransactionHistoryScreen extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: colors.border, width: 2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BrutalistButton(
-                      label: 'BACK',
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(height: 18),
-                    KineticText(
-                      'TRANSACTION HISTORY',
-                      style: AppTheme.displayStyle(colors).copyWith(
-                        fontSize: 52,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: AppTheme.heroSurface(colors),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BrutalistButton(
+                        label: 'BACK',
+                        onPressed: () => Navigator.pop(context),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      KineticText(
+                        'TRANSACTION HISTORY',
+                        style: AppTheme.displayStyle(
+                          colors,
+                        ).copyWith(fontSize: 52, color: colors.accent),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -67,7 +70,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
                   if (!performance.hasComparablePositions)
                     const LedgerFrame(
                       child: KineticText(
-                        'ADD BOUGHT PRICES TO ACTIVE USD HOLDINGS TO COMPARE PAID VS CURRENT WORTH.',
+                        'ADD BOUGHT PRICES TO ACTIVE HOLDINGS TO COMPARE PAID VS CURRENT WORTH.',
                         muted: true,
                       ),
                     )
@@ -102,7 +105,9 @@ class TransactionHistoryScreen extends ConsumerWidget {
                       ),
                     )
                   else
-                    ...snapshots.map(_SnapshotTile.new),
+                    ...snapshots.map(
+                      (snapshot) => _SnapshotTile(snapshot, displayCurrency),
+                    ),
                 ],
               ),
             ),
@@ -129,16 +134,17 @@ class _PerformanceTile extends StatelessWidget {
         children: [
           Expanded(
             child: KineticText(
-              'PAID \$${summary.paidUsd.toStringAsFixed(2)} / '
-              'NOW \$${summary.currentUsd.toStringAsFixed(2)}',
+              'PAID ${CurrencyConverter.formatMoney(summary.paidUsd, summary.currency)} / '
+              'NOW ${CurrencyConverter.formatMoney(summary.currentUsd, summary.currency)}',
               style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
             ),
           ),
           KineticText(
-            '${isGain ? '+' : '-'}\$${change.abs().toStringAsFixed(2)}',
-            style: AppTheme.labelStyle(colors).copyWith(
-              color: isGain ? colors.profit : colors.loss,
-            ),
+            '${isGain ? '+' : '-'}'
+            '${CurrencyConverter.formatMoney(change.abs(), summary.currency)}',
+            style: AppTheme.labelStyle(
+              colors,
+            ).copyWith(color: isGain ? colors.profit : colors.loss),
           ),
         ],
       ),
@@ -196,13 +202,17 @@ class _EventTile extends StatelessWidget {
 }
 
 class _SnapshotTile extends StatelessWidget {
-  const _SnapshotTile(this.snapshot);
+  const _SnapshotTile(this.snapshot, this.currency);
 
   final PortfolioSnapshot snapshot;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
+    final total = _fromUsd(snapshot.totalUsd, currency);
+    final gold = _fromUsd(snapshot.goldUsd, currency);
+    final cash = _fromUsd(snapshot.cashUsd + snapshot.bankSavingsUsd, currency);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: LedgerFrame(
@@ -214,7 +224,7 @@ class _SnapshotTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   KineticNumber(
-                    '\$${snapshot.totalUsd.toStringAsFixed(2)}',
+                    CurrencyConverter.formatMoney(total, currency),
                     fontSize: 28,
                   ),
                   const SizedBox(height: 4),
@@ -226,8 +236,8 @@ class _SnapshotTile extends StatelessWidget {
               ),
             ),
             KineticText(
-              'GOLD \$${snapshot.goldUsd.toStringAsFixed(0)}\n'
-              'CASH \$${(snapshot.cashUsd + snapshot.bankSavingsUsd).toStringAsFixed(0)}',
+              'GOLD ${CurrencyConverter.formatMoney(gold, currency, decimals: 0)}\n'
+              'CASH ${CurrencyConverter.formatMoney(cash, currency, decimals: 0)}',
               align: TextAlign.end,
               style: AppTheme.labelStyle(colors).copyWith(fontSize: 12),
             ),
@@ -236,6 +246,10 @@ class _SnapshotTile extends StatelessWidget {
       ),
     );
   }
+}
+
+double _fromUsd(double value, String currency) {
+  return CurrencyConverter.convertFromUsd(value, currency) ?? value;
 }
 
 String _formatDate(DateTime date) {

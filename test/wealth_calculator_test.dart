@@ -46,12 +46,12 @@ void main() {
       ),
     );
 
-    expect(totals.totalUsd, closeTo(700, 0.01));
-    expect(totals.hasUnsupportedCurrencies, isTrue);
+    expect(totals.totalUsd, closeTo(908, 0.01));
+    expect(totals.hasUnsupportedCurrencies, isFalse);
     expect(totals.hasUnpricedMetals, isFalse);
   });
 
-  test('flags non-USD monetary holdings without an FX provider', () {
+  test('converts monetary holdings even when metal prices are unavailable', () {
     final totals = WealthCalculator.calculateUsd(const [
       Asset(
         id: 'eur',
@@ -69,9 +69,30 @@ void main() {
       ),
     ], null);
 
-    expect(totals.totalUsd, 0);
-    expect(totals.hasUnsupportedCurrencies, isTrue);
+    expect(totals.totalUsd, closeTo(54, 0.01));
+    expect(totals.hasUnsupportedCurrencies, isFalse);
     expect(totals.hasUnpricedMetals, isTrue);
+  });
+
+  test('converts total wealth into a selected display currency', () {
+    final totals = WealthCalculator.calculate(
+      const [
+        Asset(id: 'usd', type: AssetType.cash, amount: 100, unit: 'USD'),
+        Asset(
+          id: 'aed',
+          type: AssetType.cash,
+          amount: 367.25,
+          unit: 'AED',
+          currency: 'AED',
+        ),
+      ],
+      null,
+      'AED',
+    );
+
+    expect(totals.currency, 'AED');
+    expect(totals.totalValue, closeTo(734.5, 0.01));
+    expect(totals.hasUnsupportedCurrencies, isFalse);
   });
 
   test('flags other monetary currencies without an FX provider', () {

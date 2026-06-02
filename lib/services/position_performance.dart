@@ -1,5 +1,6 @@
 import '../models/asset.dart';
 import '../models/metal_price_snapshot.dart';
+import 'currency_converter.dart';
 import 'wealth_calculator.dart';
 
 class PositionPerformanceSummary {
@@ -13,6 +14,7 @@ class PositionPerformanceSummary {
     required this.missingBoughtPriceCount,
     required this.unpricedAssetCount,
     required this.unsupportedCurrencyCount,
+    this.currency = CurrencyConverter.defaultCurrency,
   });
 
   final double paidUsd;
@@ -24,6 +26,7 @@ class PositionPerformanceSummary {
   final int missingBoughtPriceCount;
   final int unpricedAssetCount;
   final int unsupportedCurrencyCount;
+  final String currency;
 
   double get changeUsd => currentUsd - paidUsd;
 
@@ -49,7 +52,11 @@ class PositionPerformance {
   static PositionPerformanceSummary calculate(
     List<Asset> assets,
     MetalPriceSnapshot? prices,
+    String displayCurrency = CurrencyConverter.defaultCurrency,
   ) {
+    final normalizedDisplayCurrency = CurrencyConverter.normalize(
+      displayCurrency,
+    );
     final currentWorthByType = _emptyTrackedMap();
     final paidByType = _emptyTrackedMap();
     final currentByType = _emptyTrackedMap();
@@ -63,8 +70,12 @@ class PositionPerformance {
     for (final asset in assets.where((asset) => !asset.isSold)) {
       final trackedType = _trackedTypeFor(asset.type);
 
-      final currentWorthUsd = WealthCalculator.valueAssetUsd(asset, prices);
-      if (currentWorthUsd == null) {
+      final currentWorth = WealthCalculator.valueAsset(
+        asset,
+        prices,
+        displayCurrency: normalizedDisplayCurrency,
+      );
+      if (currentWorth == null) {
         if (asset.type.isMetal) {
           unpricedAssetCount += 1;
         } else {
@@ -73,10 +84,15 @@ class PositionPerformance {
         continue;
       }
       currentWorthByType[trackedType] =
-          currentWorthByType[trackedType]! + currentWorthUsd;
+          currentWorthByType[trackedType]! + currentWorth;
 
-      final paidValueUsd = _paidValueUsd(asset, currentWorthUsd);
-      if (paidValueUsd == null) {
+      final paidValue = _paidValue(
+        asset,
+        currentWorth,
+        prices,
+        normalizedDisplayCurrency,
+      );
+      if (paidValue == null) {
         if (asset.type.isMetal && asset.boughtPrice == null) {
           missingBoughtPriceCount += 1;
         } else {
@@ -85,11 +101,10 @@ class PositionPerformance {
         continue;
       }
 
-      paidByType[trackedType] = paidByType[trackedType]! + paidValueUsd;
-      currentByType[trackedType] =
-          currentByType[trackedType]! + currentWorthUsd;
-      paidUsd += paidValueUsd;
-      currentUsd += currentWorthUsd;
+      paidByType[trackedType] = paidByType[trackedType]! + paidValue;
+      currentByType[trackedType] = currentByType[trackedType]! + currentWorth;
+      paidUsd += paidValue;
+      currentUsd += currentWorth;
       comparableAssetCount += 1;
     }
 
@@ -103,6 +118,7 @@ class PositionPerformance {
       missingBoughtPriceCount: missingBoughtPriceCount,
       unpricedAssetCount: unpricedAssetCount,
       unsupportedCurrencyCount: unsupportedCurrencyCount,
+      currency: normalizedDisplayCurrency,
     );
   }
 
@@ -122,11 +138,22 @@ class PositionPerformance {
     }
   }
 
-  static double? _paidValueUsd(Asset asset, double currentWorthUsd) {
+  static double? _paidValue(
+    Asset asset,
+    double currentWorth,
+    MetalPriceSnapshot? prices,
+    String displayCurrency,
+  ) {
     if (!asset.type.isMetal) {
-      return asset.currency == 'USD' ? currentWorthUsd : null;
+      return currentWorth;
     }
-    if (asset.boughtPrice == null || asset.currency != 'USD') return null;
-    return asset.boughtPrice!;
+    final boughtPrice = asset.boughtPrice;
+    if (boughtPrice == null) return null;
+    return CurrencyConverter.convert(
+      boughtPrice,
+      from: asset.currency,
+      to: displayCurrency,
+      prices: prices,
+    );
   }
 }

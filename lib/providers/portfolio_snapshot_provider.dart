@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/asset.dart';
 import '../models/portfolio_snapshot.dart';
+import '../services/currency_converter.dart';
 import '../services/portfolio_analytics.dart';
 
 class PortfolioSnapshotNotifier extends StateNotifier<List<PortfolioSnapshot>> {
@@ -14,17 +15,37 @@ class PortfolioSnapshotNotifier extends StateNotifier<List<PortfolioSnapshot>> {
   final Box<PortfolioSnapshot> _snapshotBox;
 
   Future<void> capture(PortfolioAnalytics analytics) async {
+    final cashUsd = _toUsd(analytics.categoryValuesUsd[AssetType.cash] ?? 0, analytics);
+    final bankSavingsUsd = _toUsd(
+      analytics.categoryValuesUsd[AssetType.bankSavings] ?? 0,
+      analytics,
+    );
+    final goldUsd = _toUsd(analytics.categoryValuesUsd[AssetType.gold] ?? 0, analytics);
+    final silverUsd = _toUsd(
+      analytics.categoryValuesUsd[AssetType.silver] ?? 0,
+      analytics,
+    );
     final snapshot = PortfolioSnapshot(
       id: const Uuid().v4(),
       capturedAt: DateTime.now(),
-      totalUsd: analytics.totalUsd,
-      cashUsd: analytics.categoryValuesUsd[AssetType.cash] ?? 0,
-      bankSavingsUsd: analytics.categoryValuesUsd[AssetType.bankSavings] ?? 0,
-      goldUsd: analytics.categoryValuesUsd[AssetType.gold] ?? 0,
-      silverUsd: analytics.categoryValuesUsd[AssetType.silver] ?? 0,
+      totalUsd: cashUsd + bankSavingsUsd + goldUsd + silverUsd,
+      cashUsd: cashUsd,
+      bankSavingsUsd: bankSavingsUsd,
+      goldUsd: goldUsd,
+      silverUsd: silverUsd,
     );
     await _snapshotBox.put(snapshot.id, snapshot);
     state = _sortedSnapshots(_snapshotBox.values.toList());
+  }
+
+  static double _toUsd(double value, PortfolioAnalytics analytics) {
+    if (analytics.currency == CurrencyConverter.defaultCurrency) return value;
+    return CurrencyConverter.convert(
+          value,
+          from: analytics.currency,
+          to: CurrencyConverter.defaultCurrency,
+        ) ??
+        0;
   }
 
   static List<PortfolioSnapshot> _sortedSnapshots(

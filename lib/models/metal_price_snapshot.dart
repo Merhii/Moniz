@@ -34,6 +34,15 @@ class MetalPriceSnapshot {
   final double? aedToUsd;
 
   double? usdRateFor(String currency) {
-    return currency == 'USD' ? 1 : null;
+    switch (currency.trim().toUpperCase()) {
+      case 'USD':
+        return 1;
+      case 'EUR':
+        return eurToUsd;
+      case 'AED':
+        return aedToUsd;
+      default:
+        return null;
+    }
   }
 }

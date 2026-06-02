@@ -31,28 +31,27 @@ class ZakatBreakdownScreen extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: colors.border, width: 2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BrutalistButton(
-                      label: 'BACK',
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(height: 18),
-                    KineticText(
-                      'ZAKAT BREAKDOWN',
-                      style: AppTheme.displayStyle(colors).copyWith(
-                        fontSize: 52,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: AppTheme.heroSurface(colors),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BrutalistButton(
+                        label: 'BACK',
+                        onPressed: () => Navigator.pop(context),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      KineticText(
+                        'ZAKAT BREAKDOWN',
+                        style: AppTheme.displayStyle(
+                          colors,
+                        ).copyWith(fontSize: 52, color: colors.accent),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -76,7 +75,9 @@ class ZakatBreakdownScreen extends ConsumerWidget {
                       ),
                     )
                   else if (result.assessments.isEmpty)
-                    const LedgerFrame(child: KineticText('NO ASSETS ADDED YET.'))
+                    const LedgerFrame(
+                      child: KineticText('NO ASSETS ADDED YET.'),
+                    )
                   else
                     ...result.assessments.map(_AssessmentTile.new),
                 ],
@@ -102,7 +103,10 @@ class _ZakatSettingsBlock extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KineticText('CALCULATION SETTINGS', style: AppTheme.labelStyle(colors)),
+          KineticText(
+            'CALCULATION SETTINGS',
+            style: AppTheme.labelStyle(colors),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,

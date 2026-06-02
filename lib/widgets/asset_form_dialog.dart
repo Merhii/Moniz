@@ -166,8 +166,12 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
+                    color: colors.background.withValues(alpha: 0.86),
                     border: Border(
-                      bottom: BorderSide(color: colors.border, width: 2),
+                      bottom: BorderSide(
+                        color: colors.border,
+                        width: AppTheme.thickBorderWidth,
+                      ),
                     ),
                   ),
                   child: LayoutBuilder(
@@ -365,9 +369,12 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
                     decoration: BoxDecoration(
-                      color: colors.background,
+                      color: colors.background.withValues(alpha: 0.92),
                       border: Border(
-                        top: BorderSide(color: colors.border, width: 2),
+                        top: BorderSide(
+                          color: colors.border,
+                          width: AppTheme.thickBorderWidth,
+                        ),
                       ),
                     ),
                     child: Align(
@@ -382,9 +389,12 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: colors.background,
+                    color: colors.background.withValues(alpha: 0.92),
                     border: Border(
-                      top: BorderSide(color: colors.border, width: 2),
+                      top: BorderSide(
+                        color: colors.border,
+                        width: AppTheme.thickBorderWidth,
+                      ),
                     ),
                   ),
                   child: BrutalistButton(
@@ -713,12 +723,15 @@ class _SelectionMenuItem<T> extends StatelessWidget {
         constraints: BoxConstraints(minHeight: showDetail ? 82 : 66),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? colors.accent : colors.background,
-          borderRadius: BorderRadius.zero,
+          color: selected
+              ? colors.accent
+              : colors.background.withValues(alpha: 0.42),
+          borderRadius: AppTheme.tightRadius,
           border: Border.all(
             color: selected ? colors.accent : colors.border,
-            width: 2,
+            width: AppTheme.thickBorderWidth,
           ),
+          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

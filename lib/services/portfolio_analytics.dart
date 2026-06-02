@@ -1,5 +1,6 @@
 import '../models/asset.dart';
 import '../models/metal_price_snapshot.dart';
+import 'currency_converter.dart';
 import 'wealth_calculator.dart';
 
 class PortfolioAnalytics {
@@ -9,6 +10,7 @@ class PortfolioAnalytics {
     required this.activeAssetCount,
     required this.soldAssetCount,
     required this.unvaluedAssetCount,
+    this.currency = CurrencyConverter.defaultCurrency,
   });
 
   final Map<AssetType, double> categoryValuesUsd;
@@ -16,6 +18,7 @@ class PortfolioAnalytics {
   final int activeAssetCount;
   final int soldAssetCount;
   final int unvaluedAssetCount;
+  final String currency;
 
   double percentageFor(AssetType type) {
     if (totalUsd == 0) return 0;
@@ -25,7 +28,11 @@ class PortfolioAnalytics {
   static PortfolioAnalytics calculate(
     List<Asset> assets,
     MetalPriceSnapshot? prices,
+    String displayCurrency = CurrencyConverter.defaultCurrency,
   ) {
+    final normalizedDisplayCurrency = CurrencyConverter.normalize(
+      displayCurrency,
+    );
     final categoryValues = {for (final type in AssetType.values) type: 0.0};
     var activeCount = 0;
     var soldCount = 0;
@@ -37,12 +44,16 @@ class PortfolioAnalytics {
         continue;
       }
       activeCount += 1;
-      final valueUsd = WealthCalculator.valueAssetUsd(asset, prices);
-      if (valueUsd == null) {
+      final value = WealthCalculator.valueAsset(
+        asset,
+        prices,
+        displayCurrency: normalizedDisplayCurrency,
+      );
+      if (value == null) {
         unvaluedCount += 1;
         continue;
       }
-      categoryValues[asset.type] = categoryValues[asset.type]! + valueUsd;
+      categoryValues[asset.type] = categoryValues[asset.type]! + value;
     }
 
     return PortfolioAnalytics(
@@ -51,6 +62,14 @@ class PortfolioAnalytics {
       activeAssetCount: activeCount,
       soldAssetCount: soldCount,
       unvaluedAssetCount: unvaluedCount,
+      currency: normalizedDisplayCurrency,
     );
+  }
+
+  static PortfolioAnalytics calculateUsd(
+    List<Asset> assets,
+    MetalPriceSnapshot? prices,
+  ) {
+    return calculate(assets, prices, CurrencyConverter.defaultCurrency);
   }
 }

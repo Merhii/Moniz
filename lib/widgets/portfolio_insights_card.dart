@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/asset.dart';
 import '../providers/portfolio_snapshot_provider.dart';
+import '../services/currency_converter.dart';
 import '../services/portfolio_analytics.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
@@ -25,10 +26,10 @@ class PortfolioInsightsCard extends ConsumerWidget {
 
   static Color categoryColor(AssetType type, KineticColors colors) {
     return switch (type) {
-      AssetType.cash => colors.profit,
-      AssetType.bankSavings => const Color(0xFF60A5FA),
+      AssetType.cash => AppTheme.white,
+      AssetType.bankSavings => AppTheme.lightGold,
       AssetType.gold => colors.accent,
-      AssetType.silver => colors.mutedForeground,
+      AssetType.silver => AppTheme.cream,
     };
   }
 
@@ -64,6 +65,7 @@ class PortfolioInsightsCard extends ConsumerWidget {
                         type: type,
                         valueUsd: analytics.categoryValuesUsd[type]!,
                         percentage: analytics.percentageFor(type),
+                        currency: analytics.currency,
                       ),
                     )
                     .toList();
@@ -144,11 +146,7 @@ class PortfolioInsightsCard extends ConsumerWidget {
                         }
                       },
               ),
-              BrutalistButton(
-                key: const Key('open_transaction_history'),
-                label: 'HISTORY',
-                onPressed: onOpenHistory,
-              ),
+              BrutalistButton(label: 'HISTORY', onPressed: onOpenHistory),
             ],
           ),
         ],
@@ -193,7 +191,11 @@ class _DonutHero extends StatelessWidget {
                     KineticText('TOTAL', style: AppTheme.labelStyle(colors)),
                     const SizedBox(height: 5),
                     KineticNumber(
-                      '\$${analytics.totalUsd.toStringAsFixed(0)}',
+                      CurrencyConverter.formatMoney(
+                        analytics.totalUsd,
+                        analytics.currency,
+                        decimals: 0,
+                      ),
                       fontSize: numberSize,
                     ),
                   ],
@@ -212,11 +214,13 @@ class _CategoryDatum {
     required this.type,
     required this.valueUsd,
     required this.percentage,
+    required this.currency,
   });
 
   final AssetType type;
   final double valueUsd;
   final double percentage;
+  final String currency;
 }
 
 class _AllocationLegend extends StatelessWidget {
@@ -251,9 +255,13 @@ class _CategoryRow extends StatelessWidget {
     final colors = context.kinetic;
     final color = PortfolioInsightsCard.categoryColor(category.type, colors);
     final detail = compact
-        ? '\$${category.valueUsd.toStringAsFixed(0)}'
+        ? CurrencyConverter.formatMoney(
+            category.valueUsd,
+            category.currency,
+            decimals: 0,
+          )
         : '${(category.percentage * 100).toStringAsFixed(0)}% / '
-              '\$${category.valueUsd.toStringAsFixed(0)}';
+              '${CurrencyConverter.formatMoney(category.valueUsd, category.currency, decimals: 0)}';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(

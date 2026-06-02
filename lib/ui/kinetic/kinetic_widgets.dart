@@ -157,13 +157,13 @@ class BrutalistButton extends StatelessWidget {
     final disabled = onPressed == null;
     final background = switch (tone) {
       BrutalistButtonTone.primary => colors.accent,
-      BrutalistButtonTone.danger => colors.loss,
+      BrutalistButtonTone.danger => AppTheme.deepShadow,
       BrutalistButtonTone.muted => colors.muted,
-      BrutalistButtonTone.outline => colors.background,
+      BrutalistButtonTone.outline => colors.background.withValues(alpha: 0.38),
     };
     final foreground = switch (tone) {
       BrutalistButtonTone.primary => colors.accentForeground,
-      BrutalistButtonTone.danger => colors.accentForeground,
+      BrutalistButtonTone.danger => AppTheme.white,
       BrutalistButtonTone.muted => colors.foreground,
       BrutalistButtonTone.outline => colors.foreground,
     };
@@ -175,11 +175,18 @@ class BrutalistButton extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: disabled ? colors.muted : background,
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppTheme.pillRadius,
         border: Border.all(
-          color: disabled ? colors.border : colors.foreground,
-          width: 2,
+          color: disabled
+              ? colors.border.withValues(alpha: 0.55)
+              : tone == BrutalistButtonTone.primary
+              ? colors.accent
+              : colors.border,
+          width: AppTheme.thickBorderWidth,
         ),
+        boxShadow: disabled || tone != BrutalistButtonTone.primary
+            ? null
+            : AppTheme.glowShadow(colors),
       ),
       child: KineticText(
         label,
@@ -201,7 +208,7 @@ class LedgerFrame extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.background,
-    this.borderWidth = 2,
+    this.borderWidth = AppTheme.thickBorderWidth,
   });
 
   final Widget child;
@@ -216,9 +223,13 @@ class LedgerFrame extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: background ?? colors.background,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: colors.border, width: borderWidth),
+        color: background ?? colors.muted.withValues(alpha: 0.88),
+        borderRadius: AppTheme.radius,
+        border: Border.all(
+          color: colors.border.withValues(alpha: 0.82),
+          width: borderWidth,
+        ),
+        boxShadow: AppTheme.softShadow(colors),
       ),
       child: child,
     );
@@ -300,12 +311,15 @@ class FilterBlock extends StatelessWidget {
             : AppTheme.fast,
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: selected ? colors.accent : colors.background,
-          borderRadius: BorderRadius.zero,
+          color: selected
+              ? colors.accent
+              : colors.background.withValues(alpha: 0.42),
+          borderRadius: AppTheme.pillRadius,
           border: Border.all(
             color: selected ? colors.accent : colors.border,
-            width: 2,
+            width: AppTheme.thickBorderWidth,
           ),
+          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -373,7 +387,10 @@ class _TickerTapeState extends State<TickerTape>
         decoration: BoxDecoration(
           color: colors.accent,
           border: Border.symmetric(
-            horizontal: BorderSide(color: colors.foreground, width: 2),
+            horizontal: BorderSide(
+              color: colors.border,
+              width: AppTheme.thickBorderWidth,
+            ),
           ),
         ),
         child: AnimatedBuilder(
@@ -436,8 +453,11 @@ class StickyDateHeader extends SliverPersistentHeaderDelegate {
       decoration: BoxDecoration(
         color: colors.accent,
         border: Border(
-          top: BorderSide(color: colors.foreground, width: 2),
-          bottom: BorderSide(color: colors.foreground, width: 2),
+          top: BorderSide(color: colors.border, width: AppTheme.hairlineWidth),
+          bottom: BorderSide(
+            color: colors.border,
+            width: AppTheme.hairlineWidth,
+          ),
         ),
       ),
       child: KineticText(
@@ -500,7 +520,10 @@ class KineticInput extends StatelessWidget {
           .copyWith(fontSize: hero ? 44 : 18),
       decoration: InputDecoration(
         labelText: label.toUpperCase(),
-        contentPadding: EdgeInsets.only(bottom: hero ? 18 : 12),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: hero ? 20 : 15,
+        ),
       ),
     );
   }
