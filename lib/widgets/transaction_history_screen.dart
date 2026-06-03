@@ -26,7 +26,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
     final performance = PositionPerformance.calculate(
       assets,
       ref.watch(metalPriceProvider).snapshot,
-      displayCurrency,
+      displayCurrency: CurrencyConverter.defaultCurrency,
     );
 
     return Scaffold(

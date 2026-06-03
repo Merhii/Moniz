@@ -26,6 +26,7 @@ class PortfolioTrendCard extends StatelessWidget {
     final colors = context.kinetic;
     final points = _historyPointsFor(snapshots, performance, displayCurrency);
     final series = _trendSeriesFor(points, performance, colors);
+    final chartHeight = MediaQuery.sizeOf(context).width < 560 ? 286.0 : 348.0;
 
     return LedgerFrame(
       padding: const EdgeInsets.all(16),
@@ -48,7 +49,7 @@ class PortfolioTrendCard extends StatelessWidget {
             RepaintBoundary(
               child: SizedBox(
                 key: const Key('portfolio_line_chart'),
-                height: 238,
+                height: chartHeight,
                 width: double.infinity,
                 child: CustomPaint(
                   painter: _TrendPainter(
@@ -154,7 +155,7 @@ List<_TrendSeries> _trendSeriesFor(
     series.add(
       _TrendSeries(
         label: 'Cash',
-        color: colors.profit,
+        color: AppTheme.navy,
         valueOf: _cashValue,
         paidUsd: performance.paidFor(AssetType.cash),
         currentUsd: performance.currentWorthFor(AssetType.cash),
@@ -167,7 +168,7 @@ List<_TrendSeries> _trendSeriesFor(
     series.add(
       _TrendSeries(
         label: 'Gold',
-        color: colors.accent,
+        color: AppTheme.gold,
         valueOf: _goldValue,
         paidUsd: performance.paidFor(AssetType.gold),
         currentUsd: performance.currentWorthFor(AssetType.gold),
@@ -180,7 +181,7 @@ List<_TrendSeries> _trendSeriesFor(
     series.add(
       _TrendSeries(
         label: 'Silver',
-        color: AppTheme.cream,
+        color: const Color(0xFF42A88B),
         valueOf: _silverValue,
         paidUsd: performance.paidFor(AssetType.silver),
         currentUsd: performance.currentWorthFor(AssetType.silver),
@@ -375,15 +376,28 @@ class _TrendPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const leftPadding = 53.0;
-    const rightPadding = 12.0;
-    const topPadding = 10.0;
-    const bottomPadding = 29.0;
+    final normalizedCurrency = CurrencyConverter.normalize(currency);
+    final leftPadding = normalizedCurrency == 'USD' ? 58.0 : 82.0;
+    const rightPadding = 18.0;
+    const topPadding = 34.0;
+    const bottomPadding = 48.0;
     final graphWidth = size.width - leftPadding - rightPadding;
     final graphHeight = size.height - topPadding - bottomPadding;
+    final chartRect = Offset.zero & size;
+    const chartRadius = Radius.circular(16);
+    final plotBottom = topPadding + graphHeight;
+    final plotRight = size.width - rightPadding;
     final gridPaint = Paint()
-      ..color = colors.border
+      ..color = AppTheme.deepShadow.withValues(alpha: 0.08)
       ..strokeWidth = 1;
+    final axisPaint = Paint()
+      ..color = AppTheme.deepShadow.withValues(alpha: 0.18)
+      ..strokeWidth = 1.2;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(chartRect, chartRadius),
+      Paint()..color = AppTheme.white,
+    );
 
     final values = <double>[
       0,
@@ -391,47 +405,50 @@ class _TrendPainter extends CustomPainter {
         for (final point in points) item.valueOf(point),
     ];
     final maximum = values.reduce(math.max);
-    final graphMaximum = maximum == 0 ? 1.0 : maximum * 1.08;
+    final graphMaximum = _niceMaximum(maximum);
 
-    for (var row = 0; row <= 4; row++) {
-      final y = topPadding + graphHeight * row / 4;
+    for (var row = 0; row <= 6; row++) {
+      final y = topPadding + graphHeight * row / 6;
       canvas.drawLine(
         Offset(leftPadding, y),
-        Offset(size.width - rightPadding, y),
-        gridPaint,
+        Offset(plotRight, y),
+        row == 6 ? axisPaint : gridPaint,
       );
-      final value = graphMaximum * (4 - row) / 4;
+      final value = graphMaximum * (6 - row) / 6;
       _paintText(
         canvas,
         _compactCurrency(value),
-        colors.mutedForeground,
+        AppTheme.deepShadow.withValues(alpha: 0.58),
+        fontSize: 10,
         offsetFor: (textSize) =>
             Offset(leftPadding - textSize.width - 9, y - textSize.height / 2),
       );
     }
 
     for (var index = 0; index < points.length; index++) {
-      if (points.length > 6 &&
-          index != 0 &&
-          index != points.length - 1 &&
-          index.isOdd) {
-        continue;
-      }
       final x = points.length == 1
           ? leftPadding + graphWidth / 2
           : leftPadding + graphWidth * index / (points.length - 1);
+      canvas.drawLine(Offset(x, topPadding), Offset(x, plotBottom), gridPaint);
+      final shouldShowLabel =
+          points.length <= 8 ||
+          index == 0 ||
+          index == points.length - 1 ||
+          graphWidth / math.max(points.length - 1, 1) > 56;
+      if (!shouldShowLabel) continue;
       _paintText(
         canvas,
         points[index].label,
-        colors.mutedForeground,
+        AppTheme.deepShadow.withValues(alpha: 0.58),
+        fontSize: 10,
         offsetFor: (textSize) =>
-            Offset(x - textSize.width / 2, size.height - textSize.height),
+            Offset(x - textSize.width / 2, plotBottom + 14),
       );
     }
 
-    for (final item in series) {
-      final path = Path();
-      final pointPaint = Paint()..color = item.color;
+    for (var seriesIndex = 0; seriesIndex < series.length; seriesIndex++) {
+      final item = series[seriesIndex];
+      final offsets = <Offset>[];
       for (var index = 0; index < points.length; index++) {
         final x = points.length == 1
             ? leftPadding + graphWidth / 2
@@ -440,30 +457,88 @@ class _TrendPainter extends CustomPainter {
             topPadding +
             graphHeight -
             (item.valueOf(points[index]) / graphMaximum) * graphHeight;
-        if (index == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-        canvas.drawRect(
-          Rect.fromCenter(center: Offset(x, y), width: 7, height: 7),
-          pointPaint,
+        offsets.add(Offset(x, y));
+      }
+
+      if (offsets.length > 1) {
+        canvas.drawPath(
+          _smoothPath(offsets),
+          Paint()
+            ..color = item.color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.7
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
         );
       }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = item.color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3,
+
+      for (var index = 0; index < offsets.length; index++) {
+        final offset = offsets[index];
+        _paintText(
+          canvas,
+          _compactPointValue(item.valueOf(points[index])),
+          AppTheme.deepShadow.withValues(alpha: 0.72),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+          offsetFor: (textSize) => Offset(
+            offset.dx - textSize.width / 2,
+            offset.dy - 22 - seriesIndex * 3,
+          ),
+        );
+        _paintMarker(canvas, offset, item.color, square: seriesIndex == 0);
+      }
+    }
+  }
+
+  Path _smoothPath(List<Offset> offsets) {
+    final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
+    for (var index = 0; index < offsets.length - 1; index++) {
+      final previous = offsets[index == 0 ? 0 : index - 1];
+      final current = offsets[index];
+      final next = offsets[index + 1];
+      final afterNext =
+          offsets[index + 2 < offsets.length ? index + 2 : offsets.length - 1];
+      final firstControl = current + (next - previous) / 6;
+      final secondControl = next - (afterNext - current) / 6;
+      path.cubicTo(
+        firstControl.dx,
+        firstControl.dy,
+        secondControl.dx,
+        secondControl.dy,
+        next.dx,
+        next.dy,
       );
     }
+    return path;
+  }
+
+  void _paintMarker(
+    Canvas canvas,
+    Offset offset,
+    Color color, {
+    required bool square,
+  }) {
+    final fillPaint = Paint()..color = color;
+    final outlinePaint = Paint()
+      ..color = AppTheme.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    if (square) {
+      final rect = Rect.fromCenter(center: offset, width: 8, height: 8);
+      canvas.drawRect(rect, fillPaint);
+      canvas.drawRect(rect, outlinePaint);
+      return;
+    }
+    canvas.drawCircle(offset, 4.4, fillPaint);
+    canvas.drawCircle(offset, 4.4, outlinePaint);
   }
 
   void _paintText(
     Canvas canvas,
     String text,
     Color color, {
+    double fontSize = 10,
+    FontWeight fontWeight = FontWeight.w700,
     required Offset Function(Size textSize) offsetFor,
   }) {
     final painter = TextPainter(
@@ -471,9 +546,9 @@ class _TrendPainter extends CustomPainter {
         text: text,
         style: TextStyle(
           color: color,
-          fontSize: 10,
+          fontSize: fontSize,
           fontFamily: AppTheme.ledgerFontFamily,
-          fontWeight: FontWeight.w700,
+          fontWeight: fontWeight,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -482,7 +557,38 @@ class _TrendPainter extends CustomPainter {
   }
 
   String _compactCurrency(double value) {
-    return CurrencyConverter.compactMoney(value, currency);
+    return CurrencyConverter.compactMoney(value, currency).replaceAll('k', 'K');
+  }
+
+  String _compactPointValue(double value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) {
+      return '${(value / 1000).round()}K';
+    }
+    return value.toStringAsFixed(0);
+  }
+
+  double _niceMaximum(double maximum) {
+    if (maximum <= 0) return 1;
+    const intervalCount = 6;
+    final rawStep = (maximum * 1.12) / intervalCount;
+    final magnitude = math
+        .pow(10, (math.log(rawStep) / math.ln10).floor())
+        .toDouble();
+    final normalized = rawStep / magnitude;
+    final niceNormalizedStep = normalized <= 1
+        ? 1
+        : normalized <= 2
+        ? 2
+        : normalized <= 4
+        ? 4
+        : normalized <= 5
+        ? 5
+        : 10;
+    final step = niceNormalizedStep * magnitude;
+    return (maximum / step).ceil() * step;
   }
 
   @override

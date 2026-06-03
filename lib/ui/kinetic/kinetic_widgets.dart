@@ -347,11 +347,135 @@ class FilterBlock extends StatelessWidget {
   }
 }
 
+class CurrencyChip extends StatelessWidget {
+  const CurrencyChip({
+    super.key,
+    required this.currency,
+    required this.selected,
+    required this.onTap,
+    this.compact = false,
+  });
+
+  final String currency;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    final background = selected
+        ? colors.accent
+        : colors.background.withValues(alpha: 0.42);
+    final foreground = selected ? colors.accentForeground : colors.foreground;
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.98,
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppTheme.fast,
+        constraints: BoxConstraints(minHeight: compact ? 42 : 54),
+        padding: EdgeInsets.fromLTRB(7, compact ? 6 : 8, 11, compact ? 6 : 8),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: AppTheme.pillRadius,
+          border: Border.all(
+            color: selected ? colors.accent : colors.border,
+            width: AppTheme.thickBorderWidth,
+          ),
+          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CurrencyLogoMark(currency: currency, selected: selected),
+            const SizedBox(width: 7),
+            KineticText(
+              currency,
+              style: AppTheme.labelStyle(colors).copyWith(
+                color: foreground,
+                fontSize: compact ? 12 : 13,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CurrencyLogoMark extends StatelessWidget {
+  const CurrencyLogoMark({
+    super.key,
+    required this.currency,
+    required this.selected,
+  });
+
+  final String currency;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    final asset = switch (currency) {
+      'USD' => 'assets/images/currency/dollar.png',
+      'EUR' => 'assets/images/currency/euro.png',
+      'AED' => 'assets/images/currency/dirham.png',
+      _ => null,
+    };
+    final background = selected
+        ? colors.accentForeground
+        : colors.muted.withValues(alpha: 0.82);
+    final foreground = selected ? colors.accent : colors.foreground;
+    return Container(
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected
+              ? colors.accentForeground
+              : colors.border.withValues(alpha: 0.72),
+          width: 1,
+        ),
+      ),
+      child: asset == null
+          ? Text(
+              currency,
+              textAlign: TextAlign.center,
+              style: AppTheme.labelStyle(colors).copyWith(
+                color: foreground,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+                height: 1,
+              ),
+            )
+          : ImageIcon(
+              AssetImage(asset),
+              color: foreground,
+              size: currency == 'AED' ? 20 : 19,
+            ),
+    );
+  }
+}
+
 class TickerTape extends StatefulWidget {
-  const TickerTape({super.key, required this.items, this.height = 44});
+  const TickerTape({
+    super.key,
+    required this.items,
+    this.height = 44,
+    this.fontSize = 14,
+  });
 
   final List<String> items;
   final double height;
+  final double fontSize;
 
   @override
   State<TickerTape> createState() => _TickerTapeState();
@@ -414,7 +538,7 @@ class _TickerTapeState extends State<TickerTape>
                         item,
                         style: AppTheme.labelStyle(colors).copyWith(
                           color: colors.accentForeground,
-                          fontSize: 14,
+                          fontSize: widget.fontSize,
                           letterSpacing: -0.1,
                         ),
                       ),

@@ -241,7 +241,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final analytics = PortfolioAnalytics.calculate(
       filteredAssets,
       metalPriceState.snapshot,
-      displayCurrency,
+      displayCurrency: displayCurrency,
     );
     final completeAnalyticsUsd = PortfolioAnalytics.calculateUsd(
       assets,
@@ -250,12 +250,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final performance = PositionPerformance.calculate(
       filteredAssets,
       metalPriceState.snapshot,
-      displayCurrency,
+      displayCurrency: displayCurrency,
     );
     final completePerformance = PositionPerformance.calculate(
       assets,
       metalPriceState.snapshot,
-      displayCurrency,
+      displayCurrency: displayCurrency,
     );
     final snapshots = ref.watch(portfolioSnapshotProvider);
     final displayZakat =
@@ -280,19 +280,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             totalWealth: totals.totalValue,
             zakat: displayZakat,
             currency: totals.currency,
+            onCurrencySelected: (currency) => ref
+                .read(displayCurrencyProvider.notifier)
+                .setCurrency(currency),
             note: summaryNote.isEmpty ? null : summaryNote,
           ),
         ),
         SliverToBoxAdapter(
           child: TickerTape(
-            items: [
-              'NET ${_formatMoney(totals.totalValue, currency: totals.currency)}',
-              'ZAKAT ${_formatMoney(displayZakat, currency: totals.currency)}',
-              '${filteredAssets.length}/${assets.length} HOLDINGS',
-              metalPriceState.snapshot == null
-                  ? 'METALS UNPRICED'
-                  : 'METALS LIVE',
-            ],
+            height: 40,
+            fontSize: 13,
+            items: _metalTickerItems(metalPriceState),
           ),
         ),
         SliverPadding(
@@ -394,6 +392,7 @@ class _WealthHero extends StatelessWidget {
     required this.totalWealth,
     required this.zakat,
     required this.currency,
+    required this.onCurrencySelected,
     this.note,
   });
 
@@ -401,6 +400,7 @@ class _WealthHero extends StatelessWidget {
   final double totalWealth;
   final double zakat;
   final String currency;
+  final ValueChanged<String> onCurrencySelected;
   final String? note;
 
   @override
@@ -408,7 +408,7 @@ class _WealthHero extends StatelessWidget {
     final colors = context.kinetic;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final heroSize = (constraints.maxWidth * 0.15).clamp(64.0, 120.0);
+        final heroSize = (constraints.maxWidth * 0.095).clamp(40.0, 72.0);
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Container(
@@ -454,11 +454,18 @@ class _WealthHero extends StatelessWidget {
                       ).copyWith(fontSize: 42, color: colors.foreground),
                     ),
                     const SizedBox(height: 6),
-                    KineticNumber(
-                      _formatMoney(totalWealth, currency: currency),
-                      key: const Key('wealth_hero_total'),
-                      fontSize: heroSize,
-                      color: colors.accent,
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: KineticNumber(
+                          _formatMoney(totalWealth, currency: currency),
+                          key: const Key('wealth_hero_total'),
+                          fontSize: heroSize,
+                          color: colors.accent,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Wrap(
@@ -478,6 +485,10 @@ class _WealthHero extends StatelessWidget {
                             );
                           },
                           child: const Text('HISTORY'),
+                        ),
+                        _CurrencySelector(
+                          selectedCurrency: currency,
+                          onSelected: onCurrencySelected,
                         ),
                       ],
                     ),
@@ -511,6 +522,35 @@ class _WealthHero extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _CurrencySelector extends StatelessWidget {
+  const _CurrencySelector({
+    required this.selectedCurrency,
+    required this.onSelected,
+  });
+
+  final String selectedCurrency;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: CurrencyConverter.supportedCurrencies
+          .map(
+            (currency) => CurrencyChip(
+              key: Key('home_display_currency_$currency'),
+              currency: currency,
+              selected: selectedCurrency == currency,
+              onTap: () => onSelected(currency),
+              compact: true,
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -897,21 +937,11 @@ class SettingsPage extends ConsumerWidget {
                       style: AppTheme.labelStyle(colors),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: CurrencyConverter.supportedCurrencies
-                          .map(
-                            (currency) => FilterBlock(
-                              key: Key('display_currency_$currency'),
-                              label: currency,
-                              selected: displayCurrency == currency,
-                              onTap: () => ref
-                                  .read(displayCurrencyProvider.notifier)
-                                  .setCurrency(currency),
-                            ),
-                          )
-                          .toList(),
+                    _CurrencySelector(
+                      selectedCurrency: displayCurrency,
+                      onSelected: (currency) => ref
+                          .read(displayCurrencyProvider.notifier)
+                          .setCurrency(currency),
                     ),
                     const SizedBox(height: 12),
                     KineticText(
@@ -1275,6 +1305,8 @@ class AssetTile extends ConsumerWidget {
             children: [
               Row(
                 children: [
+                  _AssetTypeIcon(type: asset.type, isSold: isSold),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: KineticText(
                       asset.type.label,
@@ -1283,6 +1315,7 @@ class AssetTile extends ConsumerWidget {
                       ).copyWith(fontSize: 28),
                     ),
                   ),
+                  if (asset.tag != null) const SizedBox(width: 8),
                   if (asset.tag != null)
                     Container(
                       key: Key('asset_tag_chip_${asset.id}'),
@@ -1385,6 +1418,68 @@ class AssetTile extends ConsumerWidget {
   }
 }
 
+class _AssetTypeIcon extends StatelessWidget {
+  const _AssetTypeIcon({required this.type, this.isSold = false});
+
+  final AssetType type;
+  final bool isSold;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    final icon = switch (type) {
+      AssetType.cash => Icons.payments_outlined,
+      AssetType.bankSavings => Icons.account_balance_outlined,
+      AssetType.gold => Icons.workspace_premium_outlined,
+      AssetType.silver => Icons.circle_outlined,
+    };
+    final foreground = isSold
+        ? colors.mutedForeground
+        : colors.accentForeground;
+    final background = isSold ? colors.muted : colors.accent;
+    return _LedgerIcon(
+      icon: icon,
+      foreground: foreground,
+      background: background,
+    );
+  }
+}
+
+class _LedgerIcon extends StatelessWidget {
+  const _LedgerIcon({
+    required this.icon,
+    required this.foreground,
+    required this.background,
+    this.size = 48,
+  });
+
+  final IconData icon;
+  final Color foreground;
+  final Color background;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: AppTheme.tightRadius,
+        border: Border.all(
+          color: colors.border,
+          width: AppTheme.thickBorderWidth,
+        ),
+        boxShadow: background == colors.accent
+            ? AppTheme.glowShadow(colors)
+            : null,
+      ),
+      child: Icon(icon, color: foreground, size: size * 0.48),
+    );
+  }
+}
+
 class _TransactionEventRow extends StatelessWidget {
   const _TransactionEventRow({required this.event});
 
@@ -1394,6 +1489,10 @@ class _TransactionEventRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final isSale = event.type == TransactionEventType.sold;
+    final eventBackground = isSale ? colors.loss : colors.profit;
+    final eventForeground = eventBackground.computeLuminance() < 0.35
+        ? AppTheme.white
+        : colors.accentForeground;
     final price = event.price == null
         ? 'NO PRICE'
         : '${event.asset.currency} ${event.price!.toStringAsFixed(2)}';
@@ -1402,10 +1501,13 @@ class _TransactionEventRow extends StatelessWidget {
       borderWidth: 1,
       child: Row(
         children: [
-          Container(
-            width: 12,
-            height: 48,
-            color: isSale ? colors.loss : colors.profit,
+          _LedgerIcon(
+            icon: isSale
+                ? Icons.remove_circle_outline
+                : Icons.add_circle_outline,
+            foreground: eventForeground,
+            background: eventBackground,
+            size: 42,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1526,6 +1628,29 @@ Map<DateTime, List<TransactionEvent>> _groupEventsByDate(
     grouped.putIfAbsent(key, () => []).add(event);
   }
   return grouped;
+}
+
+List<String> _metalTickerItems(MetalPriceState state) {
+  final snapshot = state.snapshot;
+  if (state.isRefreshing) {
+    return const [
+      'REFRESHING METAL PRICES',
+      'GOLD PRICE UPDATING',
+      'SILVER PRICE UPDATING',
+    ];
+  }
+  if (snapshot == null) {
+    return const [
+      'GOLD PRICE PENDING',
+      'SILVER PRICE PENDING',
+      'REFRESH METALS IN SYSTEM',
+    ];
+  }
+  return [
+    'LIVE GOLD ${_formatMoney(snapshot.goldPerGramUsd)} / G',
+    'LIVE SILVER ${_formatMoney(snapshot.silverPerGramUsd)} / G',
+    '${state.isCached ? 'CACHED' : 'UPDATED'} ${_formatTimestamp(snapshot.priceTimestamp)}',
+  ];
 }
 
 String _formatMoney(

@@ -31,7 +31,10 @@ void main() {
     ], _prices());
 
     expect(analytics.categoryValuesUsd[AssetType.cash], 100);
-    expect(analytics.categoryValuesUsd[AssetType.bankSavings], closeTo(108, 0.01));
+    expect(
+      analytics.categoryValuesUsd[AssetType.bankSavings],
+      closeTo(108, 0.01),
+    );
     expect(analytics.categoryValuesUsd[AssetType.gold], 400);
     expect(analytics.totalUsd, closeTo(608, 0.01));
     expect(analytics.activeAssetCount, 3);
@@ -52,7 +55,7 @@ void main() {
         ),
       ],
       null,
-      'AED',
+      displayCurrency: 'AED',
     );
 
     expect(analytics.currency, 'AED');

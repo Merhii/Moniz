@@ -44,7 +44,7 @@ void main() {
         ),
       ],
       null,
-      'AED',
+      displayCurrency: 'AED',
     );
 
     expect(summary.currency, 'AED');

@@ -248,7 +248,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          _SelectionMenu<String>(
+                          _CurrencySelectionMenu(
                             key: const Key('asset_currency_field'),
                             label: _isMetal ? 'Price Currency' : 'Currency',
                             options: _currencyOptions,
@@ -683,6 +683,58 @@ class _SelectionMenu<T> extends StatelessWidget {
                         option: option,
                         selected: value == option.value,
                         showDetail: hasDetails,
+                        onTap: () => onChanged(option.value),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _CurrencySelectionMenu extends StatelessWidget {
+  const _CurrencySelectionMenu({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<_MenuOption<String>> options;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KineticText(label, style: AppTheme.labelStyle(colors)),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const gap = 8.0;
+            final columns = constraints.maxWidth < 460 ? 2 : 3;
+            final itemWidth =
+                (constraints.maxWidth - (gap * (columns - 1))) / columns;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: options
+                  .map(
+                    (option) => SizedBox(
+                      width: itemWidth,
+                      child: CurrencyChip(
+                        key: option.key,
+                        currency: option.value,
+                        selected: value == option.value,
                         onTap: () => onChanged(option.value),
                       ),
                     ),

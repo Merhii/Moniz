@@ -51,9 +51,9 @@ class PositionPerformance {
 
   static PositionPerformanceSummary calculate(
     List<Asset> assets,
-    MetalPriceSnapshot? prices,
+    MetalPriceSnapshot? prices, {
     String displayCurrency = CurrencyConverter.defaultCurrency,
-  ) {
+  }) {
     final normalizedDisplayCurrency = CurrencyConverter.normalize(
       displayCurrency,
     );

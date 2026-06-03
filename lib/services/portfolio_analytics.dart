@@ -27,9 +27,9 @@ class PortfolioAnalytics {
 
   static PortfolioAnalytics calculate(
     List<Asset> assets,
-    MetalPriceSnapshot? prices,
+    MetalPriceSnapshot? prices, {
     String displayCurrency = CurrencyConverter.defaultCurrency,
-  ) {
+  }) {
     final normalizedDisplayCurrency = CurrencyConverter.normalize(
       displayCurrency,
     );
@@ -70,6 +70,6 @@ class PortfolioAnalytics {
     List<Asset> assets,
     MetalPriceSnapshot? prices,
   ) {
-    return calculate(assets, prices, CurrencyConverter.defaultCurrency);
+    return calculate(assets, prices);
   }
 }
