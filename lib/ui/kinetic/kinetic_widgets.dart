@@ -44,6 +44,7 @@ class KineticNumber extends StatelessWidget {
     super.key,
     this.fontSize,
     this.color,
+    this.currency,
     this.align,
     this.maxLines = 1,
   });
@@ -51,20 +52,53 @@ class KineticNumber extends StatelessWidget {
   final String value;
   final double? fontSize;
   final Color? color;
+  final String? currency;
   final TextAlign? align;
   final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    return Text(
+    final effectiveFontSize = fontSize ?? 64;
+    final textColor = color ?? colors.foreground;
+    final text = Text(
       value,
       textAlign: align,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
       style: AppTheme.numberStyle(
         colors,
-      ).copyWith(fontSize: fontSize ?? 64, color: color ?? colors.foreground),
+      ).copyWith(fontSize: effectiveFontSize, color: textColor),
+    );
+    final normalizedCurrency = currency?.trim().toUpperCase();
+    if (normalizedCurrency == null || normalizedCurrency.isEmpty) {
+      return text;
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final markSize = (effectiveFontSize * 0.58).clamp(22.0, 42.0);
+        final gap = (markSize * 0.26).clamp(6.0, 12.0);
+        final maxTextWidth = constraints.maxWidth.isFinite
+            ? math.max(0.0, constraints.maxWidth - markSize - gap)
+            : double.infinity;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CurrencyLogoMark(
+              currency: normalizedCurrency,
+              selected: false,
+              size: markSize,
+              iconColor: textColor,
+            ),
+            SizedBox(width: gap),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxTextWidth),
+              child: text,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -243,6 +277,7 @@ class MetricBlock extends StatelessWidget {
     required this.value,
     this.detail,
     this.valueColor,
+    this.currency,
     this.valueFontSize = 28,
     this.valueMaxLines = 1,
   });
@@ -251,6 +286,7 @@ class MetricBlock extends StatelessWidget {
   final String value;
   final String? detail;
   final Color? valueColor;
+  final String? currency;
   final double valueFontSize;
   final int valueMaxLines;
 
@@ -268,6 +304,7 @@ class MetricBlock extends StatelessWidget {
             value,
             fontSize: valueFontSize,
             color: valueColor ?? colors.foreground,
+            currency: currency,
             maxLines: valueMaxLines,
           ),
           if (detail != null) ...[
@@ -412,10 +449,14 @@ class CurrencyLogoMark extends StatelessWidget {
     super.key,
     required this.currency,
     required this.selected,
+    this.size = 30,
+    this.iconColor,
   });
 
   final String currency;
   final bool selected;
+  final double size;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -429,10 +470,11 @@ class CurrencyLogoMark extends StatelessWidget {
     final background = selected
         ? colors.accentForeground
         : colors.muted.withValues(alpha: 0.82);
-    final foreground = selected ? colors.accent : colors.foreground;
+    final foreground =
+        iconColor ?? (selected ? colors.accent : colors.foreground);
     return Container(
-      width: 30,
-      height: 30,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: background,
@@ -459,7 +501,7 @@ class CurrencyLogoMark extends StatelessWidget {
           : ImageIcon(
               AssetImage(asset),
               color: foreground,
-              size: currency == 'AED' ? 20 : 19,
+              size: currency == 'AED' ? size * 0.67 : size * 0.63,
             ),
     );
   }

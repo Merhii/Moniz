@@ -320,6 +320,7 @@ class ProfitLossCard extends StatelessWidget {
               key: const Key('paid_vs_now_amount'),
               fontSize: 58,
               color: isGain ? colors.profit : colors.loss,
+              currency: summary.currency,
             ),
             const SizedBox(height: 10),
             KineticText(

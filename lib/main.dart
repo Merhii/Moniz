@@ -464,6 +464,7 @@ class _WealthHero extends StatelessWidget {
                           key: const Key('wealth_hero_total'),
                           fontSize: heroSize,
                           color: colors.accent,
+                          currency: currency,
                         ),
                       ),
                     ),
@@ -500,6 +501,7 @@ class _WealthHero extends StatelessWidget {
                           label: 'Zakat due',
                           value: _formatMoney(zakat, currency: currency),
                           valueColor: colors.profit,
+                          currency: currency,
                           detail: 'ALL HOLDINGS',
                         ),
                       ],
@@ -699,6 +701,7 @@ class ZakatPage extends ConsumerWidget {
                       _formatMoney(result.amountDueUsd),
                       key: const Key('zakat_amount_due'),
                       fontSize: 72,
+                      currency: CurrencyConverter.defaultCurrency,
                       color: result.hasPaymentDue
                           ? colors.profit
                           : colors.foreground,
@@ -710,12 +713,16 @@ class ZakatPage extends ConsumerWidget {
                         MetricBlock(
                           label: 'Eligible wealth',
                           value: _formatMoney(result.eligibleWealthUsd),
+                          currency: CurrencyConverter.defaultCurrency,
                         ),
                         MetricBlock(
                           label: 'Nisab',
                           value: result.nisabThresholdUsd == null
                               ? 'AWAITING'
                               : _formatMoney(result.nisabThresholdUsd!),
+                          currency: result.nisabThresholdUsd == null
+                              ? null
+                              : CurrencyConverter.defaultCurrency,
                           detail: result.settings.nisabStandard.label,
                         ),
                       ],
@@ -1255,11 +1262,13 @@ class MetalPricesCard extends ConsumerWidget {
                 MetricBlock(
                   label: 'Gold',
                   value: _formatMoney(snapshot.goldPerGramUsd),
+                  currency: CurrencyConverter.defaultCurrency,
                   detail: 'PER GRAM',
                 ),
                 MetricBlock(
                   label: 'Silver',
                   value: _formatMoney(snapshot.silverPerGramUsd),
+                  currency: CurrencyConverter.defaultCurrency,
                   detail: 'PER GRAM',
                 ),
                 MetricBlock(
@@ -1347,6 +1356,7 @@ class AssetTile extends ConsumerWidget {
                 '${_trimNumber(asset.amount)} ${asset.unit}',
                 fontSize: 34,
                 color: isSold ? colors.mutedForeground : colors.foreground,
+                currency: asset.type.isMetal ? null : asset.currency,
               ),
               if (asset.type.isMetal) ...[
                 const SizedBox(height: 8),
@@ -1573,7 +1583,13 @@ class _AssessmentTile extends StatelessWidget {
                 ],
               ),
             ),
-            KineticNumber(value, fontSize: 24),
+            KineticNumber(
+              value,
+              fontSize: 24,
+              currency: assessment.valueUsd == null
+                  ? null
+                  : CurrencyConverter.defaultCurrency,
+            ),
           ],
         ),
       ),

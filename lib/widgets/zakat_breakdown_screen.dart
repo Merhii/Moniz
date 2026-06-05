@@ -181,6 +181,7 @@ class _CalculationBlock extends ConsumerWidget {
             _formatMoney(result.amountDueUsd),
             key: const Key('zakat_amount_due'),
             fontSize: 64,
+            currency: CurrencyConverter.defaultCurrency,
           ),
           const SizedBox(height: 10),
           KineticText(

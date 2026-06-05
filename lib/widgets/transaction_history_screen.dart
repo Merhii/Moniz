@@ -228,6 +228,7 @@ class _SnapshotTile extends StatelessWidget {
                   KineticNumber(
                     CurrencyConverter.formatMoney(total, currency),
                     fontSize: 28,
+                    currency: currency,
                   ),
                   const SizedBox(height: 4),
                   KineticText(

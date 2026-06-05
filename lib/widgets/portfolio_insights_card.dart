@@ -197,6 +197,7 @@ class _DonutHero extends StatelessWidget {
                         decimals: 0,
                       ),
                       fontSize: numberSize,
+                      currency: analytics.currency,
                     ),
                   ],
                 ),
