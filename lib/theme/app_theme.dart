@@ -293,9 +293,12 @@ class AppTheme {
   }
 
   static TextStyle numberStyle(KineticColors colors) {
-    return displayStyle(colors).copyWith(
-      fontWeight: FontWeight.w900,
-      letterSpacing: -2.5,
+    return TextStyle(
+      color: colors.foreground,
+      fontFamily: ledgerFontFamily,
+      fontWeight: FontWeight.w500,
+      height: 0.95,
+      letterSpacing: 0,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
   }
