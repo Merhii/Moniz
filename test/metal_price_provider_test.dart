@@ -40,6 +40,7 @@ void main() {
     final notifier = MetalPriceNotifier(
       priceBox: Hive.box<MetalPriceSnapshot>('metalPrices'),
       priceService: service,
+      historyService: const _FakeMetalPriceHistoryService(),
     );
     addTearDown(notifier.dispose);
 
@@ -53,6 +54,9 @@ void main() {
     final notifier = MetalPriceNotifier(
       priceBox: Hive.box<MetalPriceSnapshot>('metalPrices'),
       priceService: _FakeMetalPriceService(result: result),
+      historyService: _FakeMetalPriceHistoryService(
+        result: [_snapshot(gold: 101, silver: 1.4)],
+      ),
     );
     addTearDown(notifier.dispose);
 
@@ -66,6 +70,7 @@ void main() {
       ).get('latest_usd_gram_prices')?.silverPerGramUsd,
       1.6,
     );
+    expect(notifier.state.historicalPrices.single.goldPerGramUsd, 101);
   });
 
   test('ignores another refresh while one is already in flight', () async {
@@ -73,6 +78,7 @@ void main() {
     final notifier = MetalPriceNotifier(
       priceBox: Hive.box<MetalPriceSnapshot>('metalPrices'),
       priceService: service,
+      historyService: const _FakeMetalPriceHistoryService(),
     );
     addTearDown(notifier.dispose);
 
@@ -94,6 +100,7 @@ void main() {
       priceService: _FakeMetalPriceService(
         error: const MetalPriceException('Service unavailable.'),
       ),
+      historyService: const _FakeMetalPriceHistoryService(),
     );
     addTearDown(notifier.dispose);
 
@@ -141,5 +148,18 @@ class _DelayedMetalPriceService implements MetalPriceService {
 
   void complete(MetalPriceSnapshot snapshot) {
     _result.complete(snapshot);
+  }
+}
+
+class _FakeMetalPriceHistoryService implements MetalPriceHistoryService {
+  const _FakeMetalPriceHistoryService({this.result = const []});
+
+  final List<MetalPriceSnapshot> result;
+
+  @override
+  Future<List<MetalPriceSnapshot>> fetchWeeklyAverages({
+    required int days,
+  }) async {
+    return result;
   }
 }

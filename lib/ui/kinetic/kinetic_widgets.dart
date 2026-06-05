@@ -61,8 +61,10 @@ class KineticNumber extends StatelessWidget {
     final colors = context.kinetic;
     final effectiveFontSize = fontSize ?? 64;
     final textColor = color ?? colors.foreground;
+    final normalizedCurrency = currency?.trim().toUpperCase();
+    final displayValue = _numberTextWithoutCurrency(value, normalizedCurrency);
     final text = Text(
-      value,
+      displayValue,
       textAlign: align,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
@@ -70,7 +72,6 @@ class KineticNumber extends StatelessWidget {
         colors,
       ).copyWith(fontSize: effectiveFontSize, color: textColor),
     );
-    final normalizedCurrency = currency?.trim().toUpperCase();
     if (normalizedCurrency == null || normalizedCurrency.isEmpty) {
       return text;
     }
@@ -101,6 +102,28 @@ class KineticNumber extends StatelessWidget {
       },
     );
   }
+}
+
+String _numberTextWithoutCurrency(String value, String? currency) {
+  if (currency == null || currency.isEmpty) return value;
+  final sign = value.startsWith('+') || value.startsWith('-')
+      ? value.substring(0, 1)
+      : '';
+  var text = sign.isEmpty ? value.trim() : value.substring(1).trim();
+
+  if (currency == 'USD' && text.startsWith(r'$')) {
+    text = text.substring(1).trim();
+  }
+
+  if (text.toUpperCase().startsWith('$currency ')) {
+    text = text.substring(currency.length).trim();
+  }
+
+  if (text.toUpperCase().endsWith(' $currency')) {
+    text = text.substring(0, text.length - currency.length).trim();
+  }
+
+  return '$sign$text';
 }
 
 class PressableScale extends StatefulWidget {

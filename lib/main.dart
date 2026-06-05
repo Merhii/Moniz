@@ -332,6 +332,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               PortfolioTrendCard(
                 snapshots: snapshots,
                 performance: completePerformance,
+                assets: assets,
+                metalPriceHistory: metalPriceState.historicalPrices,
                 displayCurrency: displayCurrency,
               ),
               const SizedBox(height: 14),

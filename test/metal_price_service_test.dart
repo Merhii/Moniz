@@ -131,4 +131,63 @@ void main() {
       ),
     );
   });
+
+  test('fetches weekly gold and silver averages from daily history', () async {
+    final timestamps = [
+      _epochSeconds(DateTime.utc(2026, 6, 1)),
+      _epochSeconds(DateTime.utc(2026, 6, 2)),
+      _epochSeconds(DateTime.utc(2026, 6, 3)),
+      _epochSeconds(DateTime.utc(2026, 6, 4)),
+      _epochSeconds(DateTime.utc(2026, 6, 5)),
+    ];
+    final client = MockClient((request) async {
+      expect(request.url.host, 'query1.finance.yahoo.com');
+      expect(request.url.queryParameters['range'], '37d');
+      expect(request.url.queryParameters['interval'], '1d');
+      expect(request.headers['User-Agent'], 'Moniz/1.0');
+      final symbol = request.url.pathSegments.last;
+      return http.Response(
+        jsonEncode(
+          _chartPayload(
+            timestamps: timestamps,
+            closes: symbol == 'GC=F'
+                ? const [3100, 3110, 3120, 3130, 3140]
+                : const [31, 32, 33, 34, 35],
+          ),
+        ),
+        200,
+      );
+    });
+    final service = YahooFinanceMetalHistoryService(client: client);
+
+    final history = await service.fetchWeeklyAverages(days: 30);
+
+    expect(history, hasLength(1));
+    expect(history.single.goldPerGramUsd, closeTo(3120 / 31.1034768, 0.001));
+    expect(history.single.silverPerGramUsd, closeTo(33 / 31.1034768, 0.001));
+    expect(history.single.priceTimestamp, DateTime.utc(2026, 6, 5));
+  });
+}
+
+int _epochSeconds(DateTime date) => date.millisecondsSinceEpoch ~/ 1000;
+
+Map<String, Object?> _chartPayload({
+  required List<int> timestamps,
+  required List<num> closes,
+}) {
+  return {
+    'chart': {
+      'result': [
+        {
+          'timestamp': timestamps,
+          'indicators': {
+            'quote': [
+              {'close': closes},
+            ],
+          },
+        },
+      ],
+      'error': null,
+    },
+  };
 }

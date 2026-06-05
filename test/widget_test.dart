@@ -109,11 +109,11 @@ void main() {
 
     await tester.pumpWidget(_buildApp());
 
-    expect(find.text(r'$450.00'), findsOneWidget);
+    expect(find.text('450.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
-    await tester.scrollUntilVisible(find.text(r'$90.00'), 300);
-    expect(find.text(r'$90.00'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('90.00'), 300);
+    expect(find.text('90.00'), findsOneWidget);
     expect(find.textContaining('CACHED PRICE'), findsOneWidget);
     await tester.tap(find.byKey(const Key('dashboard_nav')));
     await _pumpKinetic(tester);
@@ -144,10 +144,10 @@ void main() {
 
     await tester.pumpWidget(_buildApp());
 
-    expect(find.text(r'$1,234,567.89'), findsOneWidget);
+    expect(find.text('1,234,567.89'), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
     await _pumpKinetic(tester);
-    expect(find.text('1,234,567.89 USD'), findsOneWidget);
+    expect(find.text('1,234,567.89'), findsOneWidget);
   });
 
   testWidgets('adds a gold asset using rich finance fields', (tester) async {
@@ -367,7 +367,7 @@ void main() {
     });
     await tester.pumpWidget(_buildApp());
 
-    expect(find.text(r'$150.00'), findsOneWidget);
+    expect(find.text('150.00'), findsOneWidget);
     tester
         .widget<FilterBlock>(find.byKey(const Key('filter_tag_salary')))
         .onTap();
@@ -375,7 +375,7 @@ void main() {
 
     expect(find.text('SHOWING 1 OF 2 HOLDINGS'), findsOneWidget);
     expect(find.text('FILTERED WEALTH'), findsOneWidget);
-    expect(find.text(r'$100.00'), findsOneWidget);
+    expect(find.text('100.00'), findsOneWidget);
   });
 
   testWidgets('dashboard displays trend and paid vs now position card', (
@@ -433,8 +433,79 @@ void main() {
     await tester.pumpWidget(_buildApp());
 
     await _pumpKinetic(tester);
+    expect(find.byKey(const Key('portfolio_jump_30d')), findsOneWidget);
+    expect(find.byKey(const Key('portfolio_jump_90d')), findsOneWidget);
+    expect(find.byKey(const Key('portfolio_jump_all')), findsOneWidget);
+    expect(find.textContaining('30D JUMP'), findsOneWidget);
+    expect(find.text('CASH REMOVED'), findsOneWidget);
+    expect(find.text('GOLD CHANGE'), findsOneWidget);
     expect(find.byKey(const Key('portfolio_line_chart')), findsOneWidget);
     expect(find.byKey(const Key('paid_vs_now_amount')), findsOneWidget);
+  });
+
+  testWidgets('portfolio trend derives cash jumps from dated assets', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final today = DateTime.now();
+    final todayDay = DateTime(today.year, today.month, today.day);
+    final olderCashDate = todayDay.subtract(const Duration(days: 35));
+    final recentCashDate = todayDay.subtract(const Duration(days: 1));
+    final goldDate = todayDay.subtract(const Duration(days: 12));
+
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').putAll({
+        'older-cash': Asset(
+          id: 'older-cash',
+          type: AssetType.cash,
+          amount: 100,
+          unit: 'USD',
+          currency: 'USD',
+          boughtDate: olderCashDate,
+        ),
+        'recent-cash': Asset(
+          id: 'recent-cash',
+          type: AssetType.cash,
+          amount: 200,
+          unit: 'USD',
+          currency: 'USD',
+          boughtDate: recentCashDate,
+          tag: AssetTag.salary,
+        ),
+        'gold': Asset(
+          id: 'gold',
+          type: AssetType.gold,
+          amount: 8,
+          unit: 'g',
+          currency: 'USD',
+          purity: 100,
+          boughtDate: goldDate,
+          boughtPrice: 400,
+        ),
+      });
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 55,
+          silverPerGramUsd: 1.1,
+          priceTimestamp: todayDay,
+          fetchedAt: todayDay,
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+
+    await _pumpKinetic(tester);
+    expect(find.text('CASH ADDED'), findsOneWidget);
+    expect(find.text('GOLD CHANGE'), findsOneWidget);
+    expect(find.text(r'+$200'), findsOneWidget);
+    expect(find.byKey(const Key('portfolio_line_chart')), findsOneWidget);
   });
 
   testWidgets('opens transaction history from wealth breakdown', (
@@ -588,11 +659,17 @@ void main() {
   });
 }
 
-Widget _buildApp({MetalPriceService? service}) {
+Widget _buildApp({
+  MetalPriceService? service,
+  MetalPriceHistoryService? historyService,
+}) {
   return ProviderScope(
     overrides: [
       metalPriceServiceProvider.overrideWithValue(
         service ?? _UnavailableMetalPriceService(),
+      ),
+      metalPriceHistoryServiceProvider.overrideWithValue(
+        historyService ?? const _UnavailableMetalPriceHistoryService(),
       ),
     ],
     child: const MonizApp(),
@@ -606,6 +683,17 @@ Future<void> _pumpKinetic(WidgetTester tester) {
 class _UnavailableMetalPriceService implements MetalPriceService {
   @override
   Future<MetalPriceSnapshot> fetchLatestPrices() async {
+    throw const MetalPriceException('Unavailable in widget test.');
+  }
+}
+
+class _UnavailableMetalPriceHistoryService implements MetalPriceHistoryService {
+  const _UnavailableMetalPriceHistoryService();
+
+  @override
+  Future<List<MetalPriceSnapshot>> fetchWeeklyAverages({
+    required int days,
+  }) async {
     throw const MetalPriceException('Unavailable in widget test.');
   }
 }
