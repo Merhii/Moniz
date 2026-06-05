@@ -1254,12 +1254,12 @@ class MetalPricesCard extends ConsumerWidget {
               children: [
                 MetricBlock(
                   label: 'Gold',
-                  value: '\$${snapshot.goldPerGramUsd.toStringAsFixed(2)}',
+                  value: _formatMoney(snapshot.goldPerGramUsd),
                   detail: 'PER GRAM',
                 ),
                 MetricBlock(
                   label: 'Silver',
-                  value: '\$${snapshot.silverPerGramUsd.toStringAsFixed(2)}',
+                  value: _formatMoney(snapshot.silverPerGramUsd),
                   detail: 'PER GRAM',
                 ),
                 MetricBlock(
@@ -1355,8 +1355,7 @@ class AssetTile extends ConsumerWidget {
                     '${asset.purity ?? '-'}% PURITY',
                     'PRICES IN ${asset.currency}',
                     if (asset.boughtPrice != null)
-                      'BOUGHT ${asset.currency} '
-                          '${asset.boughtPrice!.toStringAsFixed(2)}',
+                      'BOUGHT ${CurrencyConverter.formatMoney(asset.boughtPrice!, asset.currency)}',
                   ].join(' / '),
                   muted: true,
                 ),
@@ -1495,7 +1494,7 @@ class _TransactionEventRow extends StatelessWidget {
         : colors.accentForeground;
     final price = event.price == null
         ? 'NO PRICE'
-        : '${event.asset.currency} ${event.price!.toStringAsFixed(2)}';
+        : CurrencyConverter.formatMoney(event.price!, event.asset.currency);
     return LedgerFrame(
       padding: const EdgeInsets.all(12),
       borderWidth: 1,
@@ -1676,6 +1675,5 @@ String _formatTimestamp(DateTime date) {
 }
 
 String _trimNumber(double value) {
-  if (value == value.roundToDouble()) return value.toInt().toString();
-  return value.toString();
+  return CurrencyConverter.formatNumber(value);
 }

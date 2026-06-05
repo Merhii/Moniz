@@ -163,7 +163,7 @@ class _EventTile extends StatelessWidget {
     final isSale = event.type == TransactionEventType.sold;
     final price = event.price == null
         ? 'NO PRICE'
-        : '${event.asset.currency} ${event.price!.toStringAsFixed(2)}';
+        : CurrencyConverter.formatMoney(event.price!, event.asset.currency);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: LedgerFrame(
@@ -193,7 +193,9 @@ class _EventTile extends StatelessWidget {
                 ],
               ),
             ),
-            KineticText('${event.asset.amount} ${event.asset.unit}'),
+            KineticText(
+              '${CurrencyConverter.formatNumber(event.asset.amount)} ${event.asset.unit}',
+            ),
           ],
         ),
       ),

@@ -6,6 +6,7 @@ import '../models/zakat_settings.dart';
 import '../providers/asset_provider.dart';
 import '../providers/metal_price_provider.dart';
 import '../providers/zakat_provider.dart';
+import '../services/currency_converter.dart';
 import '../services/zakat_engine.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
@@ -177,19 +178,19 @@ class _CalculationBlock extends ConsumerWidget {
           KineticText('AMOUNT DUE', style: AppTheme.labelStyle(colors)),
           const SizedBox(height: 10),
           KineticNumber(
-            '\$${result.amountDueUsd.toStringAsFixed(2)}',
+            _formatMoney(result.amountDueUsd),
             key: const Key('zakat_amount_due'),
             fontSize: 64,
           ),
           const SizedBox(height: 10),
           KineticText(
-            'ELIGIBLE WEALTH: \$${result.eligibleWealthUsd.toStringAsFixed(2)}',
+            'ELIGIBLE WEALTH: ${_formatMoney(result.eligibleWealthUsd)}',
           ),
           KineticText(
             result.nisabThresholdUsd == null
                 ? 'NISAB: AWAITING LIVE PRICES'
                 : 'NISAB (${result.settings.nisabStandard.label}): '
-                      '\$${result.nisabThresholdUsd!.toStringAsFixed(2)}',
+                      '${_formatMoney(result.nisabThresholdUsd!)}',
           ),
           if (result.message != null) ...[
             const SizedBox(height: 8),
@@ -229,7 +230,7 @@ class _AssessmentTile extends StatelessWidget {
     final colors = context.kinetic;
     final value = assessment.valueUsd == null
         ? 'NOT VALUED'
-        : '\$${assessment.valueUsd!.toStringAsFixed(2)}';
+        : _formatMoney(assessment.valueUsd!);
     final status = assessment.isIncluded
         ? 'INCLUDED IN AMOUNT DUE'
         : assessment.exclusionReason ?? 'EXCLUDED';
@@ -263,4 +264,11 @@ String _formatDate(DateTime date) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '${date.year}-$month-$day';
+}
+
+String _formatMoney(double value) {
+  return CurrencyConverter.formatMoney(
+    value,
+    CurrencyConverter.defaultCurrency,
+  );
 }

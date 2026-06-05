@@ -127,6 +127,29 @@ void main() {
     expect(find.byKey(const Key('asset_tag_chip_gold')), findsOneWidget);
   });
 
+  testWidgets('formats large dashboard and ledger numbers with commas', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'cash',
+        const Asset(
+          id: 'cash',
+          type: AssetType.cash,
+          amount: 1234567.89,
+          unit: 'USD',
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+
+    expect(find.text(r'$1,234,567.89'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+    expect(find.text('1,234,567.89 USD'), findsOneWidget);
+  });
+
   testWidgets('adds a gold asset using rich finance fields', (tester) async {
     Asset? submittedAsset;
     await tester.pumpWidget(
@@ -288,10 +311,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_buildApp());
 
-    expect(
-      find.text('WEALTH / LIVE POSITION'),
-      findsOneWidget,
-    );
+    expect(find.text('WEALTH / LIVE POSITION'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('holdings_nav')));
     await _pumpKinetic(tester);

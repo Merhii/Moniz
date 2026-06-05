@@ -21,10 +21,7 @@ class CurrencyConverter {
     return supportedCurrencies.contains(normalize(currency));
   }
 
-  static double? usdRateFor(
-    String? currency, {
-    MetalPriceSnapshot? prices,
-  }) {
+  static double? usdRateFor(String? currency, {MetalPriceSnapshot? prices}) {
     final normalized = normalize(currency);
     return prices?.usdRateFor(normalized) ?? _defaultUsdRates[normalized];
   }
@@ -49,15 +46,18 @@ class CurrencyConverter {
     return convert(amount, from: defaultCurrency, to: to, prices: prices);
   }
 
-  static String formatMoney(
-    double value,
-    String currency, {
-    int decimals = 2,
-  }) {
+  static String formatMoney(double value, String currency, {int decimals = 2}) {
     final normalized = normalize(currency);
-    final amount = value.toStringAsFixed(decimals);
+    final amount = formatNumber(value, decimals: decimals);
     if (normalized == 'USD') return '\$$amount';
     return '$normalized $amount';
+  }
+
+  static String formatNumber(double value, {int? decimals}) {
+    final amount = decimals == null
+        ? _trimNumber(value)
+        : value.toStringAsFixed(decimals);
+    return _withThousandsSeparators(amount);
   }
 
   static String compactMoney(double value, String currency) {
@@ -70,5 +70,32 @@ class CurrencyConverter {
       return '$prefix${(value / 1000).toStringAsFixed(1)}k';
     }
     return '$prefix${value.toStringAsFixed(0)}';
+  }
+
+  static String _trimNumber(double value) {
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toString();
+  }
+
+  static String _withThousandsSeparators(String amount) {
+    final sign = amount.startsWith('-') ? '-' : '';
+    final unsignedAmount = sign.isEmpty ? amount : amount.substring(1);
+    final decimalIndex = unsignedAmount.indexOf('.');
+    final whole = decimalIndex == -1
+        ? unsignedAmount
+        : unsignedAmount.substring(0, decimalIndex);
+    final decimal = decimalIndex == -1
+        ? ''
+        : unsignedAmount.substring(decimalIndex);
+    final groupedWhole = StringBuffer(sign);
+
+    for (var index = 0; index < whole.length; index++) {
+      if (index > 0 && (whole.length - index) % 3 == 0) {
+        groupedWhole.write(',');
+      }
+      groupedWhole.write(whole[index]);
+    }
+
+    return groupedWhole.toString() + decimal;
   }
 }
