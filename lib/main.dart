@@ -13,6 +13,7 @@ import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
+import 'services/local_notification_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
 import 'services/portfolio_analytics.dart';
@@ -23,6 +24,7 @@ import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
 import 'widgets/asset_form_dialog.dart';
 import 'widgets/dashboard_charts.dart';
+import 'widgets/notification_settings_screen.dart';
 import 'widgets/portfolio_insights_card.dart';
 import 'widgets/transaction_history_screen.dart';
 
@@ -47,6 +49,8 @@ void main() async {
   await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
   await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
   await Hive.openBox<dynamic>('uiPreferences');
+
+  await localNotificationService.initialize();
 
   runApp(const ProviderScope(child: MonizApp()));
 }
@@ -962,6 +966,8 @@ class SettingsPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 14),
+              const NotificationSettingsScreen(),
               const SizedBox(height: 14),
               MetalPricesCard(state: metalPriceState),
               const SizedBox(height: 14),
