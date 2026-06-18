@@ -11,6 +11,9 @@ import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/metal_price_provider.dart';
+import 'package:moniz/providers/app_lock_provider.dart';
+import 'package:moniz/services/app_lock_service.dart';
+import 'package:moniz/services/biometric_auth_service.dart';
 import 'package:moniz/services/metal_price_service.dart';
 import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 import 'package:moniz/widgets/asset_form_dialog.dart';
@@ -54,6 +57,7 @@ void main() {
 
   testWidgets('shows the empty persisted assets dashboard', (tester) async {
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     expect(find.text('WEALTH'), findsOneWidget);
     expect(find.text('TOTAL WEALTH'), findsOneWidget);
@@ -74,6 +78,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('refresh_metal_prices')),
+      300,
+    );
     expect(find.byKey(const Key('refresh_metal_prices')), findsOneWidget);
     expect(
       find.text('TAP REFRESH TO LOAD GOLD AND SILVER PRICES.'),
@@ -108,6 +116,7 @@ void main() {
     });
 
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     expect(find.text('450.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_nav')));
@@ -143,6 +152,7 @@ void main() {
     });
 
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     expect(find.text('1,234,567.89'), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
@@ -296,6 +306,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     await tester.tap(find.byKey(const Key('zakat_nav')));
     await _pumpKinetic(tester);
@@ -310,6 +321,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     expect(find.text('WEALTH / LIVE POSITION'), findsOneWidget);
 
@@ -328,6 +340,7 @@ void main() {
 
   testWidgets('persists the kinetic theme mode toggle', (tester) async {
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
@@ -366,6 +379,7 @@ void main() {
       });
     });
     await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
 
     expect(find.text('150.00'), findsOneWidget);
     tester
@@ -665,6 +679,10 @@ Widget _buildApp({
 }) {
   return ProviderScope(
     overrides: [
+      appLockStorageProvider.overrideWithValue(_InMemoryAppLockStorage()),
+      biometricAuthServiceProvider.overrideWithValue(
+        const _UnavailableBiometricAuthService(),
+      ),
       metalPriceServiceProvider.overrideWithValue(
         service ?? _UnavailableMetalPriceService(),
       ),
@@ -674,6 +692,29 @@ Widget _buildApp({
     ],
     child: const MonizApp(),
   );
+}
+
+class _InMemoryAppLockStorage implements AppLockStorage {
+  final values = <String, String>{};
+
+  @override
+  Future<void> delete(String key) async => values.remove(key);
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+}
+
+class _UnavailableBiometricAuthService implements BiometricAuthService {
+  const _UnavailableBiometricAuthService();
+
+  @override
+  Future<bool> authenticate() async => false;
+
+  @override
+  Future<AppBiometricType> availableType() async => AppBiometricType.none;
 }
 
 Future<void> _pumpKinetic(WidgetTester tester) {

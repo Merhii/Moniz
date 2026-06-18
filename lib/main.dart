@@ -23,9 +23,11 @@ import 'services/zakat_engine.dart';
 import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
 import 'widgets/asset_form_dialog.dart';
+import 'widgets/app_lock_gate.dart';
 import 'widgets/dashboard_charts.dart';
 import 'widgets/notification_settings_screen.dart';
 import 'widgets/portfolio_insights_card.dart';
+import 'widgets/security_settings_card.dart';
 import 'widgets/transaction_history_screen.dart';
 
 void main() async {
@@ -68,6 +70,8 @@ class MonizApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       home: const KineticHome(),
+      builder: (context, child) =>
+          AppLockGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }
@@ -966,6 +970,8 @@ class SettingsPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 14),
+              const SecuritySettingsCard(),
               const SizedBox(height: 14),
               const NotificationSettingsScreen(),
               const SizedBox(height: 14),
