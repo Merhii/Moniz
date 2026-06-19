@@ -85,6 +85,18 @@ void main() {
 
     expect(find.text('APP LOCK ON'), findsOneWidget);
     expect(await AppLockService(storage: storage).verifyPin('1357'), isTrue);
+    expect(
+      await AppLockService(storage: storage).areBiometricsEnabled(),
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const Key('app_lock_biometrics_toggle')));
+    await tester.pumpAndSettle();
+    expect(
+      await AppLockService(storage: storage).areBiometricsEnabled(),
+      isFalse,
+    );
+    expect(biometrics.authenticationCount, 0);
 
     await tester.tap(find.byKey(const Key('app_lock_biometrics_toggle')));
     await tester.pumpAndSettle();

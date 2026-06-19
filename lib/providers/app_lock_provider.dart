@@ -87,11 +87,15 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
 
   Future<void> enable(String pin) async {
     await _appLockService.savePin(pin);
+    final hasBiometrics = state.biometricType != AppBiometricType.none;
+    if (hasBiometrics) {
+      await _appLockService.setBiometricsEnabled(true);
+    }
     state = state.copyWith(
       isLoading: false,
       isEnabled: true,
       isLocked: false,
-      biometricsEnabled: false,
+      biometricsEnabled: hasBiometrics,
       clearError: true,
     );
   }
