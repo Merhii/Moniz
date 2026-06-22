@@ -15,7 +15,8 @@ class SecuritySettingsCard extends ConsumerWidget {
     final state = ref.watch(appLockProvider);
     final colors = context.kinetic;
     return LedgerFrame(
-      padding: const EdgeInsets.all(16),
+      cardless: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -25,14 +26,12 @@ class SecuritySettingsCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    KineticText('SECURITY', style: AppTheme.labelStyle(colors)),
+                    KineticText('Security', style: AppTheme.labelStyle(colors)),
                     const SizedBox(height: 7),
                     KineticText(
-                      state.isEnabled ? 'APP LOCK ON' : 'APP LOCK OFF',
+                      state.isEnabled ? 'App lock on' : 'App lock off',
                       key: const Key('app_lock_status'),
-                      style: AppTheme.displayStyle(
-                        colors,
-                      ).copyWith(fontSize: 30),
+                      style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
                     ),
                   ],
                 ),
@@ -41,7 +40,7 @@ class SecuritySettingsCard extends ConsumerWidget {
                 key: Key(
                   state.isEnabled ? 'disable_app_lock' : 'enable_app_lock',
                 ),
-                label: state.isEnabled ? 'DISABLE' : 'ENABLE',
+                label: state.isEnabled ? 'Disable' : 'Enable',
                 tone: state.isEnabled
                     ? BrutalistButtonTone.danger
                     : BrutalistButtonTone.primary,
@@ -67,11 +66,11 @@ class SecuritySettingsCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
               decoration: BoxDecoration(
-                color: colors.background.withValues(alpha: 0.42),
+                color: colors.foreground.withValues(alpha: 0.02),
                 borderRadius: AppTheme.tightRadius,
                 border: Border.all(
-                  color: colors.border,
-                  width: AppTheme.thickBorderWidth,
+                  color: colors.border.withValues(alpha: 0.12),
+                  width: 1.0,
                 ),
               ),
               child: Row(

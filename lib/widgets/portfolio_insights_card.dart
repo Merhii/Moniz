@@ -17,18 +17,20 @@ class PortfolioInsightsCard extends ConsumerWidget {
     required this.onOpenHistory,
     this.snapshotAnalytics,
     this.isFiltered = false,
+    this.cardless = false,
   });
 
   final PortfolioAnalytics analytics;
   final PortfolioAnalytics? snapshotAnalytics;
   final VoidCallback onOpenHistory;
   final bool isFiltered;
+  final bool cardless;
 
   static Color categoryColor(AssetType type, KineticColors colors) {
     return switch (type) {
       AssetType.cash => AppTheme.white,
       AssetType.bankSavings => AppTheme.lightGold,
-      AssetType.gold => colors.accent,
+      AssetType.gold => AppTheme.gold,
       AssetType.silver => AppTheme.cream,
     };
   }
@@ -37,20 +39,21 @@ class PortfolioInsightsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.kinetic;
     return LedgerFrame(
-      padding: const EdgeInsets.all(16),
+      cardless: cardless,
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           KineticText(
-            'ASSET ALLOCATION',
-            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+            'Asset allocation',
+            style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
           ),
           const SizedBox(height: 5),
-          KineticText('CURRENT VALUED HOLDINGS', muted: true),
+          KineticText('Current valued holdings', muted: true),
           const SizedBox(height: 20),
           if (analytics.totalUsd == 0)
             const KineticText(
-              'ADD VALUED HOLDINGS TO SEE CATEGORY ANALYTICS.',
+              'Add valued holdings to see category analytics.',
               muted: true,
             )
           else
@@ -101,24 +104,27 @@ class PortfolioInsightsCard extends ConsumerWidget {
                 label: 'Active',
                 value: analytics.activeAssetCount.toString(),
                 valueColor: colors.profit,
+                cardless: cardless,
               ),
               MetricBlock(
                 label: 'Sold',
                 value: analytics.soldAssetCount.toString(),
                 valueColor: colors.mutedForeground,
+                cardless: cardless,
               ),
               if (analytics.unvaluedAssetCount > 0)
                 MetricBlock(
                   label: 'Unvalued',
                   value: analytics.unvaluedAssetCount.toString(),
                   valueColor: colors.loss,
+                  cardless: cardless,
                 ),
             ],
           ),
           if (isFiltered) ...[
             const SizedBox(height: 12),
             const KineticText(
-              'SNAPSHOT SAVES YOUR COMPLETE PORTFOLIO, NOT THIS FILTERED VIEW.',
+              'Snapshot saves your complete portfolio, not this filtered view.',
               muted: true,
             ),
           ],
@@ -129,7 +135,7 @@ class PortfolioInsightsCard extends ConsumerWidget {
             children: [
               BrutalistButton(
                 key: const Key('capture_portfolio_snapshot'),
-                label: 'SAVE SNAPSHOT',
+                label: 'Save snapshot',
                 tone: BrutalistButtonTone.primary,
                 onPressed: (snapshotAnalytics ?? analytics).totalUsd == 0
                     ? null
@@ -140,13 +146,13 @@ class PortfolioInsightsCard extends ConsumerWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('PORTFOLIO SNAPSHOT SAVED.'),
+                              content: Text('Portfolio snapshot saved.'),
                             ),
                           );
                         }
                       },
               ),
-              BrutalistButton(label: 'HISTORY', onPressed: onOpenHistory),
+              BrutalistButton(label: 'History', onPressed: onOpenHistory),
             ],
           ),
         ],
@@ -188,7 +194,7 @@ class _DonutHero extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    KineticText('TOTAL', style: AppTheme.labelStyle(colors)),
+                    KineticText('Total', style: AppTheme.labelStyle(colors)),
                     const SizedBox(height: 5),
                     KineticNumber(
                       CurrencyConverter.formatMoney(

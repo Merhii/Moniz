@@ -28,34 +28,26 @@ class ZakatBreakdownScreen extends ConsumerWidget {
     );
 
     return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        toolbarHeight: 68,
+        backgroundColor: colors.background,
+        centerTitle: true,
+        leading: IconButton(
+          key: const Key('back_zakat_breakdown'),
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: KineticText(
+          'Zakat breakdown',
+          style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
+        ),
+      ),
       body: SafeArea(
+        top: false,
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: AppTheme.heroSurface(colors),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      BrutalistButton(
-                        label: 'BACK',
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(height: 18),
-                      KineticText(
-                        'ZAKAT BREAKDOWN',
-                        style: AppTheme.displayStyle(
-                          colors,
-                        ).copyWith(fontSize: 52, color: colors.accent),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
             SliverPadding(
               padding: const EdgeInsets.all(16),
               sliver: SliverList.list(
@@ -65,19 +57,19 @@ class ZakatBreakdownScreen extends ConsumerWidget {
                   _CalculationBlock(result: result),
                   const SizedBox(height: 14),
                   KineticText(
-                    'HOLDINGS',
-                    style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                    'Holdings',
+                    style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
                   ),
                   const SizedBox(height: 10),
                   if (!result.canCalculate)
                     const LedgerFrame(
                       child: KineticText(
-                        'REFRESH METAL PRICES FROM SYSTEM FIRST.',
+                        'Refresh metal prices from Settings first.',
                       ),
                     )
                   else if (result.assessments.isEmpty)
                     const LedgerFrame(
-                      child: KineticText('NO ASSETS ADDED YET.'),
+                      child: KineticText('No assets added yet.'),
                     )
                   else
                     ...result.assessments.map(_AssessmentTile.new),
@@ -98,55 +90,49 @@ class _ZakatSettingsBlock extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.kinetic;
     final notifier = ref.read(zakatProvider.notifier);
     return LedgerFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KineticText(
-            'CALCULATION SETTINGS',
-            style: AppTheme.labelStyle(colors),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ZakatScheduleMode.values
-                .map(
-                  (mode) => FilterBlock(
-                    key: Key('zakat_schedule_${mode.name}'),
-                    label: mode.label,
-                    selected: settings.scheduleMode == mode,
-                    onTap: () => notifier.setScheduleMode(mode),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: NisabStandard.values
-                .map(
-                  (standard) => FilterBlock(
-                    key: Key('nisab_${standard.name}'),
-                    label: standard.label,
-                    selected: settings.nisabStandard == standard,
-                    onTap: () => notifier.setNisabStandard(standard),
-                  ),
-                )
-                .toList(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: KineticDropdown<ZakatScheduleMode>(
+                  label: 'Schedule',
+                  value: settings.scheduleMode,
+                  items: ZakatScheduleMode.values,
+                  onChanged: (mode) {
+                    if (mode != null) notifier.setScheduleMode(mode);
+                  },
+                  itemLabelBuilder: (mode) => mode.label,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: KineticDropdown<NisabStandard>(
+                  label: 'Nisab Standard',
+                  value: settings.nisabStandard,
+                  items: NisabStandard.values,
+                  onChanged: (standard) {
+                    if (standard != null) notifier.setNisabStandard(standard);
+                  },
+                  itemLabelBuilder: (standard) => standard.label,
+                ),
+              ),
+            ],
           ),
           if (settings.scheduleMode == ZakatScheduleMode.ramadanAnnual) ...[
-            const SizedBox(height: 14),
-            BrutalistButton(
+            const SizedBox(height: 16),
+            KineticDatePickerTile(
               key: const Key('select_ramadan_due_date'),
-              label: settings.nextRamadanDueDate == null
-                  ? 'SELECT RAMADAN DATE'
+              label: 'Next Ramadan',
+              value: settings.nextRamadanDueDate == null
+                  ? 'Select date'
                   : _formatDate(settings.nextRamadanDueDate!),
-              tone: BrutalistButtonTone.primary,
-              onPressed: () async {
+              selected: settings.nextRamadanDueDate != null,
+              onTap: () async {
                 final date = await showDatePicker(
                   context: context,
                   initialDate: settings.nextRamadanDueDate ?? DateTime.now(),
@@ -175,22 +161,22 @@ class _CalculationBlock extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KineticText('AMOUNT DUE', style: AppTheme.labelStyle(colors)),
+          KineticText('Amount due', style: AppTheme.labelStyle(colors)),
           const SizedBox(height: 10),
           KineticNumber(
             _formatMoney(result.amountDueUsd),
             key: const Key('zakat_amount_due'),
-            fontSize: 64,
+            fontSize: 48,
             currency: CurrencyConverter.defaultCurrency,
           ),
           const SizedBox(height: 10),
           KineticText(
-            'ELIGIBLE WEALTH: ${_formatMoney(result.eligibleWealthUsd)}',
+            'Eligible wealth: ${_formatMoney(result.eligibleWealthUsd)}',
           ),
           KineticText(
             result.nisabThresholdUsd == null
-                ? 'NISAB: AWAITING LIVE PRICES'
-                : 'NISAB (${result.settings.nisabStandard.label}): '
+                ? 'Nisab: awaiting live prices'
+                : 'Nisab (${result.settings.nisabStandard.label}): '
                       '${_formatMoney(result.nisabThresholdUsd!)}',
           ),
           if (result.message != null) ...[
@@ -201,7 +187,7 @@ class _CalculationBlock extends ConsumerWidget {
             const SizedBox(height: 12),
             BrutalistButton(
               key: const Key('mark_zakat_paid'),
-              label: 'MARK AS PAID',
+              label: 'Mark as paid',
               tone: BrutalistButtonTone.primary,
               onPressed: () async {
                 await ref
@@ -209,7 +195,7 @@ class _CalculationBlock extends ConsumerWidget {
                     .recordPayment(result, DateTime.now());
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ZAKAT PAYMENT RECORDED.')),
+                    const SnackBar(content: Text('Zakat payment recorded.')),
                   );
                 }
               },
@@ -230,11 +216,11 @@ class _AssessmentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final value = assessment.valueUsd == null
-        ? 'NOT VALUED'
+        ? 'Not valued'
         : _formatMoney(assessment.valueUsd!);
     final status = assessment.isIncluded
-        ? 'INCLUDED IN AMOUNT DUE'
-        : assessment.exclusionReason ?? 'EXCLUDED';
+        ? 'Included in amount due'
+        : assessment.exclusionReason ?? 'Excluded';
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: LedgerFrame(

@@ -27,7 +27,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('MONIZ LOCKED'), findsOneWidget);
+    expect(find.text('Moniz locked'), findsOneWidget);
     expect(find.text('PRIVATE CONTENT'), findsNothing);
 
     await tester.enterText(find.byKey(const Key('app_unlock_pin')), '1111');
@@ -45,7 +45,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    expect(find.text('MONIZ LOCKED'), findsOneWidget);
+    expect(find.text('Moniz locked'), findsOneWidget);
   });
 
   testWidgets('enables PIN, biometrics, and then disables app lock', (
@@ -83,7 +83,7 @@ void main() {
     await tester.tap(createButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('APP LOCK ON'), findsOneWidget);
+    expect(find.text('App lock on'), findsOneWidget);
     expect(await AppLockService(storage: storage).verifyPin('1357'), isTrue);
     expect(
       await AppLockService(storage: storage).areBiometricsEnabled(),
@@ -111,7 +111,7 @@ void main() {
     await tester.tap(find.byKey(const Key('confirm_disable_app_lock')));
     await tester.pumpAndSettle();
 
-    expect(find.text('APP LOCK OFF'), findsOneWidget);
+    expect(find.text('App lock off'), findsOneWidget);
     expect(await AppLockService(storage: storage).isEnabled(), isFalse);
   });
 }

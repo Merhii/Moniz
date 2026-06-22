@@ -54,7 +54,7 @@ class LocalNotificationService implements TestNotificationSender {
 
     await _plugin.show(
       id: DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
-      title: 'MONIZ TEST ALERT',
+      title: 'Moniz test alert',
       body: 'Gold moved +3.0%. Your local notification trigger is working.',
       notificationDetails: details,
       payload: 'debug.price-alert',

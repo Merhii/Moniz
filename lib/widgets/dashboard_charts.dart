@@ -13,7 +13,7 @@ import '../ui/kinetic/kinetic_widgets.dart';
 enum _JumpWindow {
   thirtyDays('30D', 30),
   ninetyDays('90D', 90),
-  all('ALL', null);
+  all('All', null);
 
   const _JumpWindow(this.label, this.days);
 
@@ -29,6 +29,7 @@ class PortfolioTrendCard extends StatefulWidget {
     required this.assets,
     required this.metalPriceHistory,
     this.displayCurrency = CurrencyConverter.defaultCurrency,
+    this.cardless = false,
   });
 
   final List<PortfolioSnapshot> snapshots;
@@ -36,6 +37,7 @@ class PortfolioTrendCard extends StatefulWidget {
   final List<Asset> assets;
   final List<MetalPriceSnapshot> metalPriceHistory;
   final String displayCurrency;
+  final bool cardless;
 
   @override
   State<PortfolioTrendCard> createState() => _PortfolioTrendCardState();
@@ -60,20 +62,21 @@ class _PortfolioTrendCardState extends State<PortfolioTrendCard> {
     final chartHeight = MediaQuery.sizeOf(context).width < 560 ? 286.0 : 348.0;
 
     return LedgerFrame(
-      padding: const EdgeInsets.all(16),
+      cardless: widget.cardless,
+      padding: widget.cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           KineticText(
-            'PORTFOLIO HISTORY',
-            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+            'Portfolio history',
+            style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
           ),
           const SizedBox(height: 5),
-          KineticText('CASH / GOLD / SILVER VALUE JUMPS', muted: true),
+          KineticText('Cash, gold, and silver value jumps', muted: true),
           const SizedBox(height: 18),
           if (points.isEmpty)
             const KineticText(
-              'ADD CURRENT VALUES OR SAVE SNAPSHOTS TO BUILD YOUR PORTFOLIO HISTORY CHART.',
+              'Add current values or save snapshots to build your portfolio history chart.',
               muted: true,
             )
           else ...[
@@ -86,6 +89,7 @@ class _PortfolioTrendCardState extends State<PortfolioTrendCard> {
               _JumpSummaryStrip(
                 summary: jumpSummary,
                 currency: widget.displayCurrency,
+                cardless: widget.cardless,
               ),
             ],
             const SizedBox(height: 18),
@@ -635,30 +639,37 @@ class _JumpWindowPicker extends StatelessWidget {
 }
 
 class _JumpSummaryStrip extends StatelessWidget {
-  const _JumpSummaryStrip({required this.summary, required this.currency});
+  const _JumpSummaryStrip({
+    required this.summary,
+    required this.currency,
+    this.cardless = false,
+  });
 
   final _JumpSummary summary;
   final String currency;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.background.withValues(alpha: 0.26),
-        borderRadius: AppTheme.tightRadius,
-        border: Border.all(
-          color: colors.border.withValues(alpha: 0.72),
-          width: AppTheme.hairlineWidth,
-        ),
-      ),
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 8) : const EdgeInsets.all(12),
+      decoration: cardless
+          ? null
+          : BoxDecoration(
+              color: colors.background.withValues(alpha: 0.26),
+              borderRadius: AppTheme.tightRadius,
+              border: Border.all(
+                color: colors.border.withValues(alpha: 0.72),
+                width: AppTheme.hairlineWidth,
+              ),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           KineticText(
-            '${summary.window.label} JUMP / ${summary.fromLabel} TO ${summary.toLabel}',
+            '${summary.window.label} jump / ${summary.fromLabel} to ${summary.toLabel}',
             style: AppTheme.labelStyle(colors).copyWith(fontSize: 11),
           ),
           const SizedBox(height: 10),
@@ -797,9 +808,14 @@ class _SeriesLegend extends StatelessWidget {
 }
 
 class ProfitLossCard extends StatelessWidget {
-  const ProfitLossCard({super.key, required this.summary});
+  const ProfitLossCard({
+    super.key,
+    required this.summary,
+    this.cardless = false,
+  });
 
   final PositionPerformanceSummary summary;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
@@ -808,20 +824,21 @@ class ProfitLossCard extends StatelessWidget {
     final isGain = change >= 0;
 
     return LedgerFrame(
-      padding: const EdgeInsets.all(16),
+      cardless: cardless,
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           KineticText(
-            'PAID VS NOW',
-            style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+            'Paid vs now',
+            style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
           ),
           const SizedBox(height: 5),
-          KineticText('CURRENT WORTH MINUS WHAT YOU PAID', muted: true),
+          KineticText('Current worth minus what you paid', muted: true),
           const SizedBox(height: 16),
           if (!summary.hasComparablePositions)
             const KineticText(
-              'ADD BOUGHT PRICES TO ACTIVE HOLDINGS TO SEE THIS NUMBER.',
+              'Add bought prices to active holdings to see this number.',
               muted: true,
             )
           else ...[
@@ -835,8 +852,8 @@ class ProfitLossCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             KineticText(
-              'PAID ${_formatMoney(summary.paidUsd, summary.currency)} / '
-              'NOW ${_formatMoney(summary.currentUsd, summary.currency)}',
+              'Paid ${_formatMoney(summary.paidUsd, summary.currency)} / '
+              'Now ${_formatMoney(summary.currentUsd, summary.currency)}',
               muted: true,
               style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
             ),

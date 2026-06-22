@@ -11,7 +11,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   final Box<dynamic> _preferencesBox;
 
   static ThemeMode _read(Box<dynamic> box) {
-    final value = box.get(_themeModeKey) as String?;
+    final value = box.get(_themeModeKey, defaultValue: 'dark') as String;
     return value == 'light' ? ThemeMode.light : ThemeMode.dark;
   }
 

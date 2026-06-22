@@ -80,12 +80,13 @@ class AppTheme {
   static const cream = Color(0xFFE7E3DB);
   static const deepShadow = Color(0xFF02163B);
 
-  static const fontFamily = 'SpaceGrotesk';
+  static const fontFamily = 'Inter';
+  static const displayFontFamily = 'SpaceGrotesk';
   static const ledgerFontFamily = 'Inter';
-  static const radius = BorderRadius.all(Radius.circular(24));
-  static const tightRadius = BorderRadius.all(Radius.circular(16));
+  static const radius = BorderRadius.all(Radius.circular(8));
+  static const tightRadius = BorderRadius.all(Radius.circular(8));
   static const pillRadius = BorderRadius.all(Radius.circular(999));
-  static const thickBorderWidth = 1.4;
+  static const thickBorderWidth = 1.0;
   static const hairlineWidth = 1.0;
   static const fast = Duration(milliseconds: 150);
 
@@ -141,7 +142,7 @@ class AppTheme {
         surface: colors.background,
         onSurface: colors.foreground,
       ),
-      extensions: const <ThemeExtension<dynamic>>[darkColors],
+      extensions: <ThemeExtension<dynamic>>[colors],
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
         elevation: 0,
@@ -150,10 +151,9 @@ class AppTheme {
         foregroundColor: colors.foreground,
         centerTitle: false,
         titleTextStyle: textTheme.headlineSmall,
-        shape: Border(bottom: BorderSide(color: colors.border, width: 1)),
       ),
       dialogTheme: DialogThemeData(
-        elevation: 18,
+        elevation: 8,
         backgroundColor: colors.muted,
         shape: const RoundedRectangleBorder(borderRadius: radius),
       ),
@@ -187,11 +187,11 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: tightRadius,
-          borderSide: BorderSide(color: colors.accent, width: 2),
+          borderSide: BorderSide(color: colors.accent, width: thickBorderWidth),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: tightRadius,
-          borderSide: BorderSide(color: colors.loss, width: 2),
+          borderSide: BorderSide(color: colors.loss, width: thickBorderWidth),
         ),
         labelStyle: labelStyle(colors),
         floatingLabelStyle: labelStyle(colors).copyWith(color: colors.accent),
@@ -203,14 +203,65 @@ class AppTheme {
         ),
       ),
       datePickerTheme: DatePickerThemeData(
-        elevation: 0,
-        backgroundColor: colors.muted,
-        headerBackgroundColor: colors.accent,
-        headerForegroundColor: colors.accentForeground,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: colors.border, width: thickBorderWidth),
+        elevation: 8,
+        shadowColor: colors.background.withValues(alpha: 0.12),
+        backgroundColor: colors.background,
+        headerBackgroundColor: colors.muted,
+        headerForegroundColor: colors.foreground,
+        headerHeadlineStyle: TextStyle(
+          fontFamily: fontFamily,
+          fontWeight: FontWeight.w800,
+          fontSize: 24,
+          color: colors.foreground,
         ),
+        headerHelpStyle: TextStyle(
+          fontFamily: fontFamily,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          color: colors.mutedForeground,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: colors.border.withValues(alpha: 0.16),
+            width: hairlineWidth,
+          ),
+        ),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colors.accentForeground;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return colors.mutedForeground.withValues(alpha: 0.36);
+          }
+          return colors.foreground;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colors.accent;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colors.accentForeground;
+          }
+          return colors.accent;
+        }),
+        todayBorder: BorderSide(color: colors.accent, width: 1.5),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colors.accentForeground;
+          }
+          return colors.foreground;
+        }),
+        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colors.accent;
+          }
+          return Colors.transparent;
+        }),
+        dividerColor: colors.border.withValues(alpha: 0.10),
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: bodyStyle(colors),
@@ -230,6 +281,9 @@ class AppTheme {
           shape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: radius),
           ),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          ),
           backgroundColor: WidgetStatePropertyAll(colors.accent),
           foregroundColor: WidgetStatePropertyAll(colors.accentForeground),
           textStyle: WidgetStatePropertyAll(labelStyle(colors)),
@@ -240,6 +294,9 @@ class AppTheme {
           elevation: const WidgetStatePropertyAll(0),
           shape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: radius),
+          ),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           ),
           foregroundColor: WidgetStatePropertyAll(
             isDark ? colors.accent : colors.foreground,
@@ -253,6 +310,9 @@ class AppTheme {
           shape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: radius),
           ),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
           side: WidgetStatePropertyAll(
             BorderSide(color: colors.border, width: thickBorderWidth),
           ),
@@ -265,17 +325,17 @@ class AppTheme {
 
   static TextTheme _textTheme(KineticColors colors) {
     return TextTheme(
-      displayLarge: displayStyle(colors).copyWith(fontSize: 80),
-      displayMedium: displayStyle(colors).copyWith(fontSize: 56),
-      headlineLarge: displayStyle(colors).copyWith(fontSize: 44),
-      headlineMedium: displayStyle(colors).copyWith(fontSize: 34),
-      headlineSmall: titleStyle(colors).copyWith(fontSize: 28),
-      titleLarge: titleStyle(colors).copyWith(fontSize: 24),
-      titleMedium: titleStyle(colors).copyWith(fontSize: 20),
-      bodyLarge: bodyStyle(colors).copyWith(fontSize: 18),
-      bodyMedium: bodyStyle(colors).copyWith(fontSize: 16),
+      displayLarge: displayStyle(colors).copyWith(fontSize: 56),
+      displayMedium: displayStyle(colors).copyWith(fontSize: 42),
+      headlineLarge: displayStyle(colors).copyWith(fontSize: 32),
+      headlineMedium: displayStyle(colors).copyWith(fontSize: 26),
+      headlineSmall: titleStyle(colors).copyWith(fontSize: 22),
+      titleLarge: titleStyle(colors).copyWith(fontSize: 20),
+      titleMedium: titleStyle(colors).copyWith(fontSize: 17),
+      bodyLarge: bodyStyle(colors).copyWith(fontSize: 16),
+      bodyMedium: bodyStyle(colors).copyWith(fontSize: 14),
       bodySmall: labelStyle(colors),
-      labelLarge: labelStyle(colors).copyWith(fontSize: 14),
+      labelLarge: labelStyle(colors).copyWith(fontSize: 13),
       labelMedium: labelStyle(colors).copyWith(fontSize: 12),
       labelSmall: labelStyle(colors).copyWith(fontSize: 11),
     );
@@ -284,10 +344,10 @@ class AppTheme {
   static TextStyle displayStyle(KineticColors colors) {
     return TextStyle(
       color: colors.foreground,
-      fontFamily: fontFamily,
-      fontWeight: FontWeight.w800,
-      height: 0.95,
-      letterSpacing: -1.1,
+      fontFamily: displayFontFamily,
+      fontWeight: FontWeight.w700,
+      height: 1.06,
+      letterSpacing: 0,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
   }
@@ -297,7 +357,7 @@ class AppTheme {
       color: colors.foreground,
       fontFamily: ledgerFontFamily,
       fontWeight: FontWeight.w500,
-      height: 0.95,
+      height: 1.0,
       letterSpacing: 0,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
@@ -306,10 +366,10 @@ class AppTheme {
   static TextStyle titleStyle(KineticColors colors) {
     return TextStyle(
       color: colors.foreground,
-      fontFamily: fontFamily,
-      fontWeight: FontWeight.w800,
-      height: 1.02,
-      letterSpacing: -0.55,
+      fontFamily: displayFontFamily,
+      fontWeight: FontWeight.w700,
+      height: 1.16,
+      letterSpacing: 0,
     );
   }
 
@@ -318,8 +378,8 @@ class AppTheme {
       color: colors.foreground,
       fontFamily: ledgerFontFamily,
       fontWeight: FontWeight.w500,
-      height: 1.22,
-      letterSpacing: -0.18,
+      height: 1.3,
+      letterSpacing: 0,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
   }
@@ -327,11 +387,11 @@ class AppTheme {
   static TextStyle labelStyle(KineticColors colors) {
     return TextStyle(
       color: colors.mutedForeground,
-      fontFamily: fontFamily,
-      fontWeight: FontWeight.w800,
+      fontFamily: displayFontFamily,
+      fontWeight: FontWeight.w700,
       fontSize: 12,
-      height: 1,
-      letterSpacing: 1.05,
+      height: 1.15,
+      letterSpacing: 0,
     );
   }
 
@@ -344,7 +404,6 @@ class AppTheme {
       color: color ?? colors.background,
       borderRadius: radius,
       border: Border.all(color: colors.border, width: width),
-      boxShadow: softShadow(colors),
     );
   }
 
@@ -353,68 +412,30 @@ class AppTheme {
       color: colors.accent,
       borderRadius: radius,
       border: Border.all(color: colors.accent, width: thickBorderWidth),
-      boxShadow: glowShadow(colors),
     );
   }
 
   static BoxDecoration brandBackground(KineticColors colors) {
-    final isLight = colors.background == white;
-    return BoxDecoration(
-      color: colors.background,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: isLight
-            ? [white, cream, lightGold.withValues(alpha: 0.84)]
-            : [
-                colors.background,
-                deepShadow,
-                colors.background.withValues(alpha: 0.96),
-              ],
-      ),
-    );
+    return BoxDecoration(color: colors.background);
   }
 
   static BoxDecoration heroSurface(KineticColors colors) {
     return BoxDecoration(
-      color: colors.background,
+      color: colors.muted.withValues(alpha: 0.86),
       borderRadius: radius,
       border: Border.all(
-        color: colors.border.withValues(alpha: 0.9),
+        color: colors.border.withValues(alpha: 0.72),
         width: thickBorderWidth,
       ),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [colors.background, deepShadow, colors.background],
-      ),
-      boxShadow: glowShadow(colors),
     );
   }
 
   static List<BoxShadow> softShadow(KineticColors colors) {
-    return [
-      BoxShadow(
-        color: deepShadow.withValues(alpha: 0.34),
-        offset: const Offset(0, 14),
-        blurRadius: 28,
-      ),
-    ];
+    return const [];
   }
 
   static List<BoxShadow> glowShadow(KineticColors colors) {
-    return [
-      BoxShadow(
-        color: colors.accent.withValues(alpha: 0.20),
-        offset: const Offset(0, 18),
-        blurRadius: 34,
-      ),
-      BoxShadow(
-        color: deepShadow.withValues(alpha: 0.42),
-        offset: const Offset(0, 12),
-        blurRadius: 24,
-      ),
-    ];
+    return const [];
   }
 }
 

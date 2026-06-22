@@ -150,85 +150,54 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
     final colors = context.kinetic;
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final isKeyboardVisible = keyboardInset > 0;
-    return Material(
-      color: colors.background,
-      child: AnimatedPadding(
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        toolbarHeight: 68,
+        backgroundColor: colors.background,
+        centerTitle: true,
+        leading: IconButton(
+          key: const Key('back_asset_form'),
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: KineticText(
+          _isEditing ? 'Edit asset' : 'Add asset',
+          style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
+        ),
+      ),
+      body: AnimatedPadding(
         duration: AppTheme.fast,
         curve: Curves.easeOut,
         padding: EdgeInsets.only(bottom: keyboardInset),
         child: SafeArea(
+          top: false,
           child: Form(
             key: _formKey,
             autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: colors.background.withValues(alpha: 0.86),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: colors.border,
-                        width: AppTheme.thickBorderWidth,
-                      ),
-                    ),
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final cancelButton = BrutalistButton(
-                        label: 'CANCEL',
-                        onPressed: () => Navigator.pop(context),
-                      );
-                      final title = Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          KineticText(
-                            _isEditing ? 'EDIT ASSET' : 'ADD ASSET',
-                            style: AppTheme.displayStyle(colors).copyWith(
-                              fontSize: (constraints.maxWidth * 0.12).clamp(
-                                42,
-                                82,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          KineticText(
-                            'ENTER VALUE LIKE IT MATTERS.',
-                            muted: true,
-                            style: AppTheme.labelStyle(colors),
-                          ),
-                        ],
-                      );
-                      if (constraints.maxWidth < 620) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            title,
-                            const SizedBox(height: 14),
-                            cancelButton,
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(child: title),
-                          cancelButton,
-                        ],
-                      );
-                    },
-                  ),
-                ),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(18),
                       child: Column(
                         children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: KineticText(
+                              _isEditing
+                                  ? 'Update asset details.'
+                                  : 'Record the value and context.',
+                              muted: true,
+                              style: AppTheme.labelStyle(colors),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
                           _SelectionMenu<AssetType>(
                             key: const Key('asset_type_field'),
-                            label: 'Asset Type',
+                            label: 'Asset type',
                             options: _availableTypeOptions,
                             value: _selectedType,
                             onChanged: _setType,
@@ -250,7 +219,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                           const SizedBox(height: 18),
                           _CurrencySelectionMenu(
                             key: const Key('asset_currency_field'),
-                            label: _isMetal ? 'Price Currency' : 'Currency',
+                            label: _isMetal ? 'Price currency' : 'Currency',
                             options: _currencyOptions,
                             value: _selectedCurrency,
                             onChanged: (currency) {
@@ -269,7 +238,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                           ),
                           const SizedBox(height: 18),
                           _DateField(
-                            label: 'Holding Start Date',
+                            label: 'Holding start date',
                             date: _boughtDate,
                             onTap: () => _selectDate(isBoughtDate: true),
                             onClear: () => _clearDate(isBoughtDate: true),
@@ -307,7 +276,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              label: 'Bought Price ($_selectedCurrency)',
+                              label: 'Bought price ($_selectedCurrency)',
                               validator: _validateBoughtPrice,
                             ),
                             const SizedBox(height: 18),
@@ -321,7 +290,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             if (_isSold) ...[
                               const SizedBox(height: 18),
                               _DateField(
-                                label: 'Sold Date',
+                                label: 'Sold date',
                                 date: _soldDate,
                                 onTap: () => _selectDate(isBoughtDate: false),
                                 onClear: () => _clearDate(isBoughtDate: false),
@@ -334,7 +303,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
                                     ),
-                                label: 'Sold Price ($_selectedCurrency)',
+                                label: 'Sold price ($_selectedCurrency)',
                                 validator: _validateSoldPrice,
                               ),
                             ],
@@ -380,7 +349,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: BrutalistButton(
-                        label: 'DONE',
+                        label: 'Done',
                         onPressed: _dismissKeyboard,
                       ),
                     ),
@@ -399,7 +368,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                   ),
                   child: BrutalistButton(
                     key: const Key('asset_save_button'),
-                    label: _isEditing ? 'SAVE' : 'ADD',
+                    label: _isEditing ? 'Save' : 'Add',
                     tone: BrutalistButtonTone.primary,
                     expand: true,
                     onPressed: _save,
@@ -772,18 +741,19 @@ class _SelectionMenuItem<T> extends StatelessWidget {
         duration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : AppTheme.fast,
-        constraints: BoxConstraints(minHeight: showDetail ? 82 : 66),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        constraints: BoxConstraints(minHeight: showDetail ? 74 : 54),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: selected
-              ? colors.accent
-              : colors.background.withValues(alpha: 0.42),
+              ? colors.accent.withValues(alpha: 0.16)
+              : colors.background.withValues(alpha: 0.28),
           borderRadius: AppTheme.tightRadius,
           border: Border.all(
-            color: selected ? colors.accent : colors.border,
-            width: AppTheme.thickBorderWidth,
+            color: selected
+                ? colors.accent.withValues(alpha: 0.54)
+                : colors.border.withValues(alpha: 0.48),
+            width: AppTheme.hairlineWidth,
           ),
-          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -791,10 +761,9 @@ class _SelectionMenuItem<T> extends StatelessWidget {
             KineticText(
               option.label,
               align: TextAlign.center,
-              style: AppTheme.labelStyle(colors).copyWith(
-                color: selected ? colors.accentForeground : colors.foreground,
-                letterSpacing: -0.1,
-              ),
+              style: AppTheme.labelStyle(
+                colors,
+              ).copyWith(color: selected ? colors.accent : colors.foreground),
             ),
             if (showDetail) ...[
               const SizedBox(height: 5),
@@ -802,9 +771,7 @@ class _SelectionMenuItem<T> extends StatelessWidget {
                 option.detail ?? '',
                 align: TextAlign.center,
                 style: AppTheme.bodyStyle(colors).copyWith(
-                  color: selected
-                      ? colors.accentForeground
-                      : colors.mutedForeground,
+                  color: selected ? colors.accent : colors.mutedForeground,
                   fontSize: 12,
                 ),
               ),
@@ -832,47 +799,73 @@ class _DateField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    return LedgerFrame(
-      padding: const EdgeInsets.all(12),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final labelBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              KineticText(label, style: AppTheme.labelStyle(colors)),
-              const SizedBox(height: 8),
-              KineticText(
-                date == null ? 'NOT SET' : _formatDate(date!),
-                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 18),
+    final isSet = date != null;
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.98,
+      child: AnimatedContainer(
+        duration: AppTheme.fast,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSet
+              ? colors.accent.withValues(alpha: 0.06)
+              : colors.foreground.withValues(alpha: 0.01),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSet
+                ? colors.accent.withValues(alpha: 0.16)
+                : colors.border.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 15,
+              color: isSet ? colors.accent : colors.mutedForeground,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  KineticText(
+                    label.toUpperCase(),
+                    style: AppTheme.labelStyle(colors).copyWith(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: isSet ? colors.accent : colors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  KineticText(
+                    date == null ? 'Select date' : _formatDate(date!),
+                    style: AppTheme.bodyStyle(colors).copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              BrutalistButton(
-                label: date == null ? 'SELECT' : 'CHANGE',
-                tone: BrutalistButtonTone.primary,
-                onPressed: onTap,
+            ),
+            if (isSet)
+              GestureDetector(
+                onTap: onClear,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: colors.mutedForeground,
+                  ),
+                ),
               ),
-              if (date != null)
-                BrutalistButton(label: 'CLEAR', onPressed: onClear),
-            ],
-          );
-          if (constraints.maxWidth < 520) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [labelBlock, const SizedBox(height: 12), actions],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: labelBlock),
-              actions,
-            ],
-          );
-        },
+          ],
+        ),
       ),
     );
   }

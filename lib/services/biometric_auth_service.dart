@@ -4,10 +4,10 @@ enum AppBiometricType { none, faceId, fingerprint, biometric }
 
 extension AppBiometricTypeLabel on AppBiometricType {
   String get label => switch (this) {
-    AppBiometricType.none => 'BIOMETRICS',
-    AppBiometricType.faceId => 'FACE ID',
-    AppBiometricType.fingerprint => 'FINGERPRINT',
-    AppBiometricType.biometric => 'BIOMETRIC UNLOCK',
+    AppBiometricType.none => 'Biometrics',
+    AppBiometricType.faceId => 'Face ID',
+    AppBiometricType.fingerprint => 'Fingerprint',
+    AppBiometricType.biometric => 'Biometric unlock',
   };
 }
 

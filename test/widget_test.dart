@@ -15,7 +15,6 @@ import 'package:moniz/providers/app_lock_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
 import 'package:moniz/services/biometric_auth_service.dart';
 import 'package:moniz/services/metal_price_service.dart';
-import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 import 'package:moniz/widgets/asset_form_dialog.dart';
 
 void main() {
@@ -47,23 +46,53 @@ void main() {
     await Hive.box<ZakatSettings>('zakatSettings').clear();
     await Hive.box<ZakatPaymentRecord>('zakatPayments').clear();
     await Hive.box<PortfolioSnapshot>('portfolioSnapshots').clear();
-    await Hive.box<dynamic>('uiPreferences').clear();
   });
 
   tearDownAll(() async {
-    await Hive.close();
-    await hiveDirectory.delete(recursive: true);
+    if (await hiveDirectory.exists()) {
+      await hiveDirectory.delete(recursive: true);
+    }
   });
 
   testWidgets('shows the empty persisted assets dashboard', (tester) async {
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
 
-    expect(find.text('WEALTH'), findsOneWidget);
+    expect(find.text('Wealth'), findsOneWidget);
     expect(find.text('TOTAL WEALTH'), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
     await _pumpKinetic(tester);
-    expect(find.text('NO ASSETS YET'), findsOneWidget);
+    expect(find.text('No assets yet'), findsOneWidget);
+  });
+
+  testWidgets('dashboard fits a compact mobile viewport', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('wealth_hero_total')), findsOneWidget);
+    expect(find.byKey(const Key('settings_nav')), findsOneWidget);
+  });
+
+  testWidgets('notification app bar action opens notifications', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('open_notifications')));
+    await tester.pump();
+    await _pumpKinetic(tester);
+
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.byKey(const Key('close_notifications')), findsOneWidget);
   });
 
   testWidgets('fetches metals on startup and exposes refresh in settings', (
@@ -81,10 +110,11 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const Key('refresh_metal_prices')),
       300,
+      scrollable: _verticalScrollableIn(const Key('settings_scroll')),
     );
     expect(find.byKey(const Key('refresh_metal_prices')), findsOneWidget);
     expect(
-      find.text('TAP REFRESH TO LOAD GOLD AND SILVER PRICES.'),
+      find.text('Tap refresh to load gold and silver prices.'),
       findsOneWidget,
     );
   });
@@ -121,7 +151,11 @@ void main() {
     expect(find.text('450.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
-    await tester.scrollUntilVisible(find.text('90.00'), 300);
+    await tester.scrollUntilVisible(
+      find.text('90.00'),
+      300,
+      scrollable: _verticalScrollableIn(const Key('settings_scroll')),
+    );
     expect(find.text('90.00'), findsOneWidget);
     expect(find.textContaining('CACHED PRICE'), findsOneWidget);
     await tester.tap(find.byKey(const Key('dashboard_nav')));
@@ -129,6 +163,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const Key('portfolio_pie_chart')),
       300,
+      scrollable: _verticalScrollableIn(const Key('dashboard_scroll')),
     );
     expect(find.byKey(const Key('portfolio_pie_chart')), findsOneWidget);
     await tester.tap(find.byKey(const Key('holdings_nav')));
@@ -188,8 +223,8 @@ void main() {
     await tester.tap(find.byKey(const Key('asset_tag_gift')));
     await _pumpKinetic(tester);
 
-    expect(find.text('WEIGHT (GRAMS)'), findsOneWidget);
-    expect(find.text('PURITY'), findsOneWidget);
+    expect(find.text('Weight (grams)'), findsOneWidget);
+    expect(find.text('Purity'), findsOneWidget);
     expect(find.text('24K'), findsOneWidget);
     expect(find.text('22K'), findsOneWidget);
     expect(find.text('18K'), findsOneWidget);
@@ -277,7 +312,7 @@ void main() {
     expect(find.byKey(const Key('asset_type_cash')), findsOneWidget);
     expect(find.byKey(const Key('asset_type_gold')), findsOneWidget);
     expect(find.byKey(const Key('asset_type_silver')), findsOneWidget);
-    expect(find.text('BANK SAVINGS'), findsNothing);
+    expect(find.text('Bank Savings'), findsNothing);
 
     await tester.tap(find.byKey(const Key('asset_type_silver')));
     await _pumpKinetic(tester);
@@ -311,9 +346,9 @@ void main() {
     await tester.tap(find.byKey(const Key('zakat_nav')));
     await _pumpKinetic(tester);
 
-    expect(find.text('DUE / NISAB'), findsOneWidget);
-    expect(find.text('PAY EACH RAMADAN'), findsOneWidget);
-    expect(find.text('SILVER NISAB'), findsWidgets);
+    expect(find.text('Due and nisab'), findsOneWidget);
+    expect(find.text('Pay each Ramadan'), findsOneWidget);
+    expect(find.text('Silver nisab'), findsWidgets);
     expect(find.byKey(const Key('select_ramadan_due_date')), findsOneWidget);
   });
 
@@ -323,38 +358,20 @@ void main() {
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
 
-    expect(find.text('WEALTH / LIVE POSITION'), findsOneWidget);
+    expect(find.text('Live position'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('holdings_nav')));
     await _pumpKinetic(tester);
-    expect(
-      find.text('Add, edit, and scan asset records without visual fog.'),
-      findsOneWidget,
-    );
+    expect(find.text('Add, edit, and scan asset records.'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
-    expect(find.text('MODE / PRICES'), findsOneWidget);
-    expect(find.text('THEME MODE'), findsOneWidget);
-  });
-
-  testWidgets('persists the kinetic theme mode toggle', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
-
-    await tester.tap(find.byKey(const Key('settings_nav')));
-    await _pumpKinetic(tester);
-    expect(find.text('DARK / DEFAULT'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('theme_mode_toggle')));
-    await _pumpKinetic(tester);
-
-    expect(Hive.box<dynamic>('uiPreferences').get('themeMode'), 'light');
-    expect(find.text('LIGHT / INVERTED'), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
+    expect(find.text('Theme mode'), findsOneWidget);
   });
 
   testWidgets('dashboard filters holdings by tag', (tester) async {
-    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.physicalSize = const Size(1000, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -382,12 +399,10 @@ void main() {
     await _pumpKinetic(tester);
 
     expect(find.text('150.00'), findsOneWidget);
-    tester
-        .widget<FilterBlock>(find.byKey(const Key('filter_tag_salary')))
-        .onTap();
+    await tester.tap(find.byKey(const Key('filter_tag_salary')));
     await _pumpKinetic(tester);
 
-    expect(find.text('SHOWING 1 OF 2 HOLDINGS'), findsOneWidget);
+    expect(find.text('Showing 1 of 2 holdings'), findsOneWidget);
     expect(find.text('FILTERED WEALTH'), findsOneWidget);
     expect(find.text('100.00'), findsOneWidget);
   });
@@ -450,9 +465,9 @@ void main() {
     expect(find.byKey(const Key('portfolio_jump_30d')), findsOneWidget);
     expect(find.byKey(const Key('portfolio_jump_90d')), findsOneWidget);
     expect(find.byKey(const Key('portfolio_jump_all')), findsOneWidget);
-    expect(find.textContaining('30D JUMP'), findsOneWidget);
-    expect(find.text('CASH REMOVED'), findsOneWidget);
-    expect(find.text('GOLD CHANGE'), findsOneWidget);
+    expect(find.textContaining('30D jump'), findsOneWidget);
+    expect(find.text('Cash removed'), findsOneWidget);
+    expect(find.text('Gold change'), findsOneWidget);
     expect(find.byKey(const Key('portfolio_line_chart')), findsOneWidget);
     expect(find.byKey(const Key('paid_vs_now_amount')), findsOneWidget);
   });
@@ -516,8 +531,8 @@ void main() {
     await tester.pumpWidget(_buildApp());
 
     await _pumpKinetic(tester);
-    expect(find.text('CASH ADDED'), findsOneWidget);
-    expect(find.text('GOLD CHANGE'), findsOneWidget);
+    expect(find.text('Cash added'), findsOneWidget);
+    expect(find.text('Gold change'), findsOneWidget);
     expect(find.text(r'+$200'), findsOneWidget);
     expect(find.byKey(const Key('portfolio_line_chart')), findsOneWidget);
   });
@@ -536,7 +551,7 @@ void main() {
     await tester.tap(find.byKey(const Key('open_transaction_history')));
     await _pumpKinetic(tester);
 
-    expect(find.text('TRANSACTION HISTORY'), findsOneWidget);
+    expect(find.text('Transaction history'), findsOneWidget);
     expect(find.text('PAID VS NOW'), findsOneWidget);
     expect(find.text('NET WORTH SNAPSHOTS'), findsOneWidget);
   });
@@ -671,6 +686,24 @@ void main() {
     expect(find.text('Select a bought date for this price'), findsOneWidget);
     expect(find.text('Select a sold date for this price'), findsOneWidget);
   });
+
+  testWidgets('persists the kinetic theme mode toggle', (tester) async {
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('settings_nav')));
+    await _pumpKinetic(tester);
+    expect(find.text('Dark mode'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('theme_mode_toggle')));
+    await _pumpKinetic(tester);
+
+    expect(Hive.box<dynamic>('uiPreferences').get('themeMode'), 'light');
+    expect(find.text('Light mode'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }
 
 Widget _buildApp({
@@ -719,6 +752,16 @@ class _UnavailableBiometricAuthService implements BiometricAuthService {
 
 Future<void> _pumpKinetic(WidgetTester tester) {
   return tester.pump(const Duration(milliseconds: 180));
+}
+
+Finder _verticalScrollableIn(Key key) {
+  return find.descendant(
+    of: find.byKey(key),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable && widget.axisDirection == AxisDirection.down,
+    ),
+  );
 }
 
 class _UnavailableMetalPriceService implements MetalPriceService {

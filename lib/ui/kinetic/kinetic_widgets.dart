@@ -12,7 +12,7 @@ class KineticText extends StatelessWidget {
     this.align,
     this.maxLines,
     this.muted = false,
-    this.uppercase = true,
+    this.uppercase = false,
   });
 
   final String text;
@@ -59,7 +59,7 @@ class KineticNumber extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    final effectiveFontSize = fontSize ?? 64;
+    final effectiveFontSize = fontSize ?? 48;
     final textColor = color ?? colors.foreground;
     final normalizedCurrency = currency?.trim().toUpperCase();
     final displayValue = _numberTextWithoutCurrency(value, normalizedCurrency);
@@ -78,19 +78,21 @@ class KineticNumber extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final markSize = (effectiveFontSize * 0.58).clamp(22.0, 42.0);
-        final gap = (markSize * 0.26).clamp(6.0, 12.0);
+        final markSize = (effectiveFontSize * 0.70).clamp(18.0, 48.0);
+        final gap = (effectiveFontSize * 0.08).clamp(3.0, 8.0);
         final maxTextWidth = constraints.maxWidth.isFinite
             ? math.max(0.0, constraints.maxWidth - markSize - gap)
             : double.infinity;
         return Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CurrencyLogoMark(
               currency: normalizedCurrency,
               selected: false,
               size: markSize,
               iconColor: textColor,
+              raw: true,
             ),
             SizedBox(width: gap),
             ConstrainedBox(
@@ -199,7 +201,7 @@ class BrutalistButton extends StatelessWidget {
     required this.onPressed,
     this.tone = BrutalistButtonTone.outline,
     this.expand = false,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
   });
 
   final String label;
@@ -214,15 +216,15 @@ class BrutalistButton extends StatelessWidget {
     final disabled = onPressed == null;
     final background = switch (tone) {
       BrutalistButtonTone.primary => colors.accent,
-      BrutalistButtonTone.danger => AppTheme.deepShadow,
+      BrutalistButtonTone.danger => colors.loss.withValues(alpha: 0.16),
       BrutalistButtonTone.muted => colors.muted,
-      BrutalistButtonTone.outline => colors.background.withValues(alpha: 0.38),
+      BrutalistButtonTone.outline => Colors.transparent,
     };
     final foreground = switch (tone) {
       BrutalistButtonTone.primary => colors.accentForeground,
-      BrutalistButtonTone.danger => AppTheme.white,
+      BrutalistButtonTone.danger => colors.loss,
       BrutalistButtonTone.muted => colors.foreground,
-      BrutalistButtonTone.outline => colors.foreground,
+      BrutalistButtonTone.outline => colors.mutedForeground,
     };
     final child = AnimatedContainer(
       duration: MediaQuery.disableAnimationsOf(context)
@@ -238,20 +240,16 @@ class BrutalistButton extends StatelessWidget {
               ? colors.border.withValues(alpha: 0.55)
               : tone == BrutalistButtonTone.primary
               ? colors.accent
-              : colors.border,
+              : colors.border.withValues(alpha: 0.58),
           width: AppTheme.thickBorderWidth,
         ),
-        boxShadow: disabled || tone != BrutalistButtonTone.primary
-            ? null
-            : AppTheme.glowShadow(colors),
       ),
       child: KineticText(
         label,
         align: TextAlign.center,
         style: AppTheme.labelStyle(colors).copyWith(
           color: disabled ? colors.mutedForeground : foreground,
-          letterSpacing: -0.2,
-          fontSize: 14,
+          fontSize: 13,
         ),
       ),
     );
@@ -263,30 +261,37 @@ class LedgerFrame extends StatelessWidget {
   const LedgerFrame({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(14),
     this.background,
     this.borderWidth = AppTheme.thickBorderWidth,
+    this.cardless = false,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? background;
   final double borderWidth;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
+    if (cardless) {
+      return Padding(
+        padding: padding,
+        child: child,
+      );
+    }
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: background ?? colors.muted.withValues(alpha: 0.88),
+        color: background ?? colors.muted.withValues(alpha: 0.76),
         borderRadius: AppTheme.radius,
         border: Border.all(
-          color: colors.border.withValues(alpha: 0.82),
+          color: colors.border.withValues(alpha: 0.64),
           width: borderWidth,
         ),
-        boxShadow: AppTheme.softShadow(colors),
       ),
       child: child,
     );
@@ -303,6 +308,7 @@ class MetricBlock extends StatelessWidget {
     this.currency,
     this.valueFontSize = 28,
     this.valueMaxLines = 1,
+    this.cardless = false,
   });
 
   final String label;
@@ -312,17 +318,19 @@ class MetricBlock extends StatelessWidget {
   final String? currency;
   final double valueFontSize;
   final int valueMaxLines;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     return LedgerFrame(
-      padding: const EdgeInsets.all(14),
+      cardless: cardless,
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           KineticText(label, style: AppTheme.labelStyle(colors)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           KineticNumber(
             value,
             fontSize: valueFontSize,
@@ -335,7 +343,7 @@ class MetricBlock extends StatelessWidget {
             KineticText(
               detail!,
               muted: true,
-              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 12),
             ),
           ],
         ],
@@ -361,45 +369,72 @@ class FilterBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    final foreground = selected ? colors.accentForeground : colors.foreground;
+
+    // Premium active / inactive colors
+    final background = selected
+        ? colors.accent.withValues(alpha: 0.12)
+        : Colors.transparent;
+    final border = Colors.transparent;
+    final textColor = selected
+        ? colors.accent
+        : colors.foreground.withValues(alpha: 0.60);
+    final labelColor = selected
+        ? colors.accent.withValues(alpha: 0.80)
+        : colors.mutedForeground;
+
+    final showEyebrow = detail != null;
+
     return PressableScale(
       onTap: onTap,
-      scale: 0.98,
+      scale: 0.97,
       child: AnimatedContainer(
         duration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : AppTheme.fast,
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        padding: EdgeInsets.symmetric(
+          horizontal: showEyebrow ? 16 : 14,
+          vertical: showEyebrow ? 8 : 6,
+        ),
         decoration: BoxDecoration(
-          color: selected
-              ? colors.accent
-              : colors.background.withValues(alpha: 0.42),
+          color: background,
           borderRadius: AppTheme.pillRadius,
           border: Border.all(
-            color: selected ? colors.accent : colors.border,
-            width: AppTheme.thickBorderWidth,
+            color: border,
+            width: 1.0,
           ),
-          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            KineticText(
-              label,
-              style: AppTheme.labelStyle(
-                colors,
-              ).copyWith(color: foreground, letterSpacing: -0.1),
-            ),
-            if (detail != null) ...[
-              const SizedBox(height: 5),
+            if (showEyebrow) ...[
+              KineticText(
+                label.toUpperCase(),
+                style: AppTheme.labelStyle(colors).copyWith(
+                  color: labelColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 9,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 3),
               KineticText(
                 detail!,
-                style: AppTheme.bodyStyle(
-                  colors,
-                ).copyWith(color: foreground, fontSize: 12),
+                style: AppTheme.bodyStyle(colors).copyWith(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ],
+            ] else
+              KineticText(
+                label,
+                style: AppTheme.bodyStyle(colors).copyWith(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
           ],
         ),
       ),
@@ -425,9 +460,9 @@ class CurrencyChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final background = selected
-        ? colors.accent
-        : colors.background.withValues(alpha: 0.42);
-    final foreground = selected ? colors.accentForeground : colors.foreground;
+        ? colors.accent.withValues(alpha: 0.18)
+        : Colors.transparent;
+    final foreground = selected ? colors.accent : colors.mutedForeground;
     return PressableScale(
       onTap: onTap,
       scale: 0.98,
@@ -435,25 +470,34 @@ class CurrencyChip extends StatelessWidget {
         duration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : AppTheme.fast,
-        constraints: BoxConstraints(minHeight: compact ? 42 : 54),
-        padding: EdgeInsets.fromLTRB(7, compact ? 6 : 8, 11, compact ? 6 : 8),
+        constraints: BoxConstraints(minHeight: compact ? 34 : 46),
+        padding: EdgeInsets.fromLTRB(
+          compact ? 12 : 7,
+          compact ? 7 : 8,
+          compact ? 12 : 11,
+          compact ? 7 : 8,
+        ),
         decoration: BoxDecoration(
           color: background,
           borderRadius: AppTheme.pillRadius,
           border: Border.all(
-            color: selected ? colors.accent : colors.border,
-            width: AppTheme.thickBorderWidth,
+            color: selected
+                ? colors.accent.withValues(alpha: 0.46)
+                : Colors.transparent,
+            width: AppTheme.hairlineWidth,
           ),
-          boxShadow: selected ? AppTheme.glowShadow(colors) : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CurrencyLogoMark(currency: currency, selected: selected),
-            const SizedBox(width: 7),
+            if (!compact) ...[
+              CurrencyLogoMark(currency: currency, selected: selected),
+              const SizedBox(width: 7),
+            ],
             KineticText(
               currency,
+              uppercase: true,
               style: AppTheme.labelStyle(colors).copyWith(
                 color: foreground,
                 fontSize: compact ? 12 : 13,
@@ -474,12 +518,14 @@ class CurrencyLogoMark extends StatelessWidget {
     required this.selected,
     this.size = 30,
     this.iconColor,
+    this.raw = false,
   });
 
   final String currency;
   final bool selected;
   final double size;
   final Color? iconColor;
+  final bool raw;
 
   @override
   Widget build(BuildContext context) {
@@ -490,11 +536,32 @@ class CurrencyLogoMark extends StatelessWidget {
       'AED' => 'assets/images/currency/dirham.png',
       _ => null,
     };
-    final background = selected
-        ? colors.accentForeground
-        : colors.muted.withValues(alpha: 0.82);
     final foreground =
         iconColor ?? (selected ? colors.accent : colors.foreground);
+
+    if (raw) {
+      return asset == null
+          ? Text(
+              currency,
+              textAlign: TextAlign.center,
+              style: AppTheme.labelStyle(colors).copyWith(
+                color: foreground,
+                fontSize: size * 0.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+                height: 1,
+              ),
+            )
+          : ImageIcon(
+              AssetImage(asset),
+              color: foreground,
+              size: size,
+            );
+    }
+
+    final background = selected
+        ? colors.accent.withValues(alpha: 0.16)
+        : colors.background.withValues(alpha: 0.24);
     return Container(
       width: size,
       height: size,
@@ -504,9 +571,9 @@ class CurrencyLogoMark extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(
           color: selected
-              ? colors.accentForeground
-              : colors.border.withValues(alpha: 0.72),
-          width: 1,
+              ? colors.accent.withValues(alpha: 0.32)
+              : colors.border.withValues(alpha: 0.52),
+          width: AppTheme.hairlineWidth,
         ),
       ),
       child: asset == null
@@ -601,10 +668,10 @@ class _TickerTapeState extends State<TickerTape>
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: KineticText(
                         item,
+                        uppercase: true,
                         style: AppTheme.labelStyle(colors).copyWith(
                           color: colors.accentForeground,
                           fontSize: widget.fontSize,
-                          letterSpacing: -0.1,
                         ),
                       ),
                     ),
@@ -706,12 +773,12 @@ class KineticInput extends StatelessWidget {
       maxLines: maxLines,
       cursorColor: colors.accent,
       style: (hero ? AppTheme.numberStyle(colors) : AppTheme.bodyStyle(colors))
-          .copyWith(fontSize: hero ? 44 : 18),
+          .copyWith(fontSize: hero ? 36 : 16),
       decoration: InputDecoration(
-        labelText: label.toUpperCase(),
+        labelText: label,
         contentPadding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: hero ? 20 : 15,
+          horizontal: 14,
+          vertical: hero ? 18 : 13,
         ),
       ),
     );
@@ -747,6 +814,160 @@ class BrutalistGrid extends StatelessWidget {
               .toList(),
         );
       },
+    );
+  }
+}
+
+class KineticDropdown<T> extends StatelessWidget {
+  const KineticDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    required this.itemLabelBuilder,
+  });
+
+  final String label;
+  final T value;
+  final List<T> items;
+  final ValueChanged<T?> onChanged;
+  final String Function(T) itemLabelBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KineticText(
+          label.toUpperCase(),
+          style: AppTheme.labelStyle(colors).copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+            color: colors.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: colors.foreground.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: colors.accent,
+                size: 22,
+              ),
+              dropdownColor: colors.background,
+              borderRadius: BorderRadius.circular(10),
+              style: AppTheme.bodyStyle(colors).copyWith(
+                color: colors.foreground,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+              onChanged: onChanged,
+              items: items.map((item) {
+                return DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(itemLabelBuilder(item)),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class KineticDatePickerTile extends StatelessWidget {
+  const KineticDatePickerTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.98,
+      child: AnimatedContainer(
+        duration: AppTheme.fast,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? colors.accent.withValues(alpha: 0.06)
+              : colors.foreground.withValues(alpha: 0.01),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? colors.accent.withValues(alpha: 0.16)
+                : colors.border.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 15,
+              color: selected ? colors.accent : colors.mutedForeground,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  KineticText(
+                    label.toUpperCase(),
+                    style: AppTheme.labelStyle(colors).copyWith(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: selected ? colors.accent : colors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  KineticText(
+                    value,
+                    style: AppTheme.bodyStyle(colors).copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(
+                Icons.check_circle_rounded,
+                size: 14,
+                color: colors.accent,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

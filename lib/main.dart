@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -105,22 +107,66 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
     ];
     final colors = context.kinetic;
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 68,
+        backgroundColor: colors.background,
+        leadingWidth: 64,
+        leading: const SizedBox(width: 64),
+        centerTitle: true,
+        title: _selectedPage == 0
+            ? const _MonizLogo()
+            : KineticText(
+                _selectedPage == 1
+                    ? 'Ledger'
+                    : _selectedPage == 2
+                        ? 'Zakat'
+                        : 'Settings',
+                style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
+              ),
+        actions: [
+          Builder(
+            builder: (buttonContext) => IconButton(
+              key: const Key('open_notifications'),
+              tooltip: 'Notifications',
+              icon: const Icon(Icons.notifications_none_rounded),
+              onPressed: () => Navigator.of(
+                buttonContext,
+              ).push<void>(_kineticRoute<void>(const NotificationsScreen())),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: DecoratedBox(
         decoration: AppTheme.brandBackground(colors),
         child: SafeArea(
+          top: false,
           bottom: false,
           child: IndexedStack(index: _selectedPage, children: pages),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: _KineticNav(selectedIndex: _selectedPage, onSelected: _setPage),
+      bottomNavigationBar: _KineticNav(
+        selectedIndex: _selectedPage,
+        onSelected: _setPage,
       ),
     );
   }
 
   void _setPage(int index) {
     setState(() => _selectedPage = index);
+  }
+}
+
+class _MonizLogo extends StatelessWidget {
+  const _MonizLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/moniztransparent.png',
+      height: 44,
+      fit: BoxFit.contain,
+    );
   }
 }
 
@@ -131,88 +177,106 @@ class _KineticNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const _tabs = [
-    ('WEALTH', Key('dashboard_nav')),
-    ('LEDGER', Key('holdings_nav')),
-    ('ZAKAT', Key('zakat_nav')),
-    ('SYSTEM', Key('settings_nav')),
+    (
+      label: 'Wealth',
+      icon: Icons.account_balance_wallet_outlined,
+      key: Key('dashboard_nav'),
+    ),
+    (
+      label: 'Ledger',
+      icon: Icons.receipt_long_outlined,
+      key: Key('holdings_nav'),
+    ),
+    (
+      label: 'Zakat',
+      icon: Icons.volunteer_activism_outlined,
+      key: Key('zakat_nav'),
+    ),
+    (label: 'Settings', icon: Icons.tune_rounded, key: Key('settings_nav')),
   ];
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
-        color: colors.background.withValues(alpha: 0.72),
+        color: colors.background.withValues(alpha: 0.85),
         border: Border(
           top: BorderSide(
-            color: colors.border,
-            width: AppTheme.thickBorderWidth,
+            color: Colors.black.withValues(alpha: 0.12),
+            width: AppTheme.hairlineWidth,
           ),
         ),
       ),
-      child: Row(
-        children: [
-          for (var index = 0; index < _tabs.length; index++) ...[
-            Expanded(
-              child: PressableScale(
-                key: _tabs[index].$2,
-                onTap: () => onSelected(index),
-                scale: 0.98,
-                child: AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : AppTheme.fast,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  decoration: BoxDecoration(
-                    color: selectedIndex == index
-                        ? colors.accent
-                        : colors.muted.withValues(alpha: 0.7),
-                    borderRadius: AppTheme.pillRadius,
-                    border: Border.all(
-                      color: selectedIndex == index
-                          ? colors.accent
-                          : colors.border.withValues(alpha: 0.74),
-                      width: AppTheme.thickBorderWidth,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Row(
+                children: [
+                  for (var index = 0; index < _tabs.length; index++)
+                    Expanded(
+                      child: PressableScale(
+                        key: _tabs[index].key,
+                        onTap: () => onSelected(index),
+                        scale: 0.98,
+                        child: _NavItem(
+                          label: _tabs[index].label,
+                          icon: _tabs[index].icon,
+                          selected: selectedIndex == index,
+                        ),
+                      ),
                     ),
-                    boxShadow: selectedIndex == index
-                        ? AppTheme.glowShadow(colors)
-                        : null,
-                  ),
-                  child: KineticText(
-                    _tabs[index].$1,
-                    align: TextAlign.center,
-                    style: AppTheme.labelStyle(colors).copyWith(
-                      color: selectedIndex == index
-                          ? colors.accentForeground
-                          : colors.foreground,
-                      fontSize: 13,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
-            if (index != _tabs.length - 1) const SizedBox(width: 8),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _GlowOrb extends StatelessWidget {
-  const _GlowOrb({required this.size, required this.color});
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+  });
 
-  final double size;
-  final Color color;
+  final String label;
+  final IconData icon;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    final colors = context.kinetic;
+    final foreground = selected
+        ? colors.accent
+        : colors.foreground.withValues(alpha: 0.40);
+    return AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppTheme.fast,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: foreground, size: 23),
+          const SizedBox(height: 4),
+          KineticText(
+            label,
+            align: TextAlign.center,
+            maxLines: 1,
+            style: AppTheme.labelStyle(
+              colors,
+            ).copyWith(color: foreground, fontSize: 11),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -275,16 +339,24 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         zakatResult.amountDueUsd;
     final summaryNote = [
       if (totals.hasUnpricedMetals)
-        'Refresh metal prices in SYSTEM to include metal holdings.',
+        'Refresh metal prices in Settings to include metal holdings.',
       if (totals.hasUnsupportedCurrencies)
         'Some holdings use unsupported currencies and are excluded.',
     ].join(' ');
 
+    final colors = context.kinetic;
+    final sectionDivider = Divider(
+      height: 48,
+      thickness: 1,
+      color: colors.border.withValues(alpha: 0.15),
+    );
+
     return CustomScrollView(
+      key: const Key('dashboard_scroll'),
       slivers: [
         SliverToBoxAdapter(
           child: _WealthHero(
-            wealthLabel: _filter.isActive ? 'Filtered Wealth' : 'Total Wealth',
+            wealthLabel: _filter.isActive ? 'Filtered wealth' : 'Total wealth',
             totalWealth: totals.totalValue,
             zakat: displayZakat,
             currency: totals.currency,
@@ -302,7 +374,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           sliver: SliverList.list(
             children: [
               DashboardFiltersCard(
@@ -315,19 +387,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 onClear: () =>
                     setState(() => _filter = const DashboardFilter()),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               KineticText(
                 _filter.isActive
                     ? 'Showing ${filteredAssets.length} of ${assets.length} holdings'
                     : 'Showing all ${assets.length} holdings',
                 key: const Key('dashboard_filter_result'),
                 muted: true,
+                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 14),
+              sectionDivider,
               PortfolioInsightsCard(
                 analytics: analytics,
                 snapshotAnalytics: completeAnalyticsUsd,
                 isFiltered: _filter.isActive,
+                cardless: true,
                 onOpenHistory: () => Navigator.of(context).push<void>(
                   PageRouteBuilder<void>(
                     transitionDuration: Duration.zero,
@@ -336,16 +410,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              sectionDivider,
               PortfolioTrendCard(
                 snapshots: snapshots,
                 performance: completePerformance,
                 assets: assets,
                 metalPriceHistory: metalPriceState.historicalPrices,
                 displayCurrency: displayCurrency,
+                cardless: true,
               ),
-              const SizedBox(height: 14),
-              ProfitLossCard(summary: performance),
+              sectionDivider,
+              ProfitLossCard(
+                summary: performance,
+                cardless: true,
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -418,117 +497,103 @@ class _WealthHero extends StatelessWidget {
     final colors = context.kinetic;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final heroSize = (constraints.maxWidth * 0.095).clamp(40.0, 72.0);
+        final heroSize = (constraints.maxWidth * 0.11).clamp(44.0, 60.0);
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Container(
-            constraints: const BoxConstraints(minHeight: 300),
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-            decoration: AppTheme.heroSurface(colors),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Positioned(
-                  right: -54,
-                  top: -72,
-                  child: _GlowOrb(
-                    size: 178,
-                    color: colors.accent.withValues(alpha: 0.18),
-                  ),
-                ),
-                Positioned(
-                  right: 54,
-                  bottom: -88,
-                  child: _GlowOrb(
-                    size: 154,
-                    color: AppTheme.lightGold.withValues(alpha: 0.10),
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        KineticText(
-                          'WEALTH / LIVE POSITION',
-                          style: AppTheme.labelStyle(colors),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    KineticText(
-                      wealthLabel,
-                      style: AppTheme.displayStyle(
-                        colors,
-                      ).copyWith(fontSize: 42, color: colors.foreground),
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: KineticNumber(
-                          _formatMoney(totalWealth, currency: currency),
-                          key: const Key('wealth_hero_total'),
-                          fontSize: heroSize,
-                          color: colors.accent,
-                          currency: currency,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        FilledButton(
-                          key: const Key('open_transaction_history'),
-                          onPressed: () {
-                            Navigator.of(context).push<void>(
-                              PageRouteBuilder<void>(
-                                transitionDuration: Duration.zero,
-                                reverseTransitionDuration: Duration.zero,
-                                pageBuilder: (_, _, _) =>
-                                    const TransactionHistoryScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text('HISTORY'),
-                        ),
-                        _CurrencySelector(
-                          selectedCurrency: currency,
-                          onSelected: onCurrencySelected,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    BrutalistGrid(
-                      minTileWidth: 210,
-                      children: [
-                        MetricBlock(
-                          label: 'Zakat due',
-                          value: _formatMoney(zakat, currency: currency),
-                          valueColor: colors.profit,
-                          currency: currency,
-                          detail: 'ALL HOLDINGS',
-                        ),
-                      ],
-                    ),
-                    if (note != null) ...[
-                      const SizedBox(height: 14),
-                      KineticText(
-                        note!,
+                    Expanded(
+                      child: KineticText(
+                        'Live position',
                         muted: true,
-                        uppercase: false,
-                        style: AppTheme.bodyStyle(
-                          colors,
-                        ).copyWith(fontSize: 14),
+                        style: AppTheme.labelStyle(colors).copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
                       ),
-                    ],
+                    ),
+                    TextButton.icon(
+                      key: const Key('open_transaction_history'),
+                      onPressed: () {
+                        Navigator.of(context).push<void>(
+                          PageRouteBuilder<void>(
+                            transitionDuration: Duration.zero,
+                            reverseTransitionDuration: Duration.zero,
+                            pageBuilder: (_, _, _) =>
+                                const TransactionHistoryScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.history_rounded, size: 17),
+                      label: const Text('History'),
+                    ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                KineticText(
+                  wealthLabel.toUpperCase(),
+                  style: AppTheme.labelStyle(colors).copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: KineticNumber(
+                      _formatMoney(totalWealth, currency: currency),
+                      key: const Key('wealth_hero_total'),
+                      fontSize: heroSize,
+                      color: colors.foreground,
+                      currency: currency,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _CurrencySelector(
+                  selectedCurrency: currency,
+                  onSelected: onCurrencySelected,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    KineticText(
+                      'ZAKAT DUE: ',
+                      muted: true,
+                      style: AppTheme.labelStyle(colors).copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    KineticNumber(
+                      _formatMoney(zakat, currency: currency),
+                      fontSize: 20,
+                      color: colors.accent,
+                      currency: currency,
+                    ),
+                  ],
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 16),
+                  KineticText(
+                    note!,
+                    muted: true,
+                    align: TextAlign.center,
+                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+                  ),
+                ],
               ],
             ),
           ),
@@ -549,20 +614,31 @@ class _CurrencySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: CurrencyConverter.supportedCurrencies
-          .map(
-            (currency) => CurrencyChip(
-              key: Key('home_display_currency_$currency'),
-              currency: currency,
-              selected: selectedCurrency == currency,
-              onTap: () => onSelected(currency),
-              compact: true,
-            ),
-          )
-          .toList(),
+    final colors = context.kinetic;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.background.withValues(alpha: 0.28),
+        borderRadius: AppTheme.pillRadius,
+        border: Border.all(
+          color: colors.border.withValues(alpha: 0.5),
+          width: AppTheme.hairlineWidth,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: CurrencyConverter.supportedCurrencies
+            .map(
+              (currency) => CurrencyChip(
+                key: Key('home_display_currency_$currency'),
+                currency: currency,
+                selected: selectedCurrency == currency,
+                onTap: () => onSelected(currency),
+                compact: true,
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 }
@@ -578,12 +654,12 @@ class HoldingsPage extends ConsumerWidget {
     final slivers = <Widget>[
       SliverToBoxAdapter(
         child: _PageHeader(
-          eyebrow: 'LEDGER',
-          title: 'HOLDINGS / EVENTS',
-          detail: 'Add, edit, and scan asset records without visual fog.',
+          eyebrow: null,
+          title: 'Holdings',
+          detail: 'Add, edit, and scan asset records.',
           trailing: BrutalistButton(
             key: const Key('add_asset_button'),
-            label: 'ADD ASSET',
+            label: 'Add asset',
             tone: BrutalistButtonTone.primary,
             onPressed: () => _showAssetFormDialog(context, ref),
           ),
@@ -594,10 +670,11 @@ class HoldingsPage extends ConsumerWidget {
           child: Padding(
             padding: EdgeInsets.all(16),
             child: LedgerFrame(
+              cardless: true,
               child: Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 28),
-                  child: KineticText('NO ASSETS YET'),
+                  child: KineticText('No assets yet'),
                 ),
               ),
             ),
@@ -605,21 +682,23 @@ class HoldingsPage extends ConsumerWidget {
         )
       else
         SliverPadding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           sliver: SliverList.separated(
             itemCount: assets.length,
-            itemBuilder: (context, index) => AssetTile(asset: assets[index]),
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) => AssetTile(asset: assets[index], cardless: true),
+            separatorBuilder: (context, index) => Divider(
+              height: 32,
+              thickness: 1,
+              color: context.kinetic.border.withValues(alpha: 0.15),
+            ),
           ),
         ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
           child: KineticText(
-            'TRANSACTION HISTORY',
-            style: AppTheme.displayStyle(
-              context.kinetic,
-            ).copyWith(fontSize: 34),
+            'Transaction history',
+            style: AppTheme.titleStyle(context.kinetic).copyWith(fontSize: 22),
           ),
         ),
       ),
@@ -629,10 +708,12 @@ class HoldingsPage extends ConsumerWidget {
       slivers.add(
         const SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: LedgerFrame(
+              cardless: true,
+              padding: EdgeInsets.zero,
               child: KineticText(
-                'ADD HOLDING START OR SOLD DATES TO BUILD THE TIMELINE.',
+                'Add holding start or sold dates to build the timeline.',
                 muted: true,
               ),
             ),
@@ -654,15 +735,22 @@ class HoldingsPage extends ConsumerWidget {
               sliver: SliverList.separated(
                 itemCount: entry.value.length,
                 itemBuilder: (context, index) =>
-                    _TransactionEventRow(event: entry.value[index]),
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    _TransactionEventRow(event: entry.value[index], cardless: true),
+                separatorBuilder: (context, index) => Divider(
+                  height: 20,
+                  thickness: 1,
+                  color: context.kinetic.border.withValues(alpha: 0.15),
+                ),
               ),
             ),
           );
       }
     }
 
-    return CustomScrollView(slivers: slivers);
+    return CustomScrollView(
+      key: const Key('holdings_scroll'),
+      slivers: slivers,
+    );
   }
 }
 
@@ -682,109 +770,204 @@ class ZakatPage extends ConsumerWidget {
     );
     final colors = context.kinetic;
 
+    final sectionDivider = Divider(
+      height: 48,
+      thickness: 1,
+      color: colors.border.withValues(alpha: 0.15),
+    );
+
     return CustomScrollView(
+      key: const Key('zakat_scroll'),
       slivers: [
         SliverToBoxAdapter(
           child: _PageHeader(
-            eyebrow: 'ZAKAT',
-            title: 'DUE / NISAB',
-            detail: 'A hard-edged view of eligible wealth and payment state.',
+            eyebrow: null,
+            title: 'Due and nisab',
+            detail: 'Eligible wealth and payment state.',
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           sliver: SliverList.list(
             children: [
               _ZakatSettingsBlock(settings: settings),
-              const SizedBox(height: 14),
-              LedgerFrame(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    KineticText(
-                      'AMOUNT DUE',
-                      style: AppTheme.labelStyle(colors),
-                    ),
-                    const SizedBox(height: 10),
-                    KineticNumber(
-                      _formatMoney(result.amountDueUsd),
-                      key: const Key('zakat_amount_due'),
-                      fontSize: 72,
-                      currency: CurrencyConverter.defaultCurrency,
-                      color: result.hasPaymentDue
-                          ? colors.profit
-                          : colors.foreground,
-                    ),
-                    const SizedBox(height: 14),
-                    BrutalistGrid(
-                      minTileWidth: 220,
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final heroSize = (constraints.maxWidth * 0.11).clamp(44.0, 60.0);
+                  return LedgerFrame(
+                    cardless: true,
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        MetricBlock(
-                          label: 'Eligible wealth',
-                          value: _formatMoney(result.eligibleWealthUsd),
-                          currency: CurrencyConverter.defaultCurrency,
+                        KineticText(
+                          'AMOUNT DUE',
+                          style: AppTheme.labelStyle(colors).copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                          ),
                         ),
-                        MetricBlock(
-                          label: 'Nisab',
-                          value: result.nisabThresholdUsd == null
-                              ? 'AWAITING'
-                              : _formatMoney(result.nisabThresholdUsd!),
-                          currency: result.nisabThresholdUsd == null
-                              ? null
-                              : CurrencyConverter.defaultCurrency,
-                          detail: result.settings.nisabStandard.label,
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.center,
+                            child: KineticNumber(
+                              _formatMoney(result.amountDueUsd),
+                              key: const Key('zakat_amount_due'),
+                              fontSize: heroSize,
+                              currency: CurrencyConverter.defaultCurrency,
+                              color: result.hasPaymentDue
+                                  ? colors.accent
+                                  : colors.foreground,
+                            ),
+                          ),
                         ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  KineticText(
+                                    'ELIGIBLE WEALTH',
+                                    style: AppTheme.labelStyle(colors).copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.0,
+                                      color: colors.mutedForeground,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: KineticNumber(
+                                      _formatMoney(result.eligibleWealthUsd),
+                                      fontSize: 20,
+                                      currency: CurrencyConverter.defaultCurrency,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              height: 32,
+                              width: 1,
+                              color: colors.border.withValues(alpha: 0.15),
+                            ),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  KineticText(
+                                    'NISAB',
+                                    style: AppTheme.labelStyle(colors).copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.0,
+                                      color: colors.mutedForeground,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: KineticNumber(
+                                      result.nisabThresholdUsd == null
+                                          ? 'Awaiting'
+                                          : _formatMoney(result.nisabThresholdUsd!),
+                                      fontSize: 20,
+                                      currency: result.nisabThresholdUsd == null
+                                          ? null
+                                          : CurrencyConverter.defaultCurrency,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                  if (result.nisabThresholdUsd != null) ...[
+                                    const SizedBox(height: 2),
+                                    KineticText(
+                                      result.settings.nisabStandard.label,
+                                      muted: true,
+                                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 10),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (result.message != null) ...[
+                          const SizedBox(height: 20),
+                          KineticText(
+                            result.message!,
+                            muted: true,
+                            uppercase: false,
+                            align: TextAlign.center,
+                            style: AppTheme.bodyStyle(
+                              colors,
+                            ).copyWith(fontSize: 13),
+                          ),
+                        ],
+                        if (result.hasPaymentDue) ...[
+                          const SizedBox(height: 20),
+                          BrutalistButton(
+                            key: const Key('mark_zakat_paid'),
+                            label: 'Mark as paid',
+                            tone: BrutalistButtonTone.primary,
+                            onPressed: () async {
+                              await ref
+                                  .read(zakatProvider.notifier)
+                                  .recordPayment(result, DateTime.now());
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Zakat payment recorded.'),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
                       ],
                     ),
-                    if (result.message != null) ...[
-                      const SizedBox(height: 14),
-                      KineticText(
-                        result.message!,
-                        muted: true,
-                        uppercase: false,
-                        style: AppTheme.bodyStyle(
-                          colors,
-                        ).copyWith(fontSize: 14),
-                      ),
-                    ],
-                    if (result.hasPaymentDue) ...[
-                      const SizedBox(height: 14),
-                      BrutalistButton(
-                        key: const Key('mark_zakat_paid'),
-                        label: 'MARK AS PAID',
-                        tone: BrutalistButtonTone.primary,
-                        onPressed: () async {
-                          await ref
-                              .read(zakatProvider.notifier)
-                              .recordPayment(result, DateTime.now());
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('ZAKAT PAYMENT RECORDED.'),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ],
-                  ],
-                ),
+                  );
+                },
+              ),
+              sectionDivider,
+              KineticText(
+                'Holdings',
+                style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
               ),
               const SizedBox(height: 14),
-              KineticText(
-                'HOLDINGS',
-                style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
-              ),
-              const SizedBox(height: 10),
               if (!result.canCalculate)
                 const LedgerFrame(
-                  child: KineticText('REFRESH METAL PRICES FROM SYSTEM FIRST.'),
+                  cardless: true,
+                  padding: EdgeInsets.zero,
+                  child: KineticText(
+                    'Refresh metal prices from Settings first.',
+                  ),
                 )
               else if (result.assessments.isEmpty)
-                const LedgerFrame(child: KineticText('NO ASSETS ADDED YET.'))
-              else
-                ...result.assessments.map(_AssessmentTile.new),
+                const LedgerFrame(
+                  cardless: true,
+                  padding: EdgeInsets.zero,
+                  child: KineticText('No assets added yet.'),
+                )
+              else ...[
+                for (var i = 0; i < result.assessments.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 24,
+                      thickness: 1,
+                      color: colors.border.withValues(alpha: 0.15),
+                    ),
+                  _AssessmentTile(result.assessments[i], cardless: true),
+                ],
+              ],
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -802,85 +985,67 @@ class _ZakatSettingsBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.kinetic;
     final notifier = ref.read(zakatProvider.notifier);
-    return LedgerFrame(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          KineticText(
-            'CALCULATION SETTINGS',
-            style: AppTheme.labelStyle(colors),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ZakatScheduleMode.values
-                .map(
-                  (mode) => FilterBlock(
-                    key: Key('zakat_schedule_${mode.name}'),
-                    label: mode.label,
-                    selected: settings.scheduleMode == mode,
-                    onTap: () => notifier.setScheduleMode(mode),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: NisabStandard.values
-                .map(
-                  (standard) => FilterBlock(
-                    key: Key('nisab_${standard.name}'),
-                    label: standard.label,
-                    selected: settings.nisabStandard == standard,
-                    onTap: () => notifier.setNisabStandard(standard),
-                  ),
-                )
-                .toList(),
-          ),
-          if (settings.scheduleMode == ZakatScheduleMode.ramadanAnnual) ...[
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: KineticText(
-                    settings.nextRamadanDueDate == null
-                        ? 'NEXT RAMADAN PAYMENT DATE: NOT SELECTED'
-                        : 'NEXT RAMADAN PAYMENT DATE: ${_formatDate(settings.nextRamadanDueDate!)}',
-                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
-                  ),
-                ),
-                BrutalistButton(
-                  key: const Key('select_ramadan_due_date'),
-                  label: 'SELECT',
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate:
-                          settings.nextRamadanDueDate ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (date != null) await notifier.setRamadanDueDate(date);
-                  },
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: KineticDropdown<ZakatScheduleMode>(
+                label: 'Schedule',
+                value: settings.scheduleMode,
+                items: ZakatScheduleMode.values,
+                onChanged: (mode) {
+                  if (mode != null) notifier.setScheduleMode(mode);
+                },
+                itemLabelBuilder: (mode) => mode.label,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: KineticDropdown<NisabStandard>(
+                label: 'Nisab Standard',
+                value: settings.nisabStandard,
+                items: NisabStandard.values,
+                onChanged: (standard) {
+                  if (standard != null) notifier.setNisabStandard(standard);
+                },
+                itemLabelBuilder: (standard) => standard.label,
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          KineticText(
-            settings.scheduleMode == ZakatScheduleMode.ramadanAnnual
-                ? 'On your Ramadan date, all active valued holdings are assessed once.'
-                : 'Check monthly; only holdings past one lunar year and not already paid this cycle are assessed.',
-            muted: true,
-            uppercase: false,
-            style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+        ),
+        if (settings.scheduleMode == ZakatScheduleMode.ramadanAnnual) ...[
+          const SizedBox(height: 16),
+          KineticDatePickerTile(
+            key: const Key('select_ramadan_due_date'),
+            label: 'Next Ramadan',
+            value: settings.nextRamadanDueDate == null
+                ? 'Select date'
+                : _formatDate(settings.nextRamadanDueDate!),
+            selected: settings.nextRamadanDueDate != null,
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: settings.nextRamadanDueDate ?? DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (date != null) await notifier.setRamadanDueDate(date);
+            },
           ),
         ],
-      ),
+        const SizedBox(height: 16),
+        KineticText(
+          settings.scheduleMode == ZakatScheduleMode.ramadanAnnual
+              ? 'On your Ramadan date, all active valued holdings are assessed once.'
+              : 'Check monthly; only holdings past one lunar year and not already paid this cycle are assessed.',
+          muted: true,
+          uppercase: false,
+          style: AppTheme.bodyStyle(colors).copyWith(fontSize: 12),
+        ),
+      ],
     );
   }
 }
@@ -895,93 +1060,67 @@ class SettingsPage extends ConsumerWidget {
     final metalPriceState = ref.watch(metalPriceProvider);
     final colors = context.kinetic;
     return CustomScrollView(
+      key: const Key('settings_scroll'),
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: _PageHeader(
-            eyebrow: 'SYSTEM',
-            title: 'MODE / PRICES',
-            detail: 'Visual state, live metal pricing, and valuation limits.',
+            title: 'Preferences',
+            detail: 'Preferences, security, prices, and alerts.',
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
           sliver: SliverList.list(
             children: [
-              LedgerFrame(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          KineticText(
-                            'THEME MODE',
-                            style: AppTheme.labelStyle(colors),
-                          ),
-                          const SizedBox(height: 8),
-                          KineticText(
-                            themeMode == ThemeMode.dark
-                                ? 'DARK / DEFAULT'
-                                : 'LIGHT / INVERTED',
-                            style: AppTheme.displayStyle(
-                              colors,
-                            ).copyWith(fontSize: 34),
-                          ),
-                        ],
-                      ),
-                    ),
-                    BrutalistButton(
-                      key: const Key('theme_mode_toggle'),
-                      label: themeMode == ThemeMode.dark
-                          ? 'LIGHT MODE'
-                          : 'DARK MODE',
-                      tone: BrutalistButtonTone.primary,
-                      onPressed: () =>
-                          ref.read(themeModeProvider.notifier).toggle(),
-                    ),
-                  ],
-                ),
+              _SettingsSection(
+                title: 'Preferences',
+                children: [
+                  _SettingsActionRow(
+                    key: const Key('theme_mode_toggle'),
+                    title: 'Theme mode',
+                    detail: themeMode == ThemeMode.dark
+                        ? 'Dark mode'
+                        : 'Light mode',
+                    onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+                  ),
+                  Divider(
+                    height: 24,
+                    thickness: 1,
+                    color: colors.border.withValues(alpha: 0.15),
+                  ),
+                  _SettingsCurrencyRow(
+                    selectedCurrency: displayCurrency,
+                    onSelected: (currency) => ref
+                        .read(displayCurrencyProvider.notifier)
+                        .setCurrency(currency),
+                  ),
+                ],
               ),
-              const SizedBox(height: 14),
-              LedgerFrame(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    KineticText(
-                      'DISPLAY CURRENCY',
-                      style: AppTheme.labelStyle(colors),
-                    ),
-                    const SizedBox(height: 12),
-                    _CurrencySelector(
-                      selectedCurrency: displayCurrency,
-                      onSelected: (currency) => ref
-                          .read(displayCurrencyProvider.notifier)
-                          .setCurrency(currency),
-                    ),
-                    const SizedBox(height: 12),
-                    KineticText(
-                      'Totals, allocation, and history graphs use this currency.',
+              const SizedBox(height: 28),
+              _SettingsSection(
+                title: 'Security',
+                children: const [SecuritySettingsCard()],
+              ),
+              const SizedBox(height: 28),
+              _SettingsSection(
+                title: 'Alerts',
+                children: const [NotificationSettingsScreen()],
+              ),
+              const SizedBox(height: 28),
+              _SettingsSection(
+                title: 'Prices',
+                children: [
+                  MetalPricesCard(state: metalPriceState),
+                  const SizedBox(height: 16),
+                  const LedgerFrame(
+                    cardless: true,
+                    padding: EdgeInsets.zero,
+                    child: KineticText(
+                      'USD, AED, and EUR are converted for totals and dashboard graphs. Other currencies remain recorded but are excluded until FX rates are added.',
                       muted: true,
-                      uppercase: false,
-                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              const SecuritySettingsCard(),
-              const SizedBox(height: 14),
-              const NotificationSettingsScreen(),
-              const SizedBox(height: 14),
-              MetalPricesCard(state: metalPriceState),
-              const SizedBox(height: 14),
-              const LedgerFrame(
-                child: KineticText(
-                  'USD, AED, AND EUR ARE CONVERTED FOR TOTALS AND DASHBOARD GRAPHS. OTHER CURRENCIES REMAIN RECORDED BUT ARE EXCLUDED UNTIL FX RATES ARE ADDED.',
-                  muted: true,
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -991,15 +1130,238 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KineticText(
+          title,
+          uppercase: true,
+          style: AppTheme.labelStyle(
+            colors,
+          ).copyWith(color: colors.accent, fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+}
+
+class _SettingsActionRow extends StatelessWidget {
+  const _SettingsActionRow({
+    super.key,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+  });
+
+  final String title;
+  final String detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.99,
+      child: _SettingsSurface(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  KineticText(
+                    title,
+                    style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 4),
+                  KineticText(
+                    detail,
+                    muted: true,
+                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: colors.mutedForeground,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsCurrencyRow extends StatelessWidget {
+  const _SettingsCurrencyRow({
+    required this.selectedCurrency,
+    required this.onSelected,
+  });
+
+  final String selectedCurrency;
+  final ValueChanged<String> onSelected;
+
+  static const _currencySymbols = {
+    'USD': '\$',
+    'EUR': '€',
+    'AED': 'د.إ',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return _SettingsSurface(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  'Display currency',
+                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 4),
+                KineticText(
+                  'Totals and charts',
+                  muted: true,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 125,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: colors.foreground.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: colors.border.withValues(alpha: 0.10),
+                width: 1.0,
+              ),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                key: const Key('settings_currency_dropdown'),
+                value: selectedCurrency,
+                isExpanded: true,
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: colors.accent,
+                  size: 20,
+                ),
+                dropdownColor: colors.background,
+                borderRadius: BorderRadius.circular(8),
+                style: AppTheme.bodyStyle(colors).copyWith(
+                  color: colors.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                onChanged: (val) {
+                  if (val != null) onSelected(val);
+                },
+                items: CurrencyConverter.supportedCurrencies.map((currency) {
+                  final symbol = _currencySymbols[currency] ?? '';
+                  return DropdownMenuItem<String>(
+                    key: Key('settings_currency_option_$currency'),
+                    value: currency,
+                    child: Text('$currency ($symbol)'),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSurface extends StatelessWidget {
+  const _SettingsSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: child,
+    );
+  }
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        toolbarHeight: 68,
+        backgroundColor: colors.background,
+        centerTitle: true,
+        leading: IconButton(
+          key: const Key('close_notifications'),
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: KineticText(
+          'Notifications',
+          style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: CustomScrollView(
+          key: const Key('notifications_scroll'),
+          slivers: [
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: KineticText(
+                    'Future implementation',
+                    muted: true,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PageHeader extends StatelessWidget {
   const _PageHeader({
-    required this.eyebrow,
+    this.eyebrow,
     required this.title,
     required this.detail,
     this.trailing,
   });
 
-  final String eyebrow;
+  final String? eyebrow;
   final String title;
   final String detail;
   final Widget? trailing;
@@ -1008,43 +1370,37 @@ class _PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: EdgeInsets.fromLTRB(16, eyebrow == null ? 6 : 16, 16, 0),
       child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: AppTheme.heroSurface(colors),
-        clipBehavior: Clip.antiAlias,
+        padding: EdgeInsets.symmetric(vertical: eyebrow == null ? 4 : 8),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final content = Stack(
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Positioned(
-                  right: -42,
-                  top: -52,
-                  child: _GlowOrb(
-                    size: 132,
-                    color: colors.accent.withValues(alpha: 0.13),
+                if (eyebrow != null) ...[
+                  KineticText(
+                    eyebrow!.toUpperCase(),
+                    muted: true,
+                    style: AppTheme.labelStyle(colors).copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                      fontSize: 12,
+                    ),
                   ),
+                  const SizedBox(height: 6),
+                ],
+                KineticText(
+                  title,
+                  style: AppTheme.titleStyle(
+                    colors,
+                  ).copyWith(fontSize: 24, color: colors.foreground),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    KineticText(eyebrow, style: AppTheme.labelStyle(colors)),
-                    const SizedBox(height: 10),
-                    KineticText(
-                      title,
-                      style: AppTheme.displayStyle(colors).copyWith(
-                        fontSize: (constraints.maxWidth * 0.11).clamp(38, 72),
-                        color: colors.accent,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    KineticText(
-                      detail,
-                      muted: true,
-                      uppercase: false,
-                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 15),
-                    ),
-                  ],
+                const SizedBox(height: 6),
+                KineticText(
+                  detail,
+                  muted: true,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
                 ),
               ],
             );
@@ -1105,119 +1461,132 @@ class DashboardFiltersCard extends StatelessWidget {
       if (assets.any((asset) => asset.type == AssetType.bankSavings))
         AssetType.bankSavings,
     ];
-    return LedgerFrame(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: KineticText(
+                'Filters',
+                style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+              ),
+            ),
+            if (filter.isActive)
+              TextButton(
+                key: const Key('clear_dashboard_filters'),
+                onPressed: onClear,
                 child: KineticText(
-                  'FILTERS',
-                  style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                  'Reset',
+                  style: AppTheme.labelStyle(
+                    colors,
+                  ).copyWith(color: colors.accent),
                 ),
               ),
-              if (filter.isActive)
-                BrutalistButton(
-                  key: const Key('clear_dashboard_filters'),
-                  label: 'RESET',
-                  tone: BrutalistButtonTone.primary,
-                  onPressed: onClear,
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          KineticText('ASSET TYPE', style: AppTheme.labelStyle(colors)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          ],
+        ),
+        const SizedBox(height: 10),
+        _FilterRail(
+          label: 'Type',
+          children: [
+            FilterBlock(
+              key: const Key('filter_type_all'),
+              label: 'All',
+              selected: filter.type == null,
+              onTap: () => onTypeSelected(null),
+            ),
+            ...visibleTypes.map(
+              (type) => FilterBlock(
+                key: Key('filter_type_${type.name}'),
+                label: type.label,
+                selected: filter.type == type,
+                onTap: () => onTypeSelected(type),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _FilterRail(
+          label: 'Tag',
+          children: [
+            FilterBlock(
+              key: const Key('filter_tag_all'),
+              label: 'All',
+              selected: filter.tag == null,
+              onTap: () => onTagSelected(null),
+            ),
+            ...AssetTag.values.map(
+              (tag) => FilterBlock(
+                key: Key('filter_tag_${tag.name}'),
+                label: tag.label,
+                selected: filter.tag == tag,
+                onTap: () => onTagSelected(tag),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        KineticText('Date', style: AppTheme.labelStyle(colors)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: KineticDatePickerTile(
+                key: const Key('filter_from_date'),
+                label: 'From',
+                value: filter.fromDate == null
+                    ? 'Any date'
+                    : _formatDate(filter.fromDate!),
+                selected: filter.fromDate != null,
+                onTap: onSelectFromDate,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: KineticDatePickerTile(
+                key: const Key('filter_to_date'),
+                label: 'To',
+                value: filter.toDate == null
+                    ? 'Any date'
+                    : _formatDate(filter.toDate!),
+                selected: filter.toDate != null,
+                onTap: onSelectToDate,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterRail extends StatelessWidget {
+  const _FilterRail({required this.label, required this.children});
+
+  final String label;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KineticText(label, style: AppTheme.labelStyle(colors)),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          child: Row(
             children: [
-              FilterBlock(
-                key: const Key('filter_type_all'),
-                label: 'All',
-                selected: filter.type == null,
-                onTap: () => onTypeSelected(null),
-              ),
-              ...visibleTypes.map(
-                (type) => FilterBlock(
-                  key: Key('filter_type_${type.name}'),
-                  label: type.label,
-                  selected: filter.type == type,
-                  onTap: () => onTypeSelected(type),
-                ),
-              ),
+              for (var index = 0; index < children.length; index++) ...[
+                if (index > 0) const SizedBox(width: 8),
+                children[index],
+              ],
             ],
           ),
-          const SizedBox(height: 16),
-          KineticText('TAG', style: AppTheme.labelStyle(colors)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilterBlock(
-                key: const Key('filter_tag_all'),
-                label: 'All',
-                selected: filter.tag == null,
-                onTap: () => onTagSelected(null),
-              ),
-              ...AssetTag.values.map(
-                (tag) => FilterBlock(
-                  key: Key('filter_tag_${tag.name}'),
-                  label: tag.label,
-                  selected: filter.tag == tag,
-                  onTap: () => onTagSelected(tag),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          KineticText('ACTIVITY DATE', style: AppTheme.labelStyle(colors)),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final buttons = [
-                FilterBlock(
-                  key: const Key('filter_from_date'),
-                  label: 'From',
-                  detail: filter.fromDate == null
-                      ? 'Any date'
-                      : _formatDate(filter.fromDate!),
-                  selected: filter.fromDate != null,
-                  onTap: onSelectFromDate,
-                ),
-                FilterBlock(
-                  key: const Key('filter_to_date'),
-                  label: 'To',
-                  detail: filter.toDate == null
-                      ? 'Any date'
-                      : _formatDate(filter.toDate!),
-                  selected: filter.toDate != null,
-                  onTap: onSelectToDate,
-                ),
-              ];
-              if (constraints.maxWidth < 460) {
-                return Column(
-                  children: [
-                    buttons.first,
-                    const SizedBox(height: 8),
-                    buttons.last,
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: buttons.first),
-                  const SizedBox(width: 8),
-                  Expanded(child: buttons.last),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1232,7 +1601,8 @@ class MetalPricesCard extends ConsumerWidget {
     final colors = context.kinetic;
     final snapshot = state.snapshot;
     return LedgerFrame(
-      padding: const EdgeInsets.all(16),
+      cardless: true,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1240,8 +1610,8 @@ class MetalPricesCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: KineticText(
-                  'METAL PRICES',
-                  style: AppTheme.displayStyle(colors).copyWith(fontSize: 34),
+                  'Metal prices',
+                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
                 ),
               ),
               if (state.isRefreshing)
@@ -1256,7 +1626,7 @@ class MetalPricesCard extends ConsumerWidget {
               else
                 BrutalistButton(
                   key: const Key('refresh_metal_prices'),
-                  label: 'REFRESH',
+                  label: 'Refresh',
                   tone: BrutalistButtonTone.primary,
                   onPressed: () =>
                       ref.read(metalPriceProvider.notifier).refreshPrices(),
@@ -1266,31 +1636,34 @@ class MetalPricesCard extends ConsumerWidget {
           const SizedBox(height: 12),
           if (snapshot == null)
             const KineticText(
-              'TAP REFRESH TO LOAD GOLD AND SILVER PRICES.',
+              'Tap refresh to load gold and silver prices.',
               muted: true,
             )
           else
-            BrutalistGrid(
-              minTileWidth: 210,
+            Column(
               children: [
-                MetricBlock(
+                _MetalPriceRow(
                   label: 'Gold',
                   value: _formatMoney(snapshot.goldPerGramUsd),
-                  currency: CurrencyConverter.defaultCurrency,
-                  detail: 'PER GRAM',
                 ),
-                MetricBlock(
+                Divider(
+                  height: 24,
+                  thickness: 1,
+                  color: colors.border.withValues(alpha: 0.15),
+                ),
+                _MetalPriceRow(
                   label: 'Silver',
                   value: _formatMoney(snapshot.silverPerGramUsd),
-                  currency: CurrencyConverter.defaultCurrency,
-                  detail: 'PER GRAM',
                 ),
-                MetricBlock(
+                Divider(
+                  height: 24,
+                  thickness: 1,
+                  color: colors.border.withValues(alpha: 0.15),
+                ),
+                _MetalPriceRow(
                   label: state.isCached ? 'Cached price' : 'Updated',
                   value: _formatTimestamp(snapshot.priceTimestamp),
-                  detail: 'LOCAL TIME',
-                  valueFontSize: 20,
-                  valueMaxLines: 2,
+                  isDetail: true,
                 ),
               ],
             ),
@@ -1309,18 +1682,99 @@ class MetalPricesCard extends ConsumerWidget {
   }
 }
 
+class _MetalPriceRow extends StatelessWidget {
+  const _MetalPriceRow({
+    required this.label,
+    required this.value,
+    this.isDetail = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  label.toUpperCase(),
+                  style: AppTheme.labelStyle(colors).copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+                if (!isDetail) ...[
+                  const SizedBox(height: 2),
+                  KineticText(
+                    'per gram',
+                    style: AppTheme.bodyStyle(colors).copyWith(
+                      fontSize: 11,
+                      color: colors.mutedForeground,
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 2),
+                  KineticText(
+                    'local time',
+                    style: AppTheme.bodyStyle(colors).copyWith(
+                      fontSize: 11,
+                      color: colors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isDetail)
+            KineticText(
+              value,
+              style: AppTheme.bodyStyle(colors).copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: colors.foreground,
+              ),
+            )
+          else
+            KineticNumber(
+              value,
+              fontSize: 22,
+              currency: CurrencyConverter.defaultCurrency,
+              color: colors.foreground,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class AssetTile extends ConsumerWidget {
-  const AssetTile({super.key, required this.asset});
+  const AssetTile({
+    super.key,
+    required this.asset,
+    this.cardless = false,
+  });
 
   final Asset asset;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.kinetic;
     final isSold = asset.isSold;
     return LedgerFrame(
-      padding: const EdgeInsets.all(14),
-      background: isSold ? colors.muted : colors.background,
+      cardless: cardless,
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 12) : const EdgeInsets.all(14),
+      background: cardless ? Colors.transparent : (isSold ? colors.muted : colors.background),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final content = Column(
@@ -1333,9 +1787,7 @@ class AssetTile extends ConsumerWidget {
                   Expanded(
                     child: KineticText(
                       asset.type.label,
-                      style: AppTheme.displayStyle(
-                        colors,
-                      ).copyWith(fontSize: 28),
+                      style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
                     ),
                   ),
                   if (asset.tag != null) const SizedBox(width: 8),
@@ -1347,20 +1799,18 @@ class AssetTile extends ConsumerWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: colors.accent,
+                        color: colors.accent.withValues(alpha: 0.16),
                         borderRadius: AppTheme.pillRadius,
                         border: Border.all(
-                          color: colors.border,
-                          width: AppTheme.thickBorderWidth,
+                          color: colors.accent.withValues(alpha: 0.46),
+                          width: AppTheme.hairlineWidth,
                         ),
-                        boxShadow: AppTheme.glowShadow(colors),
                       ),
                       child: KineticText(
                         asset.tag!.label,
-                        style: AppTheme.labelStyle(colors).copyWith(
-                          color: colors.accentForeground,
-                          letterSpacing: -0.1,
-                        ),
+                        style: AppTheme.labelStyle(
+                          colors,
+                        ).copyWith(color: colors.accent),
                       ),
                     ),
                 ],
@@ -1368,7 +1818,7 @@ class AssetTile extends ConsumerWidget {
               const SizedBox(height: 8),
               KineticNumber(
                 '${_trimNumber(asset.amount)} ${asset.unit}',
-                fontSize: 34,
+                fontSize: 28,
                 color: isSold ? colors.mutedForeground : colors.foreground,
                 currency: asset.type.isMetal ? null : asset.currency,
               ),
@@ -1376,10 +1826,10 @@ class AssetTile extends ConsumerWidget {
                 const SizedBox(height: 8),
                 KineticText(
                   [
-                    '${asset.purity ?? '-'}% PURITY',
-                    'PRICES IN ${asset.currency}',
+                    '${asset.purity ?? '-'}% purity',
+                    'Prices in ${asset.currency}',
                     if (asset.boughtPrice != null)
-                      'BOUGHT ${CurrencyConverter.formatMoney(asset.boughtPrice!, asset.currency)}',
+                      'Bought ${CurrencyConverter.formatMoney(asset.boughtPrice!, asset.currency)}',
                   ].join(' / '),
                   muted: true,
                 ),
@@ -1396,7 +1846,7 @@ class AssetTile extends ConsumerWidget {
               if (asset.isSold) ...[
                 const SizedBox(height: 8),
                 KineticText(
-                  'SOLD',
+                  'Sold',
                   style: AppTheme.labelStyle(
                     colors,
                   ).copyWith(color: colors.profit),
@@ -1409,12 +1859,12 @@ class AssetTile extends ConsumerWidget {
             runSpacing: 8,
             children: [
               BrutalistButton(
-                label: 'EDIT',
+                label: 'Edit',
                 onPressed: () =>
                     _showAssetFormDialog(context, ref, asset: asset),
               ),
               BrutalistButton(
-                label: 'DELETE',
+                label: 'Delete',
                 tone: BrutalistButtonTone.danger,
                 onPressed: () =>
                     ref.read(assetProvider.notifier).removeAsset(asset.id),
@@ -1456,10 +1906,10 @@ class _AssetTypeIcon extends StatelessWidget {
       AssetType.gold => Icons.workspace_premium_outlined,
       AssetType.silver => Icons.circle_outlined,
     };
-    final foreground = isSold
-        ? colors.mutedForeground
-        : colors.accentForeground;
-    final background = isSold ? colors.muted : colors.accent;
+    final foreground = isSold ? colors.mutedForeground : colors.accent;
+    final background = isSold
+        ? colors.muted
+        : colors.accent.withValues(alpha: 0.16);
     return _LedgerIcon(
       icon: icon,
       foreground: foreground,
@@ -1473,7 +1923,7 @@ class _LedgerIcon extends StatelessWidget {
     required this.icon,
     required this.foreground,
     required this.background,
-    this.size = 48,
+    this.size = 40,
   });
 
   final IconData icon;
@@ -1491,12 +1941,9 @@ class _LedgerIcon extends StatelessWidget {
         color: background,
         borderRadius: AppTheme.tightRadius,
         border: Border.all(
-          color: colors.border,
-          width: AppTheme.thickBorderWidth,
+          color: colors.border.withValues(alpha: 0.56),
+          width: AppTheme.hairlineWidth,
         ),
-        boxShadow: background == colors.accent
-            ? AppTheme.glowShadow(colors)
-            : null,
       ),
       child: Icon(icon, color: foreground, size: size * 0.48),
     );
@@ -1504,9 +1951,13 @@ class _LedgerIcon extends StatelessWidget {
 }
 
 class _TransactionEventRow extends StatelessWidget {
-  const _TransactionEventRow({required this.event});
+  const _TransactionEventRow({
+    required this.event,
+    this.cardless = false,
+  });
 
   final TransactionEvent event;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
@@ -1517,10 +1968,11 @@ class _TransactionEventRow extends StatelessWidget {
         ? AppTheme.white
         : colors.accentForeground;
     final price = event.price == null
-        ? 'NO PRICE'
+        ? 'No price'
         : CurrencyConverter.formatMoney(event.price!, event.asset.currency);
     return LedgerFrame(
-      padding: const EdgeInsets.all(12),
+      cardless: cardless,
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 10) : const EdgeInsets.all(12),
       borderWidth: 1,
       child: Row(
         children: [
@@ -1539,16 +1991,25 @@ class _TransactionEventRow extends StatelessWidget {
               children: [
                 KineticText(
                   '${isSale ? 'Sold' : 'Acquired'} ${event.asset.type.label}',
-                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+                  style: AppTheme.titleStyle(colors).copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 5),
-                KineticText(price, muted: true),
+                KineticText(
+                  price,
+                  muted: true,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+                ),
               ],
             ),
           ),
-          KineticText(
+          KineticNumber(
             '${_trimNumber(event.asset.amount)} ${event.asset.unit}',
-            style: AppTheme.bodyStyle(colors).copyWith(fontSize: 16),
+            fontSize: 18,
+            color: colors.foreground,
+            currency: event.asset.type.isMetal ? null : event.asset.currency,
           ),
         ],
       ),
@@ -1557,55 +2018,61 @@ class _TransactionEventRow extends StatelessWidget {
 }
 
 class _AssessmentTile extends StatelessWidget {
-  const _AssessmentTile(this.assessment);
+  const _AssessmentTile(
+    this.assessment, {
+    this.cardless = false,
+  });
 
   final ZakatAssetAssessment assessment;
+  final bool cardless;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final value = assessment.valueUsd == null
-        ? 'NOT VALUED'
+        ? 'Not valued'
         : _formatMoney(assessment.valueUsd!);
     final status = assessment.isIncluded
-        ? 'INCLUDED IN AMOUNT DUE'
-        : assessment.exclusionReason ?? 'EXCLUDED';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: LedgerFrame(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  KineticText(
-                    assessment.asset.type.label,
-                    style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+        ? 'Included in amount due'
+        : assessment.exclusionReason ?? 'Excluded';
+    return LedgerFrame(
+      cardless: cardless,
+      padding: cardless ? const EdgeInsets.symmetric(vertical: 10) : const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  assessment.asset.type.label,
+                  style: AppTheme.titleStyle(colors).copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 5),
-                  KineticText(
-                    status,
-                    muted: !assessment.isIncluded,
-                    style: AppTheme.labelStyle(colors).copyWith(
-                      color: assessment.isIncluded
-                          ? colors.profit
-                          : colors.mutedForeground,
-                    ),
+                ),
+                const SizedBox(height: 5),
+                KineticText(
+                  status,
+                  muted: !assessment.isIncluded,
+                  style: AppTheme.labelStyle(colors).copyWith(
+                    color: assessment.isIncluded
+                        ? colors.profit
+                        : colors.mutedForeground,
+                    fontSize: 11,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            KineticNumber(
-              value,
-              fontSize: 24,
-              currency: assessment.valueUsd == null
-                  ? null
-                  : CurrencyConverter.defaultCurrency,
-            ),
-          ],
-        ),
+          ),
+          KineticNumber(
+            value,
+            fontSize: 18,
+            currency: assessment.valueUsd == null
+                ? null
+                : CurrencyConverter.defaultCurrency,
+          ),
+        ],
       ),
     );
   }
@@ -1672,7 +2139,7 @@ List<String> _metalTickerItems(MetalPriceState state) {
     return const [
       'GOLD PRICE PENDING',
       'SILVER PRICE PENDING',
-      'REFRESH METALS IN SYSTEM',
+      'REFRESH METALS IN SETTINGS',
     ];
   }
   return [

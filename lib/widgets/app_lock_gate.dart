@@ -115,11 +115,11 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                       Icon(Icons.lock_rounded, color: colors.accent, size: 42),
                       const SizedBox(height: 14),
                       KineticText(
-                        'MONIZ LOCKED',
+                        'Moniz locked',
                         align: TextAlign.center,
-                        style: AppTheme.displayStyle(
+                        style: AppTheme.titleStyle(
                           colors,
-                        ).copyWith(fontSize: 34),
+                        ).copyWith(fontSize: 24),
                       ),
                       const SizedBox(height: 8),
                       KineticText(
@@ -135,7 +135,7 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                       _PinTextField(
                         key: const Key('app_unlock_pin'),
                         controller: _pinController,
-                        label: '4-DIGIT PIN',
+                        label: '4-digit PIN',
                         autofocus: !state.biometricsEnabled,
                         onSubmitted: (_) => _unlockWithPin(),
                       ),
@@ -154,7 +154,7 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                       const SizedBox(height: 14),
                       BrutalistButton(
                         key: const Key('app_unlock_submit'),
-                        label: _isCheckingPin ? 'CHECKING...' : 'UNLOCK',
+                        label: _isCheckingPin ? 'Checking...' : 'Unlock',
                         expand: true,
                         tone: BrutalistButtonTone.primary,
                         onPressed: _isCheckingPin || state.isAuthenticating
@@ -167,8 +167,8 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                         BrutalistButton(
                           key: const Key('app_unlock_biometrics'),
                           label: state.isAuthenticating
-                              ? 'AUTHENTICATING...'
-                              : 'USE ${state.biometricType.label}',
+                              ? 'Authenticating...'
+                              : 'Use ${state.biometricType.label}',
                           expand: true,
                           onPressed: state.isAuthenticating
                               ? null
@@ -182,7 +182,7 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                         const SizedBox(height: 10),
                         BrutalistButton(
                           key: const Key('app_lock_retry'),
-                          label: 'RETRY SECURE STORAGE',
+                          label: 'Retry secure storage',
                           expand: true,
                           onPressed: () =>
                               ref.read(appLockProvider.notifier).initialize(),
@@ -257,7 +257,7 @@ class _PinTextField extends StatelessWidget {
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       style: AppTheme.numberStyle(
         colors,
-      ).copyWith(fontSize: 32, letterSpacing: 12),
+      ).copyWith(fontSize: 32, letterSpacing: 0),
       decoration: InputDecoration(labelText: label, counterText: ''),
     );
   }
@@ -311,8 +311,8 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 KineticText(
-                  'CREATE APP PIN',
-                  style: AppTheme.displayStyle(colors).copyWith(fontSize: 30),
+                  'Create app PIN',
+                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
                 ),
                 const SizedBox(height: 8),
                 KineticText(
@@ -325,14 +325,14 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
                 _PinTextField(
                   key: const Key('app_lock_new_pin'),
                   controller: _pinController,
-                  label: 'NEW PIN',
+                  label: 'New PIN',
                   autofocus: true,
                 ),
                 const SizedBox(height: 12),
                 _PinTextField(
                   key: const Key('app_lock_confirm_pin'),
                   controller: _confirmationController,
-                  label: 'CONFIRM PIN',
+                  label: 'Confirm PIN',
                   onSubmitted: (_) => _save(),
                 ),
                 if (_error != null) ...[
@@ -351,7 +351,7 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
                   children: [
                     Expanded(
                       child: BrutalistButton(
-                        label: 'CANCEL',
+                        label: 'Cancel',
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
@@ -359,7 +359,7 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
                     Expanded(
                       child: BrutalistButton(
                         key: const Key('app_lock_create_pin'),
-                        label: 'CREATE PIN',
+                        label: 'Create PIN',
                         tone: BrutalistButtonTone.primary,
                         onPressed: _save,
                       ),
