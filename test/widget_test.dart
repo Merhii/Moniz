@@ -10,6 +10,7 @@ import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
+import 'package:moniz/providers/asset_provider.dart';
 import 'package:moniz/providers/metal_price_provider.dart';
 import 'package:moniz/providers/app_lock_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
@@ -606,6 +607,55 @@ void main() {
     expect(submittedAsset?.note, 'Updated holding');
   });
 
+  testWidgets('deleting a holding asks first and can be cancelled', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'doomed',
+        const Asset(
+          id: 'doomed',
+          type: AssetType.cash,
+          amount: 4321,
+          unit: 'USD',
+        ),
+      );
+    });
+
+    // Storage for removeAsset is covered in asset_provider_test.dart; this
+    // notifier keeps the Hive write out of the fake-async zone so the tap
+    // resolves synchronously.
+    final notifier = _RecordingAssetNotifier();
+
+    await tester.pumpWidget(
+      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    );
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+
+    // Delete no longer removes anything on its own.
+    await tester.tap(find.byKey(const Key('delete_asset_doomed')));
+    await _pumpKinetic(tester);
+    expect(find.text('Delete this holding?'), findsOneWidget);
+    expect(find.textContaining('cannot be undone'), findsOneWidget);
+
+    // Cancelling dismisses the dialog and keeps the holding.
+    await tester.tap(find.byKey(const Key('cancel_delete_asset')));
+    await _pumpKinetic(tester);
+    expect(find.text('Delete this holding?'), findsNothing);
+    expect(notifier.removed, isEmpty);
+    expect(find.byKey(const Key('delete_asset_doomed')), findsOneWidget);
+
+    // Confirming removes the row.
+    await tester.tap(find.byKey(const Key('delete_asset_doomed')));
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('confirm_delete_asset')));
+    await _pumpKinetic(tester);
+    expect(notifier.removed, ['doomed']);
+    expect(find.byKey(const Key('delete_asset_doomed')), findsNothing);
+  });
+
   testWidgets('rejects empty negative and nonnumeric amounts', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
 
@@ -709,6 +759,7 @@ void main() {
 Widget _buildApp({
   MetalPriceService? service,
   MetalPriceHistoryService? historyService,
+  List<Override> overrides = const [],
 }) {
   return ProviderScope(
     overrides: [
@@ -722,9 +773,22 @@ Widget _buildApp({
       metalPriceHistoryServiceProvider.overrideWithValue(
         historyService ?? const _UnavailableMetalPriceHistoryService(),
       ),
+      ...overrides,
     ],
     child: const MonizApp(),
   );
+}
+
+/// Records deletions instead of writing to Hive, so widget tests can drive the
+/// delete flow without a disk write that never settles under fake async.
+class _RecordingAssetNotifier extends AssetNotifier {
+  final removed = <String>[];
+
+  @override
+  Future<void> removeAsset(String id) async {
+    removed.add(id);
+    state = state.where((asset) => asset.id != id).toList();
+  }
 }
 
 class _InMemoryAppLockStorage implements AppLockStorage {
