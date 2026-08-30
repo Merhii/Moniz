@@ -15,12 +15,18 @@ class PortfolioSnapshotNotifier extends StateNotifier<List<PortfolioSnapshot>> {
   final Box<PortfolioSnapshot> _snapshotBox;
 
   Future<void> capture(PortfolioAnalytics analytics) async {
-    final cashUsd = _toUsd(analytics.categoryValuesUsd[AssetType.cash] ?? 0, analytics);
+    final cashUsd = _toUsd(
+      analytics.categoryValuesUsd[AssetType.cash] ?? 0,
+      analytics,
+    );
     final bankSavingsUsd = _toUsd(
       analytics.categoryValuesUsd[AssetType.bankSavings] ?? 0,
       analytics,
     );
-    final goldUsd = _toUsd(analytics.categoryValuesUsd[AssetType.gold] ?? 0, analytics);
+    final goldUsd = _toUsd(
+      analytics.categoryValuesUsd[AssetType.gold] ?? 0,
+      analytics,
+    );
     final silverUsd = _toUsd(
       analytics.categoryValuesUsd[AssetType.silver] ?? 0,
       analytics,

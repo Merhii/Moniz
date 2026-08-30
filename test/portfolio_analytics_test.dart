@@ -31,16 +31,15 @@ void main() {
     ], _prices());
 
     expect(analytics.categoryValuesUsd[AssetType.cash], 100);
-    expect(
-      analytics.categoryValuesUsd[AssetType.bankSavings],
-      closeTo(108, 0.01),
-    );
+    // The EUR bank savings has no exchange rate, so it contributes nothing and
+    // is counted as unvalued rather than converted at a stale constant.
+    expect(analytics.categoryValuesUsd[AssetType.bankSavings], 0);
     expect(analytics.categoryValuesUsd[AssetType.gold], 400);
-    expect(analytics.totalUsd, closeTo(608, 0.01));
+    expect(analytics.totalUsd, closeTo(500, 0.01));
     expect(analytics.activeAssetCount, 3);
     expect(analytics.soldAssetCount, 1);
-    expect(analytics.unvaluedAssetCount, 0);
-    expect(analytics.percentageFor(AssetType.gold), closeTo(400 / 608, 0.001));
+    expect(analytics.unvaluedAssetCount, 1);
+    expect(analytics.percentageFor(AssetType.gold), closeTo(400 / 500, 0.001));
   });
 
   test('converts AED cash into selected graph currency', () {

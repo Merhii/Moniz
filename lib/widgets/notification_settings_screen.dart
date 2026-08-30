@@ -16,7 +16,6 @@ class NotificationSettingsScreen extends ConsumerStatefulWidget {
 
 class _NotificationSettingsScreenState
     extends ConsumerState<NotificationSettingsScreen> {
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(notificationPreferencesProvider);
@@ -124,10 +123,7 @@ class _NotificationTopicToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: AppTheme.tightRadius,
-        border: Border.all(
-          color: borderColor,
-          width: 1.0,
-        ),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: Row(
         children: [
@@ -147,17 +143,20 @@ class _NotificationTopicToggle extends StatelessWidget {
                         KineticText(
                           topic.title,
                           maxLines: 2,
-                          style: AppTheme.titleStyle(
-                            colors,
-                          ).copyWith(color: foreground, fontSize: 18, fontWeight: FontWeight.bold),
+                          style: AppTheme.titleStyle(colors).copyWith(
+                            color: foreground,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         KineticText(
                           topic.metadataLabel,
                           maxLines: 1,
-                          style: AppTheme.bodyStyle(
-                            colors,
-                          ).copyWith(color: foreground.withValues(alpha: 0.60), fontSize: 12),
+                          style: AppTheme.bodyStyle(colors).copyWith(
+                            color: foreground.withValues(alpha: 0.60),
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),

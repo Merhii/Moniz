@@ -277,10 +277,7 @@ class LedgerFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     if (cardless) {
-      return Padding(
-        padding: padding,
-        child: child,
-      );
+      return Padding(padding: padding, child: child);
     }
     return Container(
       width: double.infinity,
@@ -398,10 +395,7 @@ class FilterBlock extends StatelessWidget {
         decoration: BoxDecoration(
           color: background,
           borderRadius: AppTheme.pillRadius,
-          border: Border.all(
-            color: border,
-            width: 1.0,
-          ),
+          border: Border.all(color: border, width: 1.0),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -552,11 +546,7 @@ class CurrencyLogoMark extends StatelessWidget {
                 height: 1,
               ),
             )
-          : ImageIcon(
-              AssetImage(asset),
-              color: foreground,
-              size: size,
-            );
+          : ImageIcon(AssetImage(asset), color: foreground, size: size);
     }
 
     final background = selected
@@ -960,11 +950,7 @@ class KineticDatePickerTile extends StatelessWidget {
               ),
             ),
             if (selected)
-              Icon(
-                Icons.check_circle_rounded,
-                size: 14,
-                color: colors.accent,
-              ),
+              Icon(Icons.check_circle_rounded, size: 14, color: colors.accent),
           ],
         ),
       ),
