@@ -243,6 +243,21 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             onTap: () => _selectDate(isBoughtDate: true),
                             onClear: () => _clearDate(isBoughtDate: true),
                           ),
+                          if (_boughtDate == null) ...[
+                            const SizedBox(height: 8),
+                            KineticText(
+                              'Without a start date this holding counts '
+                              'towards your wealth but is left out of zakat, '
+                              'which needs to know when you have held it for '
+                              'a lunar year.',
+                              key: const Key('asset_missing_start_date_note'),
+                              muted: true,
+                              uppercase: false,
+                              style: AppTheme.bodyStyle(
+                                colors,
+                              ).copyWith(fontSize: 13),
+                            ),
+                          ],
                           if (_isMetal) ...[
                             const SizedBox(height: 18),
                             _SelectionMenu<double>(
