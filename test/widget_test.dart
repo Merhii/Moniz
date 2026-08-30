@@ -47,6 +47,9 @@ void main() {
     await Hive.box<ZakatSettings>('zakatSettings').clear();
     await Hive.box<ZakatPaymentRecord>('zakatPayments').clear();
     await Hive.box<PortfolioSnapshot>('portfolioSnapshots').clear();
+    // Display currency and theme live here; leaving them set would carry a
+    // preference from one test into the next.
+    await Hive.box<dynamic>('uiPreferences').clear();
   });
 
   tearDownAll(() async {
@@ -170,6 +173,52 @@ void main() {
     await tester.tap(find.byKey(const Key('holdings_nav')));
     await _pumpKinetic(tester);
     expect(find.byKey(const Key('asset_tag_chip_gold')), findsOneWidget);
+  });
+
+  testWidgets('ticker quotes metals in the selected display currency', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
+          priceTimestamp: DateTime.utc(2026, 5, 27, 10),
+          fetchedAt: DateTime.utc(2026, 5, 27, 10),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+    expect(find.textContaining('LIVE GOLD \$100.00 / G'), findsWidgets);
+  });
+
+  testWidgets('ticker follows a stored non-USD display currency', (
+    tester,
+  ) async {
+    // Seeded rather than tapped: setCurrency writes to Hive, and a write
+    // issued inside the fake-async zone never settles.
+    await tester.runAsync(() async {
+      await Hive.box<dynamic>('uiPreferences').put('displayCurrency', 'AED');
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
+          priceTimestamp: DateTime.utc(2026, 5, 27, 10),
+          fetchedAt: DateTime.utc(2026, 5, 27, 10),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    // 100 USD/g at the 3.6725 peg.
+    expect(find.textContaining('LIVE GOLD AED 367.25 / G'), findsWidgets);
+    expect(find.textContaining('LIVE GOLD \$'), findsNothing);
   });
 
   testWidgets('formats large dashboard and ledger numbers with commas', (

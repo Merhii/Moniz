@@ -371,7 +371,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           child: TickerTape(
             height: 40,
             fontSize: 13,
-            items: _metalTickerItems(metalPriceState),
+            items: _metalTickerItems(metalPriceState, displayCurrency),
           ),
         ),
         SliverPadding(
@@ -2153,7 +2153,7 @@ Map<DateTime, List<TransactionEvent>> _groupEventsByDate(
   return grouped;
 }
 
-List<String> _metalTickerItems(MetalPriceState state) {
+List<String> _metalTickerItems(MetalPriceState state, String displayCurrency) {
   final snapshot = state.snapshot;
   if (state.isRefreshing) {
     return const [
@@ -2169,9 +2169,24 @@ List<String> _metalTickerItems(MetalPriceState state) {
       'REFRESH METALS IN SETTINGS',
     ];
   }
+  // Prices are fetched in USD per gram; show them in whatever currency the
+  // totals above the ticker are in, so the two do not disagree.
+  final gold = CurrencyConverter.convertFromUsd(
+    snapshot.goldPerGramUsd,
+    displayCurrency,
+    prices: snapshot,
+  );
+  final silver = CurrencyConverter.convertFromUsd(
+    snapshot.silverPerGramUsd,
+    displayCurrency,
+    prices: snapshot,
+  );
+  final currency = gold == null || silver == null
+      ? CurrencyConverter.defaultCurrency
+      : displayCurrency;
   return [
-    'LIVE GOLD ${_formatMoney(snapshot.goldPerGramUsd)} / G',
-    'LIVE SILVER ${_formatMoney(snapshot.silverPerGramUsd)} / G',
+    'LIVE GOLD ${_formatMoney(gold ?? snapshot.goldPerGramUsd, currency: currency)} / G',
+    'LIVE SILVER ${_formatMoney(silver ?? snapshot.silverPerGramUsd, currency: currency)} / G',
     '${state.isCached ? 'CACHED' : 'UPDATED'} ${_formatTimestamp(snapshot.priceTimestamp)}',
   ];
 }
