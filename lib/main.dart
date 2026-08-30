@@ -15,6 +15,7 @@ import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
+import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
@@ -47,12 +48,31 @@ void main() async {
   Hive.registerAdapter(ZakatPaymentRecordAdapter());
   Hive.registerAdapter(PortfolioSnapshotAdapter());
 
-  await Hive.openBox<Asset>('assets');
-  await Hive.openBox<MetalPriceSnapshot>('metalPrices');
-  await Hive.openBox<ZakatSettings>('zakatSettings');
-  await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
-  await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
-  await Hive.openBox<dynamic>('uiPreferences');
+  const boxNames = [
+    'assets',
+    'metalPrices',
+    'zakatSettings',
+    'zakatPayments',
+    'portfolioSnapshots',
+    'uiPreferences',
+  ];
+  final cipher = await HiveEncryption().bootstrap(boxNames);
+
+  await Hive.openBox<Asset>('assets', encryptionCipher: cipher);
+  await Hive.openBox<MetalPriceSnapshot>(
+    'metalPrices',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<ZakatSettings>('zakatSettings', encryptionCipher: cipher);
+  await Hive.openBox<ZakatPaymentRecord>(
+    'zakatPayments',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<PortfolioSnapshot>(
+    'portfolioSnapshots',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
 
   await localNotificationService.initialize();
 
@@ -119,8 +139,8 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
                 _selectedPage == 1
                     ? 'Ledger'
                     : _selectedPage == 2
-                        ? 'Zakat'
-                        : 'Settings',
+                    ? 'Zakat'
+                    : 'Settings',
                 style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
               ),
         actions: [
@@ -394,7 +414,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     : 'Showing all ${assets.length} holdings',
                 key: const Key('dashboard_filter_result'),
                 muted: true,
-                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                style: AppTheme.bodyStyle(
+                  colors,
+                ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               sectionDivider,
               PortfolioInsightsCard(
@@ -420,10 +442,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 cardless: true,
               ),
               sectionDivider,
-              ProfitLossCard(
-                summary: performance,
-                cardless: true,
-              ),
+              ProfitLossCard(summary: performance, cardless: true),
               const SizedBox(height: 16),
             ],
           ),
@@ -685,7 +704,8 @@ class HoldingsPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           sliver: SliverList.separated(
             itemCount: assets.length,
-            itemBuilder: (context, index) => AssetTile(asset: assets[index], cardless: true),
+            itemBuilder: (context, index) =>
+                AssetTile(asset: assets[index], cardless: true),
             separatorBuilder: (context, index) => Divider(
               height: 32,
               thickness: 1,
@@ -734,8 +754,10 @@ class HoldingsPage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               sliver: SliverList.separated(
                 itemCount: entry.value.length,
-                itemBuilder: (context, index) =>
-                    _TransactionEventRow(event: entry.value[index], cardless: true),
+                itemBuilder: (context, index) => _TransactionEventRow(
+                  event: entry.value[index],
+                  cardless: true,
+                ),
                 separatorBuilder: (context, index) => Divider(
                   height: 20,
                   thickness: 1,
@@ -794,7 +816,10 @@ class ZakatPage extends ConsumerWidget {
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final heroSize = (constraints.maxWidth * 0.11).clamp(44.0, 60.0);
+                  final heroSize = (constraints.maxWidth * 0.11).clamp(
+                    44.0,
+                    60.0,
+                  );
                   return LedgerFrame(
                     cardless: true,
                     padding: EdgeInsets.zero,
@@ -848,7 +873,8 @@ class ZakatPage extends ConsumerWidget {
                                     child: KineticNumber(
                                       _formatMoney(result.eligibleWealthUsd),
                                       fontSize: 20,
-                                      currency: CurrencyConverter.defaultCurrency,
+                                      currency:
+                                          CurrencyConverter.defaultCurrency,
                                       color: colors.foreground,
                                     ),
                                   ),
@@ -878,7 +904,9 @@ class ZakatPage extends ConsumerWidget {
                                     child: KineticNumber(
                                       result.nisabThresholdUsd == null
                                           ? 'Awaiting'
-                                          : _formatMoney(result.nisabThresholdUsd!),
+                                          : _formatMoney(
+                                              result.nisabThresholdUsd!,
+                                            ),
                                       fontSize: 20,
                                       currency: result.nisabThresholdUsd == null
                                           ? null
@@ -891,7 +919,9 @@ class ZakatPage extends ConsumerWidget {
                                     KineticText(
                                       result.settings.nisabStandard.label,
                                       muted: true,
-                                      style: AppTheme.bodyStyle(colors).copyWith(fontSize: 10),
+                                      style: AppTheme.bodyStyle(
+                                        colors,
+                                      ).copyWith(fontSize: 10),
                                     ),
                                   ],
                                 ],
@@ -1215,11 +1245,7 @@ class _SettingsCurrencyRow extends StatelessWidget {
   final String selectedCurrency;
   final ValueChanged<String> onSelected;
 
-  static const _currencySymbols = {
-    'USD': '\$',
-    'EUR': '€',
-    'AED': 'د.إ',
-  };
+  static const _currencySymbols = {'USD': '\$', 'EUR': '€', 'AED': 'د.إ'};
 
   @override
   Widget build(BuildContext context) {
@@ -1300,10 +1326,7 @@ class _SettingsSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: child,
-    );
+    return SizedBox(width: double.infinity, child: child);
   }
 }
 
@@ -1339,10 +1362,7 @@ class NotificationsScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
               sliver: SliverToBoxAdapter(
                 child: Center(
-                  child: KineticText(
-                    'Future implementation',
-                    muted: true,
-                  ),
+                  child: KineticText('Future implementation', muted: true),
                 ),
               ),
             ),
@@ -1717,19 +1737,17 @@ class _MetalPriceRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   KineticText(
                     'per gram',
-                    style: AppTheme.bodyStyle(colors).copyWith(
-                      fontSize: 11,
-                      color: colors.mutedForeground,
-                    ),
+                    style: AppTheme.bodyStyle(
+                      colors,
+                    ).copyWith(fontSize: 11, color: colors.mutedForeground),
                   ),
                 ] else ...[
                   const SizedBox(height: 2),
                   KineticText(
                     'local time',
-                    style: AppTheme.bodyStyle(colors).copyWith(
-                      fontSize: 11,
-                      color: colors.mutedForeground,
-                    ),
+                    style: AppTheme.bodyStyle(
+                      colors,
+                    ).copyWith(fontSize: 11, color: colors.mutedForeground),
                   ),
                 ],
               ],
@@ -1758,11 +1776,7 @@ class _MetalPriceRow extends StatelessWidget {
 }
 
 class AssetTile extends ConsumerWidget {
-  const AssetTile({
-    super.key,
-    required this.asset,
-    this.cardless = false,
-  });
+  const AssetTile({super.key, required this.asset, this.cardless = false});
 
   final Asset asset;
   final bool cardless;
@@ -1773,8 +1787,12 @@ class AssetTile extends ConsumerWidget {
     final isSold = asset.isSold;
     return LedgerFrame(
       cardless: cardless,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 12) : const EdgeInsets.all(14),
-      background: cardless ? Colors.transparent : (isSold ? colors.muted : colors.background),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 12)
+          : const EdgeInsets.all(14),
+      background: cardless
+          ? Colors.transparent
+          : (isSold ? colors.muted : colors.background),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final content = Column(
@@ -1951,10 +1969,7 @@ class _LedgerIcon extends StatelessWidget {
 }
 
 class _TransactionEventRow extends StatelessWidget {
-  const _TransactionEventRow({
-    required this.event,
-    this.cardless = false,
-  });
+  const _TransactionEventRow({required this.event, this.cardless = false});
 
   final TransactionEvent event;
   final bool cardless;
@@ -1972,7 +1987,9 @@ class _TransactionEventRow extends StatelessWidget {
         : CurrencyConverter.formatMoney(event.price!, event.asset.currency);
     return LedgerFrame(
       cardless: cardless,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 10) : const EdgeInsets.all(12),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 10)
+          : const EdgeInsets.all(12),
       borderWidth: 1,
       child: Row(
         children: [
@@ -1991,10 +2008,9 @@ class _TransactionEventRow extends StatelessWidget {
               children: [
                 KineticText(
                   '${isSale ? 'Sold' : 'Acquired'} ${event.asset.type.label}',
-                  style: AppTheme.titleStyle(colors).copyWith(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.titleStyle(
+                    colors,
+                  ).copyWith(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 5),
                 KineticText(
@@ -2018,10 +2034,7 @@ class _TransactionEventRow extends StatelessWidget {
 }
 
 class _AssessmentTile extends StatelessWidget {
-  const _AssessmentTile(
-    this.assessment, {
-    this.cardless = false,
-  });
+  const _AssessmentTile(this.assessment, {this.cardless = false});
 
   final ZakatAssetAssessment assessment;
   final bool cardless;
@@ -2037,7 +2050,9 @@ class _AssessmentTile extends StatelessWidget {
         : assessment.exclusionReason ?? 'Excluded';
     return LedgerFrame(
       cardless: cardless,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 10) : const EdgeInsets.all(12),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 10)
+          : const EdgeInsets.all(12),
       child: Row(
         children: [
           Expanded(
@@ -2046,10 +2061,9 @@ class _AssessmentTile extends StatelessWidget {
               children: [
                 KineticText(
                   assessment.asset.type.label,
-                  style: AppTheme.titleStyle(colors).copyWith(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.titleStyle(
+                    colors,
+                  ).copyWith(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 5),
                 KineticText(

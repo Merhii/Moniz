@@ -220,10 +220,9 @@ class _PerformanceTile extends StatelessWidget {
               children: [
                 KineticText(
                   'Portfolio performance',
-                  style: AppTheme.bodyStyle(colors).copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.bodyStyle(
+                    colors,
+                  ).copyWith(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 KineticText(
@@ -280,10 +279,9 @@ class _EventTile extends StatelessWidget {
               children: [
                 KineticText(
                   '${isSale ? 'Sold' : 'Acquired'} ${event.asset.type.label}',
-                  style: AppTheme.titleStyle(colors).copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.titleStyle(
+                    colors,
+                  ).copyWith(fontSize: 15, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 5),
                 KineticText(
