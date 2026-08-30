@@ -1766,6 +1766,21 @@ class AssetTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.kinetic;
     final isSold = asset.isSold;
+    final displayCurrency = ref.watch(displayCurrencyProvider);
+    // Grams of gold say nothing about what a holding is worth, and neither
+    // does an amount recorded in a currency the totals are not shown in.
+    final needsValue =
+        !isSold &&
+        (asset.type.isMetal ||
+            CurrencyConverter.normalize(asset.currency) !=
+                CurrencyConverter.normalize(displayCurrency));
+    final value = needsValue
+        ? WealthCalculator.valueAsset(
+            asset,
+            ref.watch(metalPriceProvider).snapshot,
+            displayCurrency: displayCurrency,
+          )
+        : null;
     return LedgerFrame(
       cardless: cardless,
       padding: cardless
@@ -1821,6 +1836,22 @@ class AssetTile extends ConsumerWidget {
                 color: isSold ? colors.mutedForeground : colors.foreground,
                 currency: asset.type.isMetal ? null : asset.currency,
               ),
+              if (needsValue) ...[
+                const SizedBox(height: 6),
+                KineticText(
+                  value == null
+                      ? (asset.type.isMetal
+                            ? 'Worth unknown until prices refresh'
+                            : 'Worth unknown: no '
+                                  '${CurrencyConverter.normalize(asset.currency)} '
+                                  'exchange rate')
+                      : 'Worth ${CurrencyConverter.formatMoney(value, displayCurrency)}',
+                  key: Key('asset_value_${asset.id}'),
+                  muted: true,
+                  uppercase: false,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+                ),
+              ],
               if (asset.type.isMetal) ...[
                 const SizedBox(height: 8),
                 KineticText(
