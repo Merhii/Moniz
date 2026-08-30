@@ -1581,11 +1581,51 @@ class DashboardFiltersCard extends StatelessWidget {
   }
 }
 
-class _FilterRail extends StatelessWidget {
+class _FilterRail extends StatefulWidget {
   const _FilterRail({required this.label, required this.children});
 
   final String label;
   final List<Widget> children;
+
+  @override
+  State<_FilterRail> createState() => _FilterRailState();
+}
+
+class _FilterRailState extends State<_FilterRail> {
+  var _fadeStart = false;
+  var _fadeEnd = false;
+
+  /// Fades whichever edge has more chips past it. On a phone the tag rail runs
+  /// off the screen with nothing to say so - "Salary" is sliced in half and
+  /// "Business Profit" is not visible at all.
+  void _syncEdges(ScrollMetrics metrics) {
+    final fadeStart = metrics.extentBefore > 1;
+    final fadeEnd = metrics.extentAfter > 1;
+    if (fadeStart == _fadeStart && fadeEnd == _fadeEnd) return;
+    // Notifications arrive mid-layout, so the rebuild has to wait for the
+    // frame to finish.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _fadeStart = fadeStart;
+        _fadeEnd = fadeEnd;
+      });
+    });
+  }
+
+  Shader _edgeFade(Rect bounds) {
+    return LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        _fadeStart ? const Color(0x00FFFFFF) : const Color(0xFFFFFFFF),
+        const Color(0xFFFFFFFF),
+        const Color(0xFFFFFFFF),
+        _fadeEnd ? const Color(0x00FFFFFF) : const Color(0xFFFFFFFF),
+      ],
+      stops: const [0, 0.06, 0.92, 1],
+    ).createShader(bounds);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1593,18 +1633,37 @@ class _FilterRail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        KineticText(label, style: AppTheme.labelStyle(colors)),
+        KineticText(widget.label, style: AppTheme.labelStyle(colors)),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          child: Row(
-            children: [
-              for (var index = 0; index < children.length; index++) ...[
-                if (index > 0) const SizedBox(width: 8),
-                children[index],
-              ],
-            ],
+        NotificationListener<ScrollMetricsNotification>(
+          onNotification: (notification) {
+            _syncEdges(notification.metrics);
+            return false;
+          },
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              _syncEdges(notification.metrics);
+              return false;
+            },
+            child: ShaderMask(
+              shaderCallback: _edgeFade,
+              blendMode: BlendMode.dstIn,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < widget.children.length;
+                      index++
+                    ) ...[
+                      if (index > 0) const SizedBox(width: 8),
+                      widget.children[index],
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ],

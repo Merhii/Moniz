@@ -82,6 +82,36 @@ void main() {
     expect(find.byKey(const Key('settings_nav')), findsOneWidget);
   });
 
+  testWidgets('fades the tag filter rail when it runs off a phone screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    final tagRail = find.ancestor(
+      of: find.byKey(const Key('filter_tag_all')),
+      matching: find.byType(Scrollable),
+    );
+    // More tags exist than fit, so the rail really does scroll...
+    expect(tester.widget<Scrollable>(tagRail.first).axisDirection, isNotNull);
+    expect(
+      tester.state<ScrollableState>(tagRail.first).position.extentAfter,
+      greaterThan(0),
+    );
+    // ...and the edge is faded to show it.
+    expect(
+      find.ancestor(of: tagRail.first, matching: find.byType(ShaderMask)),
+      findsWidgets,
+    );
+  });
+
   testWidgets('notification app bar action opens notifications', (
     tester,
   ) async {
