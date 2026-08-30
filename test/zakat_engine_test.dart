@@ -122,6 +122,105 @@ void main() {
     expect(goldResult.nisabThresholdUsd, 8500);
     expect(silverResult.nisabThresholdUsd, 612.36);
   });
+
+  group('message when nothing is eligible', () {
+    test('names the lunar year, not the nisab, and dates the first due', () {
+      final result = ZakatEngine.calculate(
+        assets: [
+          Asset(
+            id: 'young-gold',
+            type: AssetType.gold,
+            amount: 200,
+            unit: 'g',
+            purity: 100,
+            boughtDate: DateTime(2026, 1, 10),
+          ),
+          Asset(
+            id: 'younger-cash',
+            type: AssetType.cash,
+            amount: 50000,
+            unit: 'USD',
+            boughtDate: DateTime(2026, 2, 1),
+          ),
+        ],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2026, 3, 1),
+      );
+
+      // Well above the 8500 nisab, so "below the threshold" would be a lie.
+      expect(result.eligibleWealthUsd, 0);
+      expect(result.amountDueUsd, 0);
+      expect(result.message, isNot(contains('nisab')));
+      expect(result.message, contains('lunar year'));
+      // 2026-01-10 + 354 days.
+      expect(result.message, contains('2026-12-30'));
+    });
+
+    test('counts holdings that are missing a start date', () {
+      final result = ZakatEngine.calculate(
+        assets: const [
+          Asset(id: 'a', type: AssetType.cash, amount: 9000, unit: 'USD'),
+          Asset(id: 'b', type: AssetType.cash, amount: 9000, unit: 'USD'),
+        ],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2026, 3, 1),
+      );
+
+      expect(
+        result.message,
+        '2 holdings need a start date before they can be '
+        'assessed.',
+      );
+    });
+
+    test('asks for a holding when the ledger is empty', () {
+      final result = ZakatEngine.calculate(
+        assets: const [],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2026, 3, 1),
+      );
+
+      expect(result.message, 'Add a holding to calculate your zakat.');
+    });
+
+    test('still blames the nisab when something is genuinely assessed', () {
+      final result = ZakatEngine.calculate(
+        assets: [
+          Asset(
+            id: 'mature-but-small',
+            type: AssetType.cash,
+            amount: 100,
+            unit: 'USD',
+            boughtDate: DateTime(2024, 1, 1),
+          ),
+        ],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2026, 3, 1),
+      );
+
+      expect(result.eligibleWealthUsd, 100);
+      expect(
+        result.message,
+        'Currently due holdings are below the selected nisab threshold.',
+      );
+    });
+  });
 }
 
 MetalPriceSnapshot _prices() {
