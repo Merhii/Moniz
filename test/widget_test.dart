@@ -705,6 +705,35 @@ void main() {
     expect(find.byKey(const Key('delete_asset_doomed')), findsNothing);
   });
 
+  testWidgets('warns while a holding has no start date', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
+    await tester.pump();
+
+    final note = find.byKey(const Key('asset_missing_start_date_note'));
+    expect(note, findsOneWidget);
+    expect(find.textContaining('left out of zakat'), findsOneWidget);
+
+    // An asset that already has a start date is not nagged.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssetFormDialog(
+          // A fresh key so the form rebuilds its state from this asset
+          // instead of reusing the blank one above.
+          key: const ValueKey('dated-form'),
+          asset: Asset(
+            id: 'dated',
+            type: AssetType.cash,
+            amount: 100,
+            unit: 'USD',
+            boughtDate: DateTime(2025, 1, 1),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(note, findsNothing);
+  });
+
   testWidgets('rejects empty negative and nonnumeric amounts', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
 

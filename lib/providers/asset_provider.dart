@@ -27,18 +27,6 @@ class AssetNotifier extends StateNotifier<List<Asset>> {
     await assetBox.put(updatedAsset.id, updatedAsset);
     loadAssets();
   }
-
-  List<Asset> get activeAssets {
-    return state.where((asset) => !asset.isSold).toList();
-  }
-
-  double get totalWealth {
-    return activeAssets.fold(0, (sum, asset) => sum + asset.amount);
-  }
-
-  double get zakat {
-    return totalWealth * 0.025;
-  }
 }
 
 final assetProvider = StateNotifierProvider<AssetNotifier, List<Asset>>(

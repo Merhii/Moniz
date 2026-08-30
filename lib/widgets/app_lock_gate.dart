@@ -44,7 +44,23 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     final state = ref.watch(appLockProvider);
     if (state.isLoading) return const _AppLockLoadingScreen();
     if (!state.isEnabled || !state.isLocked) return widget.child;
-    return const AppUnlockScreen();
+    return _lockLayer(const AppUnlockScreen());
+  }
+
+  /// The gate is installed through [MaterialApp.builder], which puts it above
+  /// the app's own Navigator. When it shows a lock screen instead of
+  /// [widget.child] that Navigator is never built, so the lock screen has no
+  /// Overlay ancestor - and EditableText needs one to place its text selection
+  /// handles. Focusing the PIN field then throws "No Overlay widget found".
+  ///
+  /// Giving the lock screen its own Navigator restores that Overlay while
+  /// keeping the gate above every route the app may have pushed. Only the
+  /// unlock screen is wrapped: a Navigator builds its initial route once, so
+  /// hosting the loading screen here too would pin it to the spinner.
+  static Widget _lockLayer(Widget child) {
+    return Navigator(
+      onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => child),
+    );
   }
 }
 
