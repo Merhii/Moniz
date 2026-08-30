@@ -15,6 +15,7 @@ import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
+import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
@@ -47,12 +48,31 @@ void main() async {
   Hive.registerAdapter(ZakatPaymentRecordAdapter());
   Hive.registerAdapter(PortfolioSnapshotAdapter());
 
-  await Hive.openBox<Asset>('assets');
-  await Hive.openBox<MetalPriceSnapshot>('metalPrices');
-  await Hive.openBox<ZakatSettings>('zakatSettings');
-  await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
-  await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
-  await Hive.openBox<dynamic>('uiPreferences');
+  const boxNames = [
+    'assets',
+    'metalPrices',
+    'zakatSettings',
+    'zakatPayments',
+    'portfolioSnapshots',
+    'uiPreferences',
+  ];
+  final cipher = await HiveEncryption().bootstrap(boxNames);
+
+  await Hive.openBox<Asset>('assets', encryptionCipher: cipher);
+  await Hive.openBox<MetalPriceSnapshot>(
+    'metalPrices',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<ZakatSettings>('zakatSettings', encryptionCipher: cipher);
+  await Hive.openBox<ZakatPaymentRecord>(
+    'zakatPayments',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<PortfolioSnapshot>(
+    'portfolioSnapshots',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
 
   await localNotificationService.initialize();
 
