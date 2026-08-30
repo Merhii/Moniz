@@ -114,6 +114,46 @@ void main() {
     expect(find.text('App lock off'), findsOneWidget);
     expect(await AppLockService(storage: storage).isEnabled(), isFalse);
   });
+
+  testWidgets(
+    'unlock screen takes focus when mounted through the app builder',
+    (tester) async {
+      final storage = _InMemoryAppLockStorage();
+      await AppLockService(storage: storage).savePin('2468');
+
+      // MonizApp installs the gate through MaterialApp.builder, which places it
+      // above the app's Navigator. Mounting it at `home:` instead hides the
+      // missing-Overlay bug this guards against.
+      await tester.pumpWidget(
+        _testScope(
+          storage: storage,
+          biometrics: _FakeBiometricAuthService(type: AppBiometricType.none),
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Text('PRIVATE CONTENT'),
+            builder: (context, child) =>
+                AppLockGate(child: child ?? const SizedBox.shrink()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Moniz locked'), findsOneWidget);
+      expect(find.text('PRIVATE CONTENT'), findsNothing);
+
+      // Focusing the PIN field builds a TextSelectionOverlay, which needs an
+      // Overlay ancestor. Without one this throws and the app renders nothing.
+      await tester.tap(find.byKey(const Key('app_unlock_pin')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.enterText(find.byKey(const Key('app_unlock_pin')), '2468');
+      await tester.tap(find.byKey(const Key('app_unlock_submit')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('PRIVATE CONTENT'), findsOneWidget);
+    },
+  );
 }
 
 Widget _testScope({
