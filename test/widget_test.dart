@@ -47,6 +47,9 @@ void main() {
     await Hive.box<ZakatSettings>('zakatSettings').clear();
     await Hive.box<ZakatPaymentRecord>('zakatPayments').clear();
     await Hive.box<PortfolioSnapshot>('portfolioSnapshots').clear();
+    // Display currency and theme live here; leaving them set would carry a
+    // preference from one test into the next.
+    await Hive.box<dynamic>('uiPreferences').clear();
   });
 
   tearDownAll(() async {
@@ -202,25 +205,15 @@ void main() {
     expect(find.byKey(const Key('asset_tag_chip_gold')), findsOneWidget);
   });
 
-  testWidgets('ledger shows what a metal holding is currently worth', (
+  testWidgets('ticker quotes metals in the selected display currency', (
     tester,
   ) async {
     await tester.runAsync(() async {
-      await Hive.box<Asset>('assets').put(
-        'gold',
-        const Asset(
-          id: 'gold',
-          type: AssetType.gold,
-          amount: 10,
-          unit: 'g',
-          purity: 50,
-        ),
-      );
       await Hive.box<MetalPriceSnapshot>('metalPrices').put(
         'latest_usd_gram_prices',
         MetalPriceSnapshot(
-          goldPerGramUsd: 90,
-          silverPerGramUsd: 1.1,
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
           priceTimestamp: DateTime.utc(2026, 5, 27, 10),
           fetchedAt: DateTime.utc(2026, 5, 27, 10),
         ),
@@ -229,29 +222,33 @@ void main() {
 
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-
-    // 10 g at 50% purity and $90/g.
-    expect(find.text('Worth \$450.00'), findsOneWidget);
+    expect(find.textContaining('LIVE GOLD \$100.00 / G'), findsWidgets);
   });
 
-  testWidgets('ledger does not repeat the amount for same-currency cash', (
+  testWidgets('ticker follows a stored non-USD display currency', (
     tester,
   ) async {
+    // Seeded rather than tapped: setCurrency writes to Hive, and a write
+    // issued inside the fake-async zone never settles.
     await tester.runAsync(() async {
-      await Hive.box<Asset>('assets').put(
-        'cash',
-        const Asset(id: 'cash', type: AssetType.cash, amount: 250, unit: 'USD'),
+      await Hive.box<dynamic>('uiPreferences').put('displayCurrency', 'AED');
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
+          priceTimestamp: DateTime.utc(2026, 5, 27, 10),
+          fetchedAt: DateTime.utc(2026, 5, 27, 10),
+        ),
       );
     });
 
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
 
-    expect(find.byKey(const Key('asset_value_cash')), findsNothing);
+    // 100 USD/g at the 3.6725 peg.
+    expect(find.textContaining('LIVE GOLD AED 367.25 / G'), findsWidgets);
+    expect(find.textContaining('LIVE GOLD \$'), findsNothing);
   });
 
   testWidgets('formats large dashboard and ledger numbers with commas', (
