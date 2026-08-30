@@ -19,6 +19,12 @@ class SecureAppLockStorage implements AppLockStorage {
           storage ??
           const FlutterSecureStorage(
             aOptions: AndroidOptions(migrateWithBackup: true),
+            // The sandboxed macOS build has no keychain-access-groups
+            // entitlement - adding one would require signing every local build
+            // with a development certificate. Without it the data protection
+            // keychain rejects writes with errSecMissingEntitlement (-34018),
+            // so use the file-based keychain there instead.
+            mOptions: MacOsOptions(usesDataProtectionKeychain: false),
           );
 
   final FlutterSecureStorage _storage;
