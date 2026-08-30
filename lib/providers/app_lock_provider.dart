@@ -155,14 +155,31 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
 
   Future<bool> unlockWithPin(String pin) async {
     try {
+      final lockout = await _appLockService.lockoutRemaining();
+      if (lockout != null) {
+        if (!mounted) return false;
+        state = state.copyWith(errorMessage: _lockoutMessage(lockout));
+        return false;
+      }
+
       final verified = await _appLockService.verifyPin(pin);
       if (!mounted) return false;
+      if (verified) {
+        state = state.copyWith(isLocked: false, clearError: true);
+        return true;
+      }
+
+      // A wrong PIN may have just started a cooldown; say so rather than
+      // letting the next attempt fail for an unexplained reason.
+      final pending = await _appLockService.lockoutRemaining();
+      if (!mounted) return false;
       state = state.copyWith(
-        isLocked: !verified,
-        errorMessage: verified ? null : 'Incorrect PIN. Try again.',
-        clearError: verified,
+        isLocked: true,
+        errorMessage: pending == null
+            ? 'Incorrect PIN. Try again.'
+            : _lockoutMessage(pending),
       );
-      return verified;
+      return false;
     } catch (_) {
       if (!mounted) return false;
       state = state.copyWith(
@@ -170,6 +187,16 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
       );
       return false;
     }
+  }
+
+  static String _lockoutMessage(Duration remaining) {
+    final seconds = remaining.inSeconds + 1;
+    if (seconds < 60) {
+      return 'Too many incorrect PINs. Try again in $seconds seconds.';
+    }
+    final minutes = (seconds / 60).ceil();
+    return 'Too many incorrect PINs. Try again in $minutes '
+        '${minutes == 1 ? 'minute' : 'minutes'}.';
   }
 
   Future<bool> unlockWithBiometrics() async {

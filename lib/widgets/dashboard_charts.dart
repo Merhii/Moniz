@@ -63,7 +63,9 @@ class _PortfolioTrendCardState extends State<PortfolioTrendCard> {
 
     return LedgerFrame(
       cardless: widget.cardless,
-      padding: widget.cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
+      padding: widget.cardless
+          ? const EdgeInsets.symmetric(vertical: 16)
+          : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -654,7 +656,9 @@ class _JumpSummaryStrip extends StatelessWidget {
     final colors = context.kinetic;
     return Container(
       width: double.infinity,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 8) : const EdgeInsets.all(12),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 8)
+          : const EdgeInsets.all(12),
       decoration: cardless
           ? null
           : BoxDecoration(
@@ -825,7 +829,9 @@ class ProfitLossCard extends StatelessWidget {
 
     return LedgerFrame(
       cardless: cardless,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 16)
+          : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
