@@ -51,6 +51,12 @@ class ZakatEngine {
   static const _silverNisabGrams = 612.36;
   static const _hawlDays = 354;
 
+  static const soldExclusion = 'Sold asset';
+  static const unsupportedCurrencyExclusion = 'Unsupported currency';
+  static const ramadanNotDueExclusion = 'Not due until Ramadan date';
+  static const missingStartDateExclusion = 'Holding start date required';
+  static const hawlNotReachedExclusion = 'Not held for one lunar year yet';
+
   static ZakatResult calculate({
     required List<Asset> assets,
     required MetalPriceSnapshot? prices,
@@ -105,6 +111,7 @@ class ZakatEngine {
       message: _messageFor(
         settings: settings,
         scheduleDue: scheduleDue,
+        assessments: assessments,
         eligibleWealthUsd: eligibleWealthUsd,
         nisabThresholdUsd: nisabThresholdUsd,
       ),
@@ -124,7 +131,7 @@ class ZakatEngine {
         asset: asset,
         valueUsd: null,
         isIncluded: false,
-        exclusionReason: 'Sold asset',
+        exclusionReason: soldExclusion,
       );
     }
 
@@ -134,7 +141,7 @@ class ZakatEngine {
         asset: asset,
         valueUsd: null,
         isIncluded: false,
-        exclusionReason: 'Unsupported currency',
+        exclusionReason: unsupportedCurrencyExclusion,
       );
     }
 
@@ -144,7 +151,7 @@ class ZakatEngine {
         valueUsd: valueUsd,
         isIncluded: scheduleDue,
         nextDueDate: settings.nextRamadanDueDate,
-        exclusionReason: scheduleDue ? null : 'Not due until Ramadan date',
+        exclusionReason: scheduleDue ? null : ramadanNotDueExclusion,
       );
     }
 
@@ -153,7 +160,7 @@ class ZakatEngine {
         asset: asset,
         valueUsd: valueUsd,
         isIncluded: false,
-        exclusionReason: 'Holding start date required',
+        exclusionReason: missingStartDateExclusion,
       );
     }
 
@@ -192,6 +199,7 @@ class ZakatEngine {
   static String? _messageFor({
     required ZakatSettings settings,
     required bool scheduleDue,
+    required List<ZakatAssetAssessment> assessments,
     required double eligibleWealthUsd,
     required double nisabThresholdUsd,
   }) {
@@ -202,9 +210,73 @@ class ZakatEngine {
     if (!scheduleDue) {
       return 'Your Ramadan zakat date has not arrived yet.';
     }
+    // Nothing was assessed at all, so the nisab comparison below would be
+    // vacuously true and would blame a threshold the holdings never reached.
+    if (!assessments.any((assessment) => assessment.isIncluded)) {
+      return _nothingEligibleMessage(assessments);
+    }
     if (eligibleWealthUsd < nisabThresholdUsd) {
       return 'Currently due holdings are below the selected nisab threshold.';
     }
     return null;
+  }
+
+  static String _nothingEligibleMessage(
+    List<ZakatAssetAssessment> assessments,
+  ) {
+    final unsold = assessments
+        .where((assessment) => !assessment.asset.isSold)
+        .toList();
+    if (unsold.isEmpty) {
+      return 'Add a holding to calculate your zakat.';
+    }
+
+    final needStartDate = unsold
+        .where(
+          (assessment) =>
+              assessment.exclusionReason == missingStartDateExclusion,
+        )
+        .length;
+    final waitingOnHawl = unsold
+        .where(
+          (assessment) => assessment.exclusionReason == hawlNotReachedExclusion,
+        )
+        .toList();
+
+    final sentences = <String>[];
+    if (waitingOnHawl.isNotEmpty) {
+      final earliest = waitingOnHawl
+          .map((assessment) => assessment.nextDueDate)
+          .whereType<DateTime>()
+          .fold<DateTime?>(
+            null,
+            (earliest, date) =>
+                earliest == null || date.isBefore(earliest) ? date : earliest,
+          );
+      sentences.add(
+        earliest == null
+            ? 'None of your holdings have been held for a lunar year yet.'
+            : 'None of your holdings have been held for a lunar year yet; '
+                  'the first becomes eligible on ${_formatDate(earliest)}.',
+      );
+    }
+    if (needStartDate > 0) {
+      sentences.add(
+        needStartDate == 1
+            ? '1 holding needs a start date before it can be assessed.'
+            : '$needStartDate holdings need a start date before they can be '
+                  'assessed.',
+      );
+    }
+    if (sentences.isEmpty) {
+      return 'None of your holdings are eligible for zakat right now.';
+    }
+    return sentences.join(' ');
+  }
+
+  static String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 }
