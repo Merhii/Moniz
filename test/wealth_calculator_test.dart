@@ -46,19 +46,22 @@ void main() {
       ),
     );
 
-    expect(totals.totalUsd, closeTo(908, 0.01));
-    expect(totals.hasUnsupportedCurrencies, isFalse);
+    // 100 USD + 600 gold + 100 from the pegged AED. The EUR holding has no
+    // rate to convert with, so it is excluded and flagged rather than valued
+    // at an invented one.
+    expect(totals.totalUsd, closeTo(800, 0.01));
+    expect(totals.hasUnsupportedCurrencies, isTrue);
     expect(totals.hasUnpricedMetals, isFalse);
   });
 
   test('converts monetary holdings even when metal prices are unavailable', () {
     final totals = WealthCalculator.calculateUsd(const [
       Asset(
-        id: 'eur',
+        id: 'aed',
         type: AssetType.cash,
-        amount: 50,
-        unit: 'EUR',
-        currency: 'EUR',
+        amount: 367.25,
+        unit: 'AED',
+        currency: 'AED',
       ),
       Asset(
         id: 'gold',
@@ -69,9 +72,25 @@ void main() {
       ),
     ], null);
 
-    expect(totals.totalUsd, closeTo(54, 0.01));
+    expect(totals.totalUsd, closeTo(100, 0.01));
     expect(totals.hasUnsupportedCurrencies, isFalse);
     expect(totals.hasUnpricedMetals, isTrue);
+  });
+
+  test('excludes EUR holdings instead of valuing them at a frozen rate', () {
+    final totals = WealthCalculator.calculateUsd(const [
+      Asset(id: 'usd', type: AssetType.cash, amount: 100, unit: 'USD'),
+      Asset(
+        id: 'eur',
+        type: AssetType.cash,
+        amount: 100,
+        unit: 'EUR',
+        currency: 'EUR',
+      ),
+    ], null);
+
+    expect(totals.totalUsd, closeTo(100, 0.01));
+    expect(totals.hasUnsupportedCurrencies, isTrue);
   });
 
   test('converts total wealth into a selected display currency', () {

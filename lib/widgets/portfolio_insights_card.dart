@@ -40,7 +40,9 @@ class PortfolioInsightsCard extends ConsumerWidget {
     final colors = context.kinetic;
     return LedgerFrame(
       cardless: cardless,
-      padding: cardless ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.all(16),
+      padding: cardless
+          ? const EdgeInsets.symmetric(vertical: 16)
+          : const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

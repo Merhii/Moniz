@@ -4,13 +4,25 @@ class CurrencyConverter {
   CurrencyConverter._();
 
   static const defaultCurrency = 'USD';
-  static const supportedCurrencies = ['USD', 'AED', 'EUR'];
 
-  static const _defaultUsdRates = <String, double>{
-    'USD': 1,
-    'AED': 1 / 3.6725,
-    'EUR': 1.08,
-  };
+  /// Currencies totals, charts and zakat can be expressed in. A currency only
+  /// belongs here while every holding can be converted into it from a rate we
+  /// can stand behind.
+  static const supportedCurrencies = ['USD', 'AED'];
+
+  /// Currencies a holding can be recorded in. A recordable currency that has
+  /// no rate is kept in the ledger but left out of valuation, and the
+  /// dashboard says so.
+  static const recordableCurrencies = ['USD', 'AED', 'EUR'];
+
+  /// USD per unit, for currencies that do not need a live feed.
+  ///
+  /// AED has been pegged at 3.6725 to the dollar by the UAE central bank since
+  /// 1997, so a constant is accurate rather than a guess. Floating currencies
+  /// have to come from [MetalPriceSnapshot.usdRateFor]: a hardcoded rate
+  /// silently freezes at whatever it was the day it was typed, and this number
+  /// feeds the zakat calculation.
+  static const _defaultUsdRates = <String, double>{'USD': 1, 'AED': 1 / 3.6725};
 
   static String normalize(String? currency) {
     final normalized = (currency ?? defaultCurrency).trim().toUpperCase();
@@ -19,6 +31,10 @@ class CurrencyConverter {
 
   static bool isSupported(String? currency) {
     return supportedCurrencies.contains(normalize(currency));
+  }
+
+  static bool isRecordable(String? currency) {
+    return recordableCurrencies.contains(normalize(currency));
   }
 
   static double? usdRateFor(String? currency, {MetalPriceSnapshot? prices}) {

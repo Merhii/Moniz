@@ -341,7 +341,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       if (totals.hasUnpricedMetals)
         'Refresh metal prices in Settings to include metal holdings.',
       if (totals.hasUnsupportedCurrencies)
-        'Some holdings use unsupported currencies and are excluded.',
+        'Holdings in a currency with no exchange rate are excluded from this '
+            'total.',
     ].join(' ');
 
     final colors = context.kinetic;
@@ -1126,7 +1127,7 @@ class SettingsPage extends ConsumerWidget {
                     cardless: true,
                     padding: EdgeInsets.zero,
                     child: KineticText(
-                      'USD, AED, and EUR are converted for totals and dashboard graphs. Other currencies remain recorded but are excluded until FX rates are added.',
+                      'Totals and dashboard graphs are shown in USD or AED, whose peg is fixed. Holdings in any other currency stay in your ledger but are left out of valuation until a live exchange-rate source is added.',
                       muted: true,
                     ),
                   ),
