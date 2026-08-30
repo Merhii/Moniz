@@ -444,7 +444,8 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
     final trimmedValue = value?.trim() ?? '';
     if (trimmedValue.isEmpty) return '$label is required';
     final number = double.tryParse(trimmedValue);
-    if (number == null) return '$label must be numeric';
+    if (number == null || number.isNaN) return '$label must be numeric';
+    if (number.isInfinite) return '$label is too large';
     if (number <= 0) return '$label must be greater than zero';
     return null;
   }
@@ -578,7 +579,8 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
     final trimmedValue = value?.trim() ?? '';
     if (trimmedValue.isEmpty) return null;
     final number = double.tryParse(trimmedValue);
-    if (number == null) return '$label must be numeric';
+    if (number == null || number.isNaN) return '$label must be numeric';
+    if (number.isInfinite) return '$label is too large';
     if (number < 0) return '$label cannot be negative';
     return null;
   }

@@ -674,6 +674,55 @@ void main() {
     expect(find.text('Amount must be numeric'), findsOneWidget);
   });
 
+  testWidgets('rejects amounts that overflow to infinity or NaN', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
+
+    // A literal that parses to double.infinity would otherwise be stored and
+    // poison every downstream total with Infinity/NaN.
+    await tester.enterText(
+      find.byKey(const Key('asset_amount_field')),
+      '1e400',
+    );
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await tester.pump();
+    expect(find.text('Amount is too large'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('asset_amount_field')),
+      'Infinity',
+    );
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await tester.pump();
+    expect(find.text('Amount is too large'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('asset_amount_field')), 'NaN');
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await tester.pump();
+    expect(find.text('Amount must be numeric'), findsOneWidget);
+  });
+
+  testWidgets('rejects a non-finite bought price', (tester) async {
+    final asset = Asset(
+      id: 'overflowing-price',
+      type: AssetType.gold,
+      amount: 50,
+      unit: 'g',
+      purity: 99.9,
+      boughtDate: DateTime(2025, 2, 1),
+    );
+    await tester.pumpWidget(MaterialApp(home: AssetFormDialog(asset: asset)));
+
+    await tester.enterText(
+      find.byKey(const Key('asset_bought_price_field')),
+      '1e400',
+    );
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await tester.pump();
+    expect(find.text('Bought price is too large'), findsOneWidget);
+  });
+
   testWidgets('rejects invalid metal purity and incomplete sale details', (
     tester,
   ) async {
