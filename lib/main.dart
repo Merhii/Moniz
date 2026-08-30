@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -33,20 +34,31 @@ import 'widgets/portfolio_insights_card.dart';
 import 'widgets/security_settings_card.dart';
 import 'widgets/transaction_history_screen.dart';
 
-void main() async {
+void main() {
+  // Nothing is awaited before runApp. Anything that can fail - reaching the
+  // keychain for the box key, opening Hive, the notification plugin - happens
+  // inside MonizBootstrap, where a failure can be shown on screen instead of
+  // killing main and leaving a blank window.
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: MonizBootstrap()));
+}
 
+/// Opens the encrypted Hive boxes the app runs on.
+///
+/// Safe to call again after a failure: adapters are only registered once, and
+/// reopening an already-open box returns the open one.
+Future<void> openMonizStorage() async {
   await Hive.initFlutter();
 
-  Hive.registerAdapter(AssetTypeAdapter());
-  Hive.registerAdapter(AssetTagAdapter());
-  Hive.registerAdapter(AssetAdapter());
-  Hive.registerAdapter(MetalPriceSnapshotAdapter());
-  Hive.registerAdapter(ZakatScheduleModeAdapter());
-  Hive.registerAdapter(NisabStandardAdapter());
-  Hive.registerAdapter(ZakatSettingsAdapter());
-  Hive.registerAdapter(ZakatPaymentRecordAdapter());
-  Hive.registerAdapter(PortfolioSnapshotAdapter());
+  _registerAdapter(AssetTypeAdapter());
+  _registerAdapter(AssetTagAdapter());
+  _registerAdapter(AssetAdapter());
+  _registerAdapter(MetalPriceSnapshotAdapter());
+  _registerAdapter(ZakatScheduleModeAdapter());
+  _registerAdapter(NisabStandardAdapter());
+  _registerAdapter(ZakatSettingsAdapter());
+  _registerAdapter(ZakatPaymentRecordAdapter());
+  _registerAdapter(PortfolioSnapshotAdapter());
 
   const boxNames = [
     'assets',
@@ -73,10 +85,198 @@ void main() async {
     encryptionCipher: cipher,
   );
   await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
+}
 
-  await localNotificationService.initialize();
+void _registerAdapter(TypeAdapter<dynamic> adapter) {
+  if (Hive.isAdapterRegistered(adapter.typeId)) return;
+  Hive.registerAdapter(adapter);
+}
 
-  runApp(const ProviderScope(child: MonizApp()));
+/// Opens storage before handing over to [MonizApp], and shows why it could not
+/// when that fails.
+///
+/// The app deliberately refuses to run rather than falling back to unencrypted
+/// boxes: a silent downgrade would drop the guarantee without anyone noticing.
+class MonizBootstrap extends StatefulWidget {
+  const MonizBootstrap({super.key, this.openStorage, this.startNotifications});
+
+  final Future<void> Function()? openStorage;
+  final Future<void> Function()? startNotifications;
+
+  @override
+  State<MonizBootstrap> createState() => _MonizBootstrapState();
+}
+
+enum _Startup { opening, ready, failed }
+
+class _MonizBootstrapState extends State<MonizBootstrap> {
+  var _startup = _Startup.opening;
+  Object? _failure;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    setState(() {
+      _startup = _Startup.opening;
+      _failure = null;
+    });
+    try {
+      await (widget.openStorage ?? openMonizStorage)();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _startup = _Startup.failed;
+        _failure = error;
+      });
+      return;
+    }
+
+    // Notifications are a convenience, not a precondition. Losing them should
+    // never cost access to the ledger.
+    try {
+      await (widget.startNotifications ??
+          localNotificationService.initialize)();
+    } catch (_) {
+      // Ignored on purpose.
+    }
+
+    if (!mounted) return;
+    setState(() => _startup = _Startup.ready);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (_startup) {
+      _Startup.ready => const MonizApp(),
+      _Startup.opening => const _StartupShell(child: _StartupProgress()),
+      _Startup.failed => _StartupShell(
+        child: _StartupFailure(failure: _failure, onRetry: _open),
+      ),
+    };
+  }
+}
+
+/// Minimal app wrapper for the pre-storage screens. The stored theme lives in
+/// a box that may not be open, so this follows the system setting.
+class _StartupShell extends StatelessWidget {
+  const _StartupShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Moniz',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      home: Builder(
+        builder: (context) {
+          final colors = context.kinetic;
+          return Scaffold(
+            backgroundColor: colors.background,
+            body: DecoratedBox(
+              decoration: AppTheme.brandBackground(colors),
+              child: SafeArea(child: Center(child: child)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StartupProgress extends StatelessWidget {
+  const _StartupProgress();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CircularProgressIndicator();
+  }
+}
+
+class _StartupFailure extends StatelessWidget {
+  const _StartupFailure({required this.failure, required this.onRetry});
+
+  final Object? failure;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: LedgerFrame(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(Icons.lock_outline_rounded, color: colors.accent, size: 42),
+              const SizedBox(height: 14),
+              KineticText(
+                'Moniz could not open your holdings',
+                key: const Key('startup_failure_title'),
+                align: TextAlign.center,
+                style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: 12),
+              KineticText(
+                'Your holdings are stored encrypted, and the key for them '
+                'lives in this device\'s secure storage. That could not be '
+                'reached just now, so the app has stopped rather than open '
+                'your ledger unprotected.',
+                align: TextAlign.center,
+                muted: true,
+                uppercase: false,
+                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              KineticText(
+                'Nothing has been changed or lost. Your data is still there, '
+                'still encrypted.',
+                align: TextAlign.center,
+                muted: true,
+                uppercase: false,
+                style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+              ),
+              if (failure != null) ...[
+                const SizedBox(height: 16),
+                KineticText(
+                  _detail(failure!),
+                  key: const Key('startup_failure_detail'),
+                  align: TextAlign.center,
+                  muted: true,
+                  uppercase: false,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 20),
+              BrutalistButton(
+                key: const Key('retry_startup'),
+                label: 'Try again',
+                expand: true,
+                onPressed: onRetry,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _detail(Object failure) {
+    final text = failure is PlatformException
+        ? (failure.message ?? failure.code)
+        : failure.toString();
+    return text.length > 200 ? '${text.substring(0, 200)}...' : text;
+  }
 }
 
 class MonizApp extends ConsumerWidget {
