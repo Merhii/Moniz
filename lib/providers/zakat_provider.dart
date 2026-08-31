@@ -13,7 +13,6 @@ class ZakatNotifier extends StateNotifier<ZakatSettings> {
        super(settingsBox.get(_settingsKey) ?? const ZakatSettings());
 
   static const _settingsKey = 'settings';
-  static const _annualPaymentKey = 'annual_ramadan';
   static const _hawlDays = 354;
 
   final Box<ZakatSettings> _settingsBox;
@@ -43,9 +42,9 @@ class ZakatNotifier extends StateNotifier<ZakatSettings> {
 
     if (state.scheduleMode == ZakatScheduleMode.ramadanAnnual) {
       await _paymentBox.put(
-        _annualPaymentKey,
+        ZakatEngine.annualPaymentKey,
         ZakatPaymentRecord(
-          referenceId: _annualPaymentKey,
+          referenceId: ZakatEngine.annualPaymentKey,
           paidAt: paidAt,
           amountUsd: result.amountDueUsd,
         ),
