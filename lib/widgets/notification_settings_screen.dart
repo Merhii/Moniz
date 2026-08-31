@@ -21,6 +21,10 @@ class _NotificationSettingsScreenState
     final state = ref.watch(notificationPreferencesProvider);
     final notifier = ref.read(notificationPreferencesProvider.notifier);
     final colors = context.kinetic;
+    final interests = _NotificationInterest.fromTopics(state.availableTopics);
+    final selectedInterestCount = interests
+        .where((interest) => interest.isSelected(state.subscribedTopicIds))
+        .length;
     return LedgerFrame(
       cardless: true,
       padding: EdgeInsets.zero,
@@ -31,31 +35,41 @@ class _NotificationSettingsScreenState
             children: [
               Expanded(
                 child: KineticText(
-                  'Price alerts',
+                  'Notification interests',
                   style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
                 ),
               ),
               _TopicCountPill(
-                activeCount: state.subscribedTopicIds.length,
-                totalCount: state.availableTopics.length,
+                activeCount: selectedInterestCount,
+                totalCount: interests.length,
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (state.availableTopics.isEmpty)
-            const KineticText('No notification topics available.', muted: true)
+          const SizedBox(height: 6),
+          const KineticText(
+            'Choose the topics you want to receive notifications about.',
+            muted: true,
+            uppercase: false,
+          ),
+          const SizedBox(height: 16),
+          if (interests.isEmpty)
+            const KineticText(
+              'No notification interests available.',
+              muted: true,
+            )
           else
-            ...state.availableTopics.map(
-              (topic) => Padding(
+            ...interests.map(
+              (interest) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _NotificationTopicToggle(
-                  topic: topic,
-                  isSubscribed: state.isSubscribed(topic),
+                child: _NotificationInterestToggle(
+                  interest: interest,
+                  isSubscribed: interest.isSelected(state.subscribedTopicIds),
                   isSyncing: state.isSyncing,
-                  onChanged: (isSubscribed) => notifier.setTopicSubscription(
-                    topic: topic,
-                    isSubscribed: isSubscribed,
-                  ),
+                  onChanged: (isSubscribed) =>
+                      notifier.setTopicGroupSubscription(
+                        topics: interest.topics,
+                        isSubscribed: isSubscribed,
+                      ),
                 ),
               ),
             ),
@@ -90,22 +104,22 @@ class _TopicCountPill extends StatelessWidget {
         borderRadius: AppTheme.pillRadius,
       ),
       child: KineticText(
-        '$activeCount / $totalCount on',
+        '$activeCount / $totalCount selected',
         style: AppTheme.labelStyle(colors),
       ),
     );
   }
 }
 
-class _NotificationTopicToggle extends StatelessWidget {
-  const _NotificationTopicToggle({
-    required this.topic,
+class _NotificationInterestToggle extends StatelessWidget {
+  const _NotificationInterestToggle({
+    required this.interest,
     required this.isSubscribed,
     required this.isSyncing,
     required this.onChanged,
   });
 
-  final NotificationTopic topic;
+  final _NotificationInterest interest;
   final bool isSubscribed;
   final bool isSyncing;
   final ValueChanged<bool> onChanged;
@@ -117,7 +131,7 @@ class _NotificationTopicToggle extends StatelessWidget {
     final background = colors.foreground.withValues(alpha: 0.02);
     final borderColor = colors.border.withValues(alpha: 0.12);
     return Container(
-      key: Key('notification_topic_${topic.id}'),
+      key: Key('notification_interest_${interest.key}'),
       constraints: const BoxConstraints(minHeight: 72),
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(
@@ -129,19 +143,19 @@ class _NotificationTopicToggle extends StatelessWidget {
         children: [
           Expanded(
             child: PressableScale(
-              key: Key('notification_topic_hit_${topic.id}'),
+              key: Key('notification_interest_hit_${interest.key}'),
               onTap: isSyncing ? null : () => onChanged(!isSubscribed),
               scale: 0.98,
               child: Row(
                 children: [
-                  _TopicSignalIcon(topic: topic, isSubscribed: isSubscribed),
+                  _InterestIcon(isSubscribed: isSubscribed),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         KineticText(
-                          topic.title,
+                          interest.label,
                           maxLines: 2,
                           style: AppTheme.titleStyle(colors).copyWith(
                             color: foreground,
@@ -151,8 +165,9 @@ class _NotificationTopicToggle extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         KineticText(
-                          topic.metadataLabel,
+                          interest.description,
                           maxLines: 1,
+                          uppercase: false,
                           style: AppTheme.bodyStyle(colors).copyWith(
                             color: foreground.withValues(alpha: 0.60),
                             fontSize: 12,
@@ -167,7 +182,7 @@ class _NotificationTopicToggle extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Switch.adaptive(
-            key: Key('notification_topic_toggle_${topic.id}'),
+            key: Key('notification_interest_toggle_${interest.key}'),
             value: isSubscribed,
             onChanged: isSyncing ? null : onChanged,
             activeThumbColor: colors.accentForeground,
@@ -181,25 +196,15 @@ class _NotificationTopicToggle extends StatelessWidget {
   }
 }
 
-class _TopicSignalIcon extends StatelessWidget {
-  const _TopicSignalIcon({required this.topic, required this.isSubscribed});
+class _InterestIcon extends StatelessWidget {
+  const _InterestIcon({required this.isSubscribed});
 
-  final NotificationTopic topic;
   final bool isSubscribed;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
-    final icon = switch (topic.direction) {
-      NotificationTopicDirection.increase => Icons.trending_up,
-      NotificationTopicDirection.decrease => Icons.trending_down,
-      NotificationTopicDirection.either => Icons.sync_alt,
-    };
-    final foreground = isSubscribed
-        ? colors.accent
-        : topic.direction == NotificationTopicDirection.decrease
-        ? colors.loss
-        : colors.profit;
+    final foreground = isSubscribed ? colors.accent : colors.mutedForeground;
     final background = colors.foreground.withValues(alpha: 0.04);
     return Container(
       width: 44,
@@ -212,7 +217,53 @@ class _TopicSignalIcon extends StatelessWidget {
           width: 1.0,
         ),
       ),
-      child: Icon(icon, color: foreground, size: 23),
+      child: Icon(
+        isSubscribed
+            ? Icons.notifications_active_rounded
+            : Icons.notifications_none_rounded,
+        color: foreground,
+        size: 23,
+      ),
     );
+  }
+}
+
+class _NotificationInterest {
+  const _NotificationInterest({
+    required this.key,
+    required this.label,
+    required this.topics,
+  });
+
+  final String key;
+  final String label;
+  final List<NotificationTopic> topics;
+
+  String get description {
+    return 'Receive ${label.toLowerCase()} updates and alerts.';
+  }
+
+  bool isSelected(Set<String> subscribedTopicIds) {
+    return topics.any((topic) => subscribedTopicIds.contains(topic.id));
+  }
+
+  static List<_NotificationInterest> fromTopics(
+    List<NotificationTopic> topics,
+  ) {
+    final groupedTopics = <String, List<NotificationTopic>>{};
+    final labels = <String, String>{};
+    for (final topic in topics) {
+      groupedTopics.putIfAbsent(topic.subjectKey, () => []).add(topic);
+      labels.putIfAbsent(topic.subjectKey, () => topic.subjectLabel);
+    }
+    return groupedTopics.entries
+        .map(
+          (entry) => _NotificationInterest(
+            key: entry.key,
+            label: labels[entry.key] ?? entry.key,
+            topics: List<NotificationTopic>.unmodifiable(entry.value),
+          ),
+        )
+        .toList(growable: false);
   }
 }

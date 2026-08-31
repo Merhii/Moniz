@@ -81,6 +81,48 @@ void main() {
     );
   });
 
+  test('selecting an interest subscribes to every matching topic', () async {
+    final gateway = _RecordingSubscriptionGateway();
+    final container = ProviderContainer(
+      overrides: [
+        notificationSubscriptionGatewayProvider.overrideWithValue(gateway),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final goldTopics = container
+        .read(notificationPreferencesProvider)
+        .availableTopics
+        .where((topic) => topic.subjectKey == 'gold')
+        .toList();
+
+    await container
+        .read(notificationPreferencesProvider.notifier)
+        .setTopicGroupSubscription(topics: goldTopics, isSubscribed: true);
+
+    expect(gateway.subscribedTopicIds, [
+      'gold.price.increase.3',
+      'gold.price.decrease.3',
+    ]);
+    expect(container.read(notificationPreferencesProvider).subscribedTopicIds, {
+      'gold.price.increase.3',
+      'gold.price.decrease.3',
+    });
+
+    await container
+        .read(notificationPreferencesProvider.notifier)
+        .setTopicGroupSubscription(topics: goldTopics, isSubscribed: false);
+
+    expect(gateway.unsubscribedTopicIds, [
+      'gold.price.increase.3',
+      'gold.price.decrease.3',
+    ]);
+    expect(
+      container.read(notificationPreferencesProvider).subscribedTopicIds,
+      isEmpty,
+    );
+  });
+
   test('can use a different topic catalog without UI changes', () async {
     const customTopic = NotificationTopic(
       id: 'cash.balance.drop.5',
