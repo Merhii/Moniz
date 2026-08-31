@@ -51,6 +51,10 @@ class ZakatEngine {
   static const _silverNisabGrams = 612.36;
   static const _hawlDays = 354;
 
+  /// Key the annual Ramadan payment is recorded under. It is not tied to any
+  /// one holding, so per-holding assessment has to look for it explicitly.
+  static const annualPaymentKey = 'annual_ramadan';
+
   static const soldExclusion = 'Sold asset';
   static const unsupportedCurrencyExclusion = 'Unsupported currency';
   static const ramadanNotDueExclusion = 'Not due until Ramadan date';
@@ -164,7 +168,7 @@ class ZakatEngine {
       );
     }
 
-    final cycleStart = payments[asset.id]?.paidAt ?? asset.boughtDate!;
+    final cycleStart = _settledAt(asset, payments) ?? asset.boughtDate!;
     final nextDueDate = cycleStart.add(const Duration(days: _hawlDays));
     final due = !today.isBefore(nextDueDate);
     return ZakatAssetAssessment(
@@ -174,6 +178,31 @@ class ZakatEngine {
       nextDueDate: nextDueDate,
       exclusionReason: due ? null : 'Not held for one lunar year yet',
     );
+  }
+
+  /// When zakat was last settled on [asset], from either schedule.
+  ///
+  /// A payment made under the Ramadan schedule is recorded once, against
+  /// [annualPaymentKey], not against each holding. Ignoring it here meant that
+  /// switching to per-holding dates looked no different from never having paid
+  /// at all, and asked for the same wealth a second time.
+  ///
+  /// Payments predating the holding are skipped: they cannot have settled
+  /// wealth that was not held yet.
+  static DateTime? _settledAt(
+    Asset asset,
+    Map<String, ZakatPaymentRecord> payments,
+  ) {
+    final boughtDate = asset.boughtDate;
+    final candidates =
+        [
+          payments[asset.id]?.paidAt,
+          payments[annualPaymentKey]?.paidAt,
+        ].whereType<DateTime>().where(
+          (paidAt) => boughtDate == null || !paidAt.isBefore(boughtDate),
+        );
+    if (candidates.isEmpty) return null;
+    return candidates.reduce((a, b) => a.isAfter(b) ? a : b);
   }
 
   static bool _isScheduleDue(ZakatSettings settings, DateTime today) {

@@ -123,6 +123,89 @@ void main() {
     expect(silverResult.nisabThresholdUsd, 612.36);
   });
 
+  group('payments across schedule modes', () {
+    final asset = Asset(
+      id: 'cash',
+      type: AssetType.cash,
+      amount: 50000,
+      unit: 'USD',
+      boughtDate: DateTime(2025, 1, 1),
+    );
+
+    ZakatResult assess(
+      DateTime today,
+      Map<String, ZakatPaymentRecord> payments,
+    ) {
+      return ZakatEngine.calculate(
+        assets: [asset],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: payments,
+        today: today,
+      );
+    }
+
+    test('an annual Ramadan payment settles per-holding cycles too', () {
+      final paidAt = DateTime(2025, 12, 21);
+      final result = assess(paidAt.add(const Duration(days: 1)), {
+        ZakatEngine.annualPaymentKey: ZakatPaymentRecord(
+          referenceId: ZakatEngine.annualPaymentKey,
+          paidAt: paidAt,
+          amountUsd: 1250,
+        ),
+      });
+
+      // Previously this billed the full amount again the day after paying,
+      // because per-holding assessment only looked for a per-holding record.
+      expect(result.hasPaymentDue, isFalse);
+      expect(result.amountDueUsd, 0);
+      expect(
+        result.assessments.single.nextDueDate,
+        paidAt.add(const Duration(days: 354)),
+      );
+    });
+
+    test('a payment older than the holding does not settle it', () {
+      // Bought 2025-01-01; an annual payment from before that cannot have
+      // covered wealth not yet held.
+      final result = assess(DateTime(2026, 1, 1), {
+        ZakatEngine.annualPaymentKey: ZakatPaymentRecord(
+          referenceId: ZakatEngine.annualPaymentKey,
+          paidAt: DateTime(2024, 6, 1),
+          amountUsd: 1250,
+        ),
+      });
+
+      expect(result.hasPaymentDue, isTrue);
+      expect(
+        result.assessments.single.nextDueDate,
+        DateTime(2025, 1, 1).add(const Duration(days: 354)),
+      );
+    });
+
+    test('the later of a holding and annual payment wins', () {
+      final result = assess(DateTime(2027, 1, 1), {
+        'cash': ZakatPaymentRecord(
+          referenceId: 'cash',
+          paidAt: DateTime(2025, 12, 21),
+          amountUsd: 1250,
+        ),
+        ZakatEngine.annualPaymentKey: ZakatPaymentRecord(
+          referenceId: ZakatEngine.annualPaymentKey,
+          paidAt: DateTime(2026, 3, 1),
+          amountUsd: 1250,
+        ),
+      });
+
+      expect(
+        result.assessments.single.nextDueDate,
+        DateTime(2026, 3, 1).add(const Duration(days: 354)),
+      );
+    });
+  });
+
   group('message when nothing is eligible', () {
     test('names the lunar year, not the nisab, and dates the first due', () {
       final result = ZakatEngine.calculate(
