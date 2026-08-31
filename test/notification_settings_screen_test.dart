@@ -8,7 +8,7 @@ import 'package:moniz/theme/app_theme.dart';
 import 'package:moniz/widgets/notification_settings_screen.dart';
 
 void main() {
-  testWidgets('shows notification topics and persists alert toggles', (
+  testWidgets('groups alert signals into selectable notification interests', (
     tester,
   ) async {
     final preferencesService = _InMemoryNotificationPreferencesService();
@@ -28,21 +28,22 @@ void main() {
       ),
     );
 
-    expect(find.text('Price alerts'), findsOneWidget);
-    expect(find.text('Gold price increased by 3%'), findsOneWidget);
-    expect(find.text('Gold price decreased by 3%'), findsOneWidget);
-    expect(find.text('Silver price increased/decreased by 3%'), findsOneWidget);
+    expect(find.text('Notification interests'), findsOneWidget);
+    expect(find.text('Gold'), findsOneWidget);
+    expect(find.text('Silver'), findsOneWidget);
+    expect(find.text('0 / 2 selected'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const Key('notification_topic_hit_gold.price.increase.3')),
-    );
+    await tester.tap(find.byKey(const Key('notification_interest_hit_gold')));
     await tester.runAsync(() async {
       await Future<void>.delayed(const Duration(milliseconds: 20));
     });
     await tester.pump();
 
-    expect(find.text('1 / 3 on'), findsOneWidget);
-    expect(preferencesService.subscribedTopicIds, {'gold.price.increase.3'});
+    expect(find.text('1 / 2 selected'), findsOneWidget);
+    expect(preferencesService.subscribedTopicIds, {
+      'gold.price.increase.3',
+      'gold.price.decrease.3',
+    });
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
