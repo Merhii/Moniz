@@ -10,6 +10,7 @@ import '../services/currency_converter.dart';
 import '../services/zakat_engine.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
+import 'zakat_mark_paid_button.dart';
 
 class ZakatBreakdownScreen extends ConsumerWidget {
   const ZakatBreakdownScreen({super.key});
@@ -185,21 +186,7 @@ class _CalculationBlock extends ConsumerWidget {
           ],
           if (result.hasPaymentDue) ...[
             const SizedBox(height: 12),
-            BrutalistButton(
-              key: const Key('mark_zakat_paid'),
-              label: 'Mark as paid',
-              tone: BrutalistButtonTone.primary,
-              onPressed: () async {
-                await ref
-                    .read(zakatProvider.notifier)
-                    .recordPayment(result, DateTime.now());
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Zakat payment recorded.')),
-                  );
-                }
-              },
-            ),
+            ZakatMarkPaidButton(result: result),
           ],
         ],
       ),
