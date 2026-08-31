@@ -87,6 +87,12 @@ class ZakatPaymentRecord {
   @HiveField(1)
   final DateTime paidAt;
 
+  /// Always USD, whatever currency the screen was showing when it was
+  /// recorded. The engine calculates in USD and rates move, so storing the
+  /// converted figure would freeze a rate into the record.
+  ///
+  /// Anything displaying this must convert first, via
+  /// CurrencyConverter.forDisplay.
   @HiveField(2)
   final double amountUsd;
 }

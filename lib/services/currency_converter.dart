@@ -62,6 +62,26 @@ class CurrencyConverter {
     return convert(amount, from: defaultCurrency, to: to, prices: prices);
   }
 
+  /// Prepares a USD figure for display in [displayCurrency].
+  ///
+  /// Returns the currency the value is actually expressed in, so a caller
+  /// cannot label a USD number as something else: without a rate the amount
+  /// stays in USD and says so, rather than silently wearing the wrong symbol.
+  static DisplayAmount forDisplay(
+    double amountUsd,
+    String displayCurrency, {
+    MetalPriceSnapshot? prices,
+  }) {
+    final converted = convertFromUsd(
+      amountUsd,
+      displayCurrency,
+      prices: prices,
+    );
+    return converted == null
+        ? DisplayAmount(amountUsd, defaultCurrency)
+        : DisplayAmount(converted, normalize(displayCurrency));
+  }
+
   static String formatMoney(double value, String currency, {int decimals = 2}) {
     final normalized = normalize(currency);
     final amount = formatNumber(value, decimals: decimals);
@@ -114,4 +134,14 @@ class CurrencyConverter {
 
     return groupedWhole.toString() + decimal;
   }
+}
+
+/// A monetary figure together with the currency it is expressed in.
+class DisplayAmount {
+  const DisplayAmount(this.value, this.currency);
+
+  final double value;
+  final String currency;
+
+  String get formatted => CurrencyConverter.formatMoney(value, currency);
 }

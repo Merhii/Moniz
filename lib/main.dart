@@ -552,13 +552,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       displayCurrency: displayCurrency,
     );
     final snapshots = ref.watch(portfolioSnapshotProvider);
-    final displayZakat =
-        CurrencyConverter.convertFromUsd(
-          zakatResult.amountDueUsd,
-          displayCurrency,
-          prices: metalPriceState.snapshot,
-        ) ??
-        zakatResult.amountDueUsd;
+    // forDisplay reports the currency it actually used, so a missing rate can
+    // no longer show a USD figure wearing another currency's label.
+    final displayZakat = CurrencyConverter.forDisplay(
+      zakatResult.amountDueUsd,
+      displayCurrency,
+      prices: metalPriceState.snapshot,
+    );
     final summaryNote = [
       if (totals.hasUnpricedMetals)
         'Refresh metal prices in Settings to include metal holdings.',
@@ -581,7 +581,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           child: _WealthHero(
             wealthLabel: _filter.isActive ? 'Filtered wealth' : 'Total wealth',
             totalWealth: totals.totalValue,
-            zakat: displayZakat,
+            zakat: displayZakat.value,
+            zakatCurrency: displayZakat.currency,
             currency: totals.currency,
             onCurrencySelected: (currency) => ref
                 .read(displayCurrencyProvider.notifier)
@@ -702,6 +703,7 @@ class _WealthHero extends StatelessWidget {
     required this.wealthLabel,
     required this.totalWealth,
     required this.zakat,
+    required this.zakatCurrency,
     required this.currency,
     required this.onCurrencySelected,
     this.note,
@@ -710,6 +712,7 @@ class _WealthHero extends StatelessWidget {
   final String wealthLabel;
   final double totalWealth;
   final double zakat;
+  final String zakatCurrency;
   final String currency;
   final ValueChanged<String> onCurrencySelected;
   final String? note;
@@ -800,10 +803,10 @@ class _WealthHero extends StatelessWidget {
                       ),
                     ),
                     KineticNumber(
-                      _formatMoney(zakat, currency: currency),
+                      _formatMoney(zakat, currency: zakatCurrency),
                       fontSize: 20,
                       color: colors.accent,
-                      currency: currency,
+                      currency: zakatCurrency,
                     ),
                   ],
                 ),
@@ -986,13 +989,34 @@ class ZakatPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(zakatProvider);
     final notifier = ref.read(zakatProvider.notifier);
+    final prices = ref.watch(metalPriceProvider).snapshot;
     final result = ZakatEngine.calculate(
       assets: ref.watch(assetProvider),
-      prices: ref.watch(metalPriceProvider).snapshot,
+      prices: prices,
       settings: settings,
       payments: notifier.payments,
       today: DateTime.now(),
     );
+    final displayCurrency = ref.watch(displayCurrencyProvider);
+    // The engine works in USD; the screen shows whatever the dashboard shows,
+    // so the same obligation reads the same on both.
+    final amountDue = CurrencyConverter.forDisplay(
+      result.amountDueUsd,
+      displayCurrency,
+      prices: prices,
+    );
+    final eligibleWealth = CurrencyConverter.forDisplay(
+      result.eligibleWealthUsd,
+      displayCurrency,
+      prices: prices,
+    );
+    final nisab = result.nisabThresholdUsd == null
+        ? null
+        : CurrencyConverter.forDisplay(
+            result.nisabThresholdUsd!,
+            displayCurrency,
+            prices: prices,
+          );
     final colors = context.kinetic;
 
     final sectionDivider = Divider(
@@ -1044,10 +1068,10 @@ class ZakatPage extends ConsumerWidget {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.center,
                             child: KineticNumber(
-                              _formatMoney(result.amountDueUsd),
+                              amountDue.formatted,
                               key: const Key('zakat_amount_due'),
                               fontSize: heroSize,
-                              currency: CurrencyConverter.defaultCurrency,
+                              currency: amountDue.currency,
                               color: result.hasPaymentDue
                                   ? colors.accent
                                   : colors.foreground,
@@ -1074,10 +1098,9 @@ class ZakatPage extends ConsumerWidget {
                                   FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: KineticNumber(
-                                      _formatMoney(result.eligibleWealthUsd),
+                                      eligibleWealth.formatted,
                                       fontSize: 20,
-                                      currency:
-                                          CurrencyConverter.defaultCurrency,
+                                      currency: eligibleWealth.currency,
                                       color: colors.foreground,
                                     ),
                                   ),
@@ -1105,15 +1128,11 @@ class ZakatPage extends ConsumerWidget {
                                   FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: KineticNumber(
-                                      result.nisabThresholdUsd == null
+                                      nisab == null
                                           ? 'Awaiting'
-                                          : _formatMoney(
-                                              result.nisabThresholdUsd!,
-                                            ),
+                                          : nisab.formatted,
                                       fontSize: 20,
-                                      currency: result.nisabThresholdUsd == null
-                                          ? null
-                                          : CurrencyConverter.defaultCurrency,
+                                      currency: nisab?.currency,
                                       color: colors.foreground,
                                     ),
                                   ),
@@ -1181,7 +1200,12 @@ class ZakatPage extends ConsumerWidget {
                       thickness: 1,
                       color: colors.border.withValues(alpha: 0.15),
                     ),
-                  _AssessmentTile(result.assessments[i], cardless: true),
+                  _AssessmentTile(
+                    result.assessments[i],
+                    displayCurrency: displayCurrency,
+                    prices: prices,
+                    cardless: true,
+                  ),
                 ],
               ],
               const SizedBox(height: 16),
@@ -2311,17 +2335,28 @@ class _TransactionEventRow extends StatelessWidget {
 }
 
 class _AssessmentTile extends StatelessWidget {
-  const _AssessmentTile(this.assessment, {this.cardless = false});
+  const _AssessmentTile(
+    this.assessment, {
+    required this.displayCurrency,
+    required this.prices,
+    this.cardless = false,
+  });
 
   final ZakatAssetAssessment assessment;
+  final String displayCurrency;
+  final MetalPriceSnapshot? prices;
   final bool cardless;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final value = assessment.valueUsd == null
-        ? 'Not valued'
-        : _formatMoney(assessment.valueUsd!);
+        ? null
+        : CurrencyConverter.forDisplay(
+            assessment.valueUsd!,
+            displayCurrency,
+            prices: prices,
+          );
     final status = assessment.isIncluded
         ? 'Included in amount due'
         : assessment.exclusionReason ?? 'Excluded';
@@ -2357,11 +2392,9 @@ class _AssessmentTile extends StatelessWidget {
             ),
           ),
           KineticNumber(
-            value,
+            value?.formatted ?? 'Not valued',
             fontSize: 18,
-            currency: assessment.valueUsd == null
-                ? null
-                : CurrencyConverter.defaultCurrency,
+            currency: value?.currency,
           ),
         ],
       ),

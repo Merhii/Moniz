@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/asset.dart';
 import '../models/zakat_settings.dart';
 import '../providers/asset_provider.dart';
+import '../models/metal_price_snapshot.dart';
+import '../providers/display_currency_provider.dart';
 import '../providers/metal_price_provider.dart';
 import '../providers/zakat_provider.dart';
 import '../services/currency_converter.dart';
@@ -20,9 +22,11 @@ class ZakatBreakdownScreen extends ConsumerWidget {
     final colors = context.kinetic;
     final settings = ref.watch(zakatProvider);
     final notifier = ref.read(zakatProvider.notifier);
+    final prices = ref.watch(metalPriceProvider).snapshot;
+    final displayCurrency = ref.watch(displayCurrencyProvider);
     final result = ZakatEngine.calculate(
       assets: ref.watch(assetProvider),
-      prices: ref.watch(metalPriceProvider).snapshot,
+      prices: prices,
       settings: settings,
       payments: notifier.payments,
       today: DateTime.now(),
@@ -55,7 +59,11 @@ class ZakatBreakdownScreen extends ConsumerWidget {
                 children: [
                   _ZakatSettingsBlock(settings: settings),
                   const SizedBox(height: 14),
-                  _CalculationBlock(result: result),
+                  _CalculationBlock(
+                    result: result,
+                    displayCurrency: displayCurrency,
+                    prices: prices,
+                  ),
                   const SizedBox(height: 14),
                   KineticText(
                     'Holdings',
@@ -73,7 +81,13 @@ class ZakatBreakdownScreen extends ConsumerWidget {
                       child: KineticText('No assets added yet.'),
                     )
                   else
-                    ...result.assessments.map(_AssessmentTile.new),
+                    ...result.assessments.map(
+                      (assessment) => _AssessmentTile(
+                        assessment,
+                        displayCurrency: displayCurrency,
+                        prices: prices,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -151,9 +165,15 @@ class _ZakatSettingsBlock extends ConsumerWidget {
 }
 
 class _CalculationBlock extends ConsumerWidget {
-  const _CalculationBlock({required this.result});
+  const _CalculationBlock({
+    required this.result,
+    required this.displayCurrency,
+    required this.prices,
+  });
 
   final ZakatResult result;
+  final String displayCurrency;
+  final MetalPriceSnapshot? prices;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -165,20 +185,20 @@ class _CalculationBlock extends ConsumerWidget {
           KineticText('Amount due', style: AppTheme.labelStyle(colors)),
           const SizedBox(height: 10),
           KineticNumber(
-            _formatMoney(result.amountDueUsd),
+            _formatMoney(result.amountDueUsd, displayCurrency, prices),
             key: const Key('zakat_amount_due'),
             fontSize: 48,
-            currency: CurrencyConverter.defaultCurrency,
+            currency: CurrencyConverter.normalize(displayCurrency),
           ),
           const SizedBox(height: 10),
           KineticText(
-            'Eligible wealth: ${_formatMoney(result.eligibleWealthUsd)}',
+            'Eligible wealth: ${_formatMoney(result.eligibleWealthUsd, displayCurrency, prices)}',
           ),
           KineticText(
             result.nisabThresholdUsd == null
                 ? 'Nisab: awaiting live prices'
                 : 'Nisab (${result.settings.nisabStandard.label}): '
-                      '${_formatMoney(result.nisabThresholdUsd!)}',
+                      '${_formatMoney(result.nisabThresholdUsd!, displayCurrency, prices)}',
           ),
           if (result.message != null) ...[
             const SizedBox(height: 8),
@@ -195,16 +215,22 @@ class _CalculationBlock extends ConsumerWidget {
 }
 
 class _AssessmentTile extends StatelessWidget {
-  const _AssessmentTile(this.assessment);
+  const _AssessmentTile(
+    this.assessment, {
+    required this.displayCurrency,
+    required this.prices,
+  });
 
   final ZakatAssetAssessment assessment;
+  final String displayCurrency;
+  final MetalPriceSnapshot? prices;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
     final value = assessment.valueUsd == null
         ? 'Not valued'
-        : _formatMoney(assessment.valueUsd!);
+        : _formatMoney(assessment.valueUsd!, displayCurrency, prices);
     final status = assessment.isIncluded
         ? 'Included in amount due'
         : assessment.exclusionReason ?? 'Excluded';
@@ -240,9 +266,14 @@ String _formatDate(DateTime date) {
   return '${date.year}-$month-$day';
 }
 
-String _formatMoney(double value) {
-  return CurrencyConverter.formatMoney(
-    value,
-    CurrencyConverter.defaultCurrency,
-  );
+String _formatMoney(
+  double valueUsd,
+  String displayCurrency,
+  MetalPriceSnapshot? prices,
+) {
+  return CurrencyConverter.forDisplay(
+    valueUsd,
+    displayCurrency,
+    prices: prices,
+  ).formatted;
 }

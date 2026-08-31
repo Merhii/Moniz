@@ -26,8 +26,12 @@ void main() {
     Hive.registerAdapter(NisabStandardAdapter());
     Hive.registerAdapter(ZakatSettingsAdapter());
     Hive.registerAdapter(ZakatPaymentRecordAdapter());
+    Hive.registerAdapter(MetalPriceSnapshotAdapter());
     await Hive.openBox<ZakatSettings>('zakatSettings');
     await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
+    // The confirmation now quotes the amount in the display currency.
+    await Hive.openBox<MetalPriceSnapshot>('metalPrices');
+    await Hive.openBox<dynamic>('uiPreferences');
   });
 
   tearDownAll(() async {

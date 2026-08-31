@@ -16,6 +16,7 @@ import 'package:moniz/providers/app_lock_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
 import 'package:moniz/services/biometric_auth_service.dart';
 import 'package:moniz/services/metal_price_service.dart';
+import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 import 'package:moniz/widgets/asset_form_dialog.dart';
 
 void main() {
@@ -448,6 +449,57 @@ void main() {
     await _pumpKinetic(tester);
     expect(find.text('Settings'), findsWidgets);
     expect(find.text('Theme mode'), findsOneWidget);
+  });
+
+  testWidgets('zakat is quoted in the display currency everywhere', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<dynamic>('uiPreferences').put('displayCurrency', 'AED');
+      // The default schedule is Ramadan-annual with no date, under which
+      // nothing is ever assessed.
+      await Hive.box<ZakatSettings>('zakatSettings').put(
+        'settings',
+        const ZakatSettings(scheduleMode: ZakatScheduleMode.individualDueDates),
+      );
+      await Hive.box<Asset>('assets').put(
+        'cash',
+        Asset(
+          id: 'cash',
+          type: AssetType.cash,
+          amount: 50000,
+          unit: 'USD',
+          boughtDate: DateTime(2020, 1, 1),
+        ),
+      );
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
+          priceTimestamp: DateTime.utc(2026, 5, 27),
+          fetchedAt: DateTime.utc(2026, 5, 27),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    // 50,000 USD -> 1,250 USD zakat -> AED 4,590.63 at the peg. The dashboard
+    // already converts.
+    expect(find.text('4,590.63'), findsWidgets);
+
+    await tester.tap(find.byKey(const Key('zakat_nav')));
+    await _pumpKinetic(tester);
+
+    // The Zakat tab must not disagree with the dashboard about the same
+    // obligation.
+    final amountDue = tester
+        .widgetList<KineticNumber>(find.byKey(const Key('zakat_amount_due')))
+        .first;
+    expect(amountDue.currency, 'AED');
+    expect(amountDue.value, 'AED 4,590.63');
   });
 
   testWidgets('opens the About tab from bottom navigation', (tester) async {
