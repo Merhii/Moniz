@@ -370,6 +370,17 @@ void main() {
     expect(find.text('Theme mode'), findsOneWidget);
   });
 
+  testWidgets('opens the About tab from bottom navigation', (tester) async {
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('about_nav')));
+    await _pumpKinetic(tester);
+
+    expect(find.text('About MONIZ'), findsOneWidget);
+    expect(find.text('APP VERSION'), findsOneWidget);
+  });
+
   testWidgets('dashboard filters holdings by tag', (tester) async {
     tester.view.physicalSize = const Size(1000, 2400);
     tester.view.devicePixelRatio = 1;

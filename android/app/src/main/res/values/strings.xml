@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MONIZ</string>
+    <string name="moniz_widget_description">Quick MONIZ launcher widget with app version.</string>
+</resources>

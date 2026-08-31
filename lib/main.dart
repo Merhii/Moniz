@@ -24,6 +24,7 @@ import 'services/wealth_calculator.dart';
 import 'services/zakat_engine.dart';
 import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
+import 'widgets/about_page.dart';
 import 'widgets/asset_form_dialog.dart';
 import 'widgets/app_lock_gate.dart';
 import 'widgets/dashboard_charts.dart';
@@ -104,6 +105,7 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
       const HoldingsPage(),
       const ZakatPage(),
       const SettingsPage(),
+      const AboutPage(),
     ];
     final colors = context.kinetic;
     return Scaffold(
@@ -116,11 +118,12 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
         title: _selectedPage == 0
             ? const _MonizLogo()
             : KineticText(
-                _selectedPage == 1
-                    ? 'Ledger'
-                    : _selectedPage == 2
-                        ? 'Zakat'
-                        : 'Settings',
+                switch (_selectedPage) {
+                1 => 'Ledger',
+                2 => 'Zakat',
+                3 => 'Settings',
+                _ => 'About',
+                },
                 style: AppTheme.titleStyle(colors).copyWith(fontSize: 22),
               ),
         actions: [
@@ -193,6 +196,7 @@ class _KineticNav extends StatelessWidget {
       key: Key('zakat_nav'),
     ),
     (label: 'Settings', icon: Icons.tune_rounded, key: Key('settings_nav')),
+    (label: 'About', icon: Icons.info_outline_rounded, key: Key('about_nav')),
   ];
 
   @override

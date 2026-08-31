@@ -97,6 +97,38 @@ class NotificationPreferencesNotifier
     }
   }
 
+  Future<void> setTopicGroupSubscription({
+    required List<NotificationTopic> topics,
+    required bool isSubscribed,
+  }) async {
+    if (topics.isEmpty) return;
+
+    state = state.copyWith(isSyncing: true, clearError: true);
+    try {
+      var subscribedTopicIds = state.subscribedTopicIds;
+      for (final topic in topics) {
+        subscribedTopicIds = await _preferencesService.setTopicSubscription(
+          topic: topic,
+          isSubscribed: isSubscribed,
+        );
+      }
+      if (!mounted) return;
+      state = state.copyWith(
+        subscribedTopicIds: subscribedTopicIds,
+        isSyncing: false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      state = state.copyWith(
+        subscribedTopicIds: Set<String>.unmodifiable(
+          _preferencesService.readSubscribedTopicIds(),
+        ),
+        isSyncing: false,
+        errorMessage: 'Unable to save notification preferences right now.',
+      );
+    }
+  }
+
   Future<void> reconcileSubscriptions() async {
     try {
       final subscribedTopicIds = await _preferencesService
