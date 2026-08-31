@@ -31,6 +31,9 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+android/build/
+android/app/build/
+android/.gradle/
 /coverage/
 
 # Local runtime configuration and API keys
