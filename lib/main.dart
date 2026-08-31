@@ -34,6 +34,7 @@ import 'widgets/notification_settings_screen.dart';
 import 'widgets/portfolio_insights_card.dart';
 import 'widgets/security_settings_card.dart';
 import 'widgets/transaction_history_screen.dart';
+import 'widgets/zakat_mark_paid_button.dart';
 
 void main() {
   // Nothing is awaited before runApp. Anything that can fail - reaching the
@@ -1145,23 +1146,7 @@ class ZakatPage extends ConsumerWidget {
                         ],
                         if (result.hasPaymentDue) ...[
                           const SizedBox(height: 20),
-                          BrutalistButton(
-                            key: const Key('mark_zakat_paid'),
-                            label: 'Mark as paid',
-                            tone: BrutalistButtonTone.primary,
-                            onPressed: () async {
-                              await ref
-                                  .read(zakatProvider.notifier)
-                                  .recordPayment(result, DateTime.now());
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Zakat payment recorded.'),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
+                          ZakatMarkPaidButton(result: result),
                         ],
                       ],
                     ),
