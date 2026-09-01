@@ -128,6 +128,23 @@ void main() {
 
     expect(find.text('Notifications'), findsOneWidget);
     expect(find.byKey(const Key('close_notifications')), findsOneWidget);
+
+    // The bell used to land on a page reading "Future implementation"; the
+    // old assertions passed anyway because they only checked the title and
+    // the back button.
+    expect(find.text('Future implementation'), findsNothing);
+    final page = find.byKey(const Key('notifications_scroll'));
+    expect(
+      find.descendant(of: page, matching: find.text('Notification interests')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: page,
+        matching: find.textContaining('topics you want'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('fetches metals on startup and exposes refresh in settings', (

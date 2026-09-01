@@ -1581,11 +1581,7 @@ class NotificationsScreen extends StatelessWidget {
           slivers: [
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(16, 24, 16, 24),
-              sliver: SliverToBoxAdapter(
-                child: Center(
-                  child: KineticText('Future implementation', muted: true),
-                ),
-              ),
+              sliver: SliverToBoxAdapter(child: NotificationSettingsScreen()),
             ),
           ],
         ),
