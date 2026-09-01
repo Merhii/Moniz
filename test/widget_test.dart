@@ -918,6 +918,53 @@ void main() {
     );
   });
 
+  testWidgets('marking sold with no details is refused, not silently dropped', (
+    tester,
+  ) async {
+    final gold = Asset(
+      id: 'gold',
+      type: AssetType.gold,
+      amount: 20,
+      unit: 'g',
+      purity: 99.9,
+      boughtDate: DateTime(2024, 1, 1),
+    );
+    Asset? submitted;
+    var closed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              submitted = await showDialog<Asset>(
+                context: context,
+                builder: (_) => AssetFormDialog(asset: gold),
+              );
+              closed = true;
+            },
+            child: const Text('Open form'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open form'));
+    await _pumpKinetic(tester);
+
+    await tester.ensureVisible(find.byKey(const Key('asset_is_sold_toggle')));
+    await tester.tap(find.byKey(const Key('asset_is_sold_toggle')));
+    await _pumpKinetic(tester);
+    await tester.ensureVisible(find.byKey(const Key('asset_save_button')));
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await _pumpKinetic(tester);
+
+    // Previously this saved with soldDate null, so the holding was not sold
+    // and nothing said so.
+    expect(closed, isFalse);
+    expect(submitted, isNull);
+    expect(find.byKey(const Key('asset_date_error')), findsOneWidget);
+    expect(find.textContaining('Select a sold date'), findsOneWidget);
+  });
+
   testWidgets('rejects inconsistent transaction dates', (tester) async {
     final asset = Asset(
       id: 'invalid-dates',

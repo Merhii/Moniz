@@ -498,7 +498,13 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
   }
 
   String? _validateDates() {
-    if (!_isMetal || !_isSold || _soldDate == null) return null;
+    if (!_isMetal || !_isSold) return null;
+    // Without this the sale is dropped on save: soldDate stays null, isSold
+    // reads false, and the form closes as though the holding had been marked
+    // sold.
+    if (_soldDate == null) {
+      return 'Select a sold date, or turn off "this asset has been sold"';
+    }
     if (_boughtDate == null) {
       return 'Select a bought date before marking this asset sold';
     }
