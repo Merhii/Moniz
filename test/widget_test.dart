@@ -418,7 +418,7 @@ void main() {
     expect(find.byKey(const Key('asset_tag_business_profit')), findsOneWidget);
   });
 
-  testWidgets('opens zakat breakdown with payment mode and nisab settings', (
+  testWidgets('zakat tab shows payment mode and nisab settings', (
     tester,
   ) async {
     await tester.pumpWidget(_buildApp());
