@@ -52,15 +52,7 @@ void main() {
 Future<void> openMonizStorage() async {
   await Hive.initFlutter();
 
-  _registerAdapter(AssetTypeAdapter());
-  _registerAdapter(AssetTagAdapter());
-  _registerAdapter(AssetAdapter());
-  _registerAdapter(MetalPriceSnapshotAdapter());
-  _registerAdapter(ZakatScheduleModeAdapter());
-  _registerAdapter(NisabStandardAdapter());
-  _registerAdapter(ZakatSettingsAdapter());
-  _registerAdapter(ZakatPaymentRecordAdapter());
-  _registerAdapter(PortfolioSnapshotAdapter());
+  registerMonizAdapters();
 
   const boxNames = [
     'assets',
@@ -89,9 +81,27 @@ Future<void> openMonizStorage() async {
   await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
 }
 
-void _registerAdapter(TypeAdapter<dynamic> adapter) {
+/// Registers every Hive adapter the app needs, once.
+///
+/// The type argument matters: Hive matches a value to an adapter with
+/// `value is T`, so registering through a `TypeAdapter<dynamic>` makes the
+/// first adapter match every value and every write goes to the wrong one.
+@visibleForTesting
+void registerMonizAdapters() {
+  _registerAdapter(AssetTypeAdapter());
+  _registerAdapter(AssetTagAdapter());
+  _registerAdapter(AssetAdapter());
+  _registerAdapter(MetalPriceSnapshotAdapter());
+  _registerAdapter(ZakatScheduleModeAdapter());
+  _registerAdapter(NisabStandardAdapter());
+  _registerAdapter(ZakatSettingsAdapter());
+  _registerAdapter(ZakatPaymentRecordAdapter());
+  _registerAdapter(PortfolioSnapshotAdapter());
+}
+
+void _registerAdapter<T>(TypeAdapter<T> adapter) {
   if (Hive.isAdapterRegistered(adapter.typeId)) return;
-  Hive.registerAdapter(adapter);
+  Hive.registerAdapter<T>(adapter);
 }
 
 /// Opens storage before handing over to [MonizApp], and shows why it could not
