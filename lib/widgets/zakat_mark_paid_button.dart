@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/display_currency_provider.dart';
+import '../providers/metal_price_provider.dart';
 import '../providers/zakat_provider.dart';
 import '../services/currency_converter.dart';
 import '../services/zakat_engine.dart';
@@ -26,10 +28,11 @@ class ZakatMarkPaidButton extends ConsumerWidget {
   }
 
   Future<void> _confirmAndRecord(BuildContext context, WidgetRef ref) async {
-    final amount = CurrencyConverter.formatMoney(
+    final amount = CurrencyConverter.forDisplay(
       result.amountDueUsd,
-      CurrencyConverter.defaultCurrency,
-    );
+      ref.read(displayCurrencyProvider),
+      prices: ref.read(metalPriceProvider).snapshot,
+    ).formatted;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
