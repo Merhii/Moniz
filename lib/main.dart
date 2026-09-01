@@ -607,60 +607,69 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             items: _metalTickerItems(metalPriceState, displayCurrency),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          sliver: SliverList.list(
-            children: [
-              DashboardFiltersCard(
-                assets: assets,
-                filter: _filter,
-                onTypeSelected: _selectType,
-                onTagSelected: _selectTag,
-                onSelectFromDate: () => _selectDate(isStart: true),
-                onSelectToDate: () => _selectDate(isStart: false),
-                onClear: () =>
-                    setState(() => _filter = const DashboardFilter()),
-              ),
-              const SizedBox(height: 16),
-              KineticText(
-                _filter.isActive
-                    ? 'Showing ${filteredAssets.length} of ${assets.length} holdings'
-                    : 'Showing all ${assets.length} holdings',
-                key: const Key('dashboard_filter_result'),
-                muted: true,
-                style: AppTheme.bodyStyle(
-                  colors,
-                ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              sectionDivider,
-              PortfolioInsightsCard(
-                analytics: analytics,
-                snapshotAnalytics: completeAnalyticsUsd,
-                isFiltered: _filter.isActive,
-                cardless: true,
-                onOpenHistory: () => Navigator.of(context).push<void>(
-                  PageRouteBuilder<void>(
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                    pageBuilder: (_, _, _) => const TransactionHistoryScreen(),
+        if (assets.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _DashboardEmptyState(
+              onAddHolding: () => _showAssetFormDialog(context, ref),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            sliver: SliverList.list(
+              children: [
+                DashboardFiltersCard(
+                  assets: assets,
+                  filter: _filter,
+                  onTypeSelected: _selectType,
+                  onTagSelected: _selectTag,
+                  onSelectFromDate: () => _selectDate(isStart: true),
+                  onSelectToDate: () => _selectDate(isStart: false),
+                  onClear: () =>
+                      setState(() => _filter = const DashboardFilter()),
+                ),
+                const SizedBox(height: 16),
+                KineticText(
+                  _filter.isActive
+                      ? 'Showing ${filteredAssets.length} of ${assets.length} holdings'
+                      : 'Showing all ${assets.length} holdings',
+                  key: const Key('dashboard_filter_result'),
+                  muted: true,
+                  style: AppTheme.bodyStyle(
+                    colors,
+                  ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                sectionDivider,
+                PortfolioInsightsCard(
+                  analytics: analytics,
+                  snapshotAnalytics: completeAnalyticsUsd,
+                  isFiltered: _filter.isActive,
+                  cardless: true,
+                  onOpenHistory: () => Navigator.of(context).push<void>(
+                    PageRouteBuilder<void>(
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                      pageBuilder: (_, _, _) =>
+                          const TransactionHistoryScreen(),
+                    ),
                   ),
                 ),
-              ),
-              sectionDivider,
-              PortfolioTrendCard(
-                snapshots: snapshots,
-                performance: completePerformance,
-                assets: assets,
-                metalPriceHistory: metalPriceState.historicalPrices,
-                displayCurrency: displayCurrency,
-                cardless: true,
-              ),
-              sectionDivider,
-              ProfitLossCard(summary: performance, cardless: true),
-              const SizedBox(height: 16),
-            ],
+                sectionDivider,
+                PortfolioTrendCard(
+                  snapshots: snapshots,
+                  performance: completePerformance,
+                  assets: assets,
+                  metalPriceHistory: metalPriceState.historicalPrices,
+                  displayCurrency: displayCurrency,
+                  cardless: true,
+                ),
+                sectionDivider,
+                ProfitLossCard(summary: performance, cardless: true),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -705,6 +714,57 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         );
       }
     });
+  }
+}
+
+/// Shown on the dashboard until the first holding exists.
+///
+/// Filters, allocation and history all need holdings to say anything, so with
+/// none they are replaced by the one thing worth doing here.
+class _DashboardEmptyState extends StatelessWidget {
+  const _DashboardEmptyState({required this.onAddHolding});
+
+  final VoidCallback onAddHolding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.account_balance_wallet_outlined,
+            size: 44,
+            color: colors.accent,
+          ),
+          const SizedBox(height: 16),
+          KineticText(
+            'No holdings yet',
+            key: const Key('dashboard_empty_title'),
+            align: TextAlign.center,
+            style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+          ),
+          const SizedBox(height: 10),
+          KineticText(
+            'Add your cash, gold and silver to see what you are worth and '
+            'whether zakat is due.',
+            align: TextAlign.center,
+            muted: true,
+            uppercase: false,
+            style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+          ),
+          const SizedBox(height: 22),
+          BrutalistButton(
+            key: const Key('dashboard_add_first_holding'),
+            label: 'Add your first holding',
+            tone: BrutalistButtonTone.primary,
+            onPressed: onAddHolding,
+          ),
+        ],
+      ),
+    );
   }
 }
 
