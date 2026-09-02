@@ -18,6 +18,7 @@ import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
 import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
+import 'services/app_lock_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
 import 'services/portfolio_analytics.dart';
@@ -54,6 +55,13 @@ Future<void> openMonizStorage() async {
 
   registerMonizAdapters();
 
+  // The keychain outlives the app: delete Moniz and reinstall it and the PIN
+  // is still there, now guarding a database that is not. The box files are
+  // created the first time they are opened, so their absence here means this
+  // is the first launch of a fresh install and any credential we find belongs
+  // to a previous one.
+  final isFreshInstall = !await Hive.boxExists('assets');
+
   const boxNames = [
     'assets',
     'metalPrices',
@@ -79,6 +87,26 @@ Future<void> openMonizStorage() async {
     encryptionCipher: cipher,
   );
   await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
+
+  await discardOrphanedAppLock(
+    isFreshInstall: isFreshInstall,
+    storage: const SecureAppLockStorage(),
+  );
+}
+
+/// Drops an app-lock credential left behind by a previous install.
+///
+/// Only on the first launch of a fresh install. A PIN set during a normal
+/// session is kept: by the next launch the box files exist, so this does
+/// nothing. Anything restored from a backup brings its boxes with it and is
+/// likewise left alone.
+@visibleForTesting
+Future<void> discardOrphanedAppLock({
+  required bool isFreshInstall,
+  required AppLockStorage storage,
+}) async {
+  if (!isFreshInstall) return;
+  await AppLockService(storage: storage).removePin();
 }
 
 /// Registers every Hive adapter the app needs, once.
