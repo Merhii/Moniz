@@ -109,6 +109,8 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
   late bool _isSold;
   String? _dateError;
   String? _purityError;
+  final _purityAnchor = GlobalKey();
+  final _dateAnchor = GlobalKey();
 
   bool get _isEditing => widget.asset != null;
   bool get _isMetal => _selectedType.isMetal;
@@ -274,13 +276,16 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             ),
                             if (_purityError != null) ...[
                               const SizedBox(height: 8),
-                              KineticText(
-                                _purityError!,
-                                key: const Key('asset_purity_error'),
-                                style: AppTheme.bodyStyle(
-                                  colors,
-                                ).copyWith(color: colors.loss, fontSize: 12),
-                                uppercase: false,
+                              KeyedSubtree(
+                                key: _purityAnchor,
+                                child: KineticText(
+                                  _purityError!,
+                                  key: const Key('asset_purity_error'),
+                                  style: AppTheme.bodyStyle(
+                                    colors,
+                                  ).copyWith(color: colors.loss, fontSize: 12),
+                                  uppercase: false,
+                                ),
                               ),
                             ],
                             const SizedBox(height: 18),
@@ -324,13 +329,16 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             ],
                             if (_dateError != null) ...[
                               const SizedBox(height: 8),
-                              KineticText(
-                                _dateError!,
-                                key: const Key('asset_date_error'),
-                                style: AppTheme.bodyStyle(
-                                  colors,
-                                ).copyWith(color: colors.loss, fontSize: 12),
-                                uppercase: false,
+                              KeyedSubtree(
+                                key: _dateAnchor,
+                                child: KineticText(
+                                  _dateError!,
+                                  key: const Key('asset_date_error'),
+                                  style: AppTheme.bodyStyle(
+                                    colors,
+                                  ).copyWith(color: colors.loss, fontSize: 12),
+                                  uppercase: false,
+                                ),
                               ),
                             ],
                           ],
@@ -430,7 +438,12 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
       _dateError = dateError;
       _purityError = purityError;
     });
-    if (!hasValidFields || dateError != null || purityError != null) return;
+    if (!hasValidFields || dateError != null || purityError != null) {
+      // The Add button sits pinned at the bottom, so an error further up the
+      // form is invisible from there and the tap looks like it did nothing.
+      _revealFirstError(purityError: purityError, dateError: dateError);
+      return;
+    }
 
     final note = _notesController.text.trim();
     final asset = Asset(
@@ -463,6 +476,23 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
     if (number.isInfinite) return '$label is too large';
     if (number <= 0) return '$label must be greater than zero';
     return null;
+  }
+
+  void _revealFirstError({String? purityError, String? dateError}) {
+    if (purityError == null && dateError == null) return;
+    // The error widgets are built by the setState that precedes this, so their
+    // contexts only exist once that frame is done.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = purityError != null
+          ? _purityAnchor.currentContext
+          : _dateAnchor.currentContext;
+      if (context == null) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: AppTheme.fast,
+        alignment: 0.3,
+      );
+    });
   }
 
   String? _validateSelectedPurity() {
@@ -553,7 +583,11 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
             ? _goldPurityOptions
             : _silverPurityOptions;
         if (!options.any((option) => option.value == _selectedPurity)) {
-          _selectedPurity = options.first.value;
+          // Only choose when there is nothing to choose between. Silently
+          // defaulting gold to 24K overstates a 22K holding by 8% and an 18K
+          // one by 25%, in both wealth and zakat, without the owner ever
+          // being asked.
+          _selectedPurity = options.length == 1 ? options.single.value : null;
         }
       }
     });

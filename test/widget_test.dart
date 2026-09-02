@@ -963,6 +963,79 @@ void main() {
     expect(find.text('Bought price is too large'), findsOneWidget);
   });
 
+  testWidgets('gold purity must be chosen, silver picks its only option', (
+    tester,
+  ) async {
+    Asset? submitted;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              submitted = await showDialog<Asset>(
+                context: context,
+                builder: (_) => const AssetFormDialog(),
+              );
+            },
+            child: const Text('Open form'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open form'));
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('asset_type_gold')));
+    await _pumpKinetic(tester);
+    await tester.enterText(find.byKey(const Key('asset_amount_field')), '20');
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await _pumpKinetic(tester);
+
+    // Gold used to arrive pre-set to 24K, so a 22K holding saved as 24K
+    // unless the owner noticed and changed it.
+    expect(submitted, isNull);
+    expect(find.text('Select a purity'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('asset_purity_gold_22k')));
+    await tester.tap(find.byKey(const Key('asset_purity_gold_22k')));
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await _pumpKinetic(tester);
+    expect(submitted?.purity, 91.7);
+  });
+
+  testWidgets('silver still picks its single purity automatically', (
+    tester,
+  ) async {
+    Asset? submitted;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              submitted = await showDialog<Asset>(
+                context: context,
+                builder: (_) => const AssetFormDialog(),
+              );
+            },
+            child: const Text('Open form'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open form'));
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('asset_type_silver')));
+    await _pumpKinetic(tester);
+    await tester.enterText(find.byKey(const Key('asset_amount_field')), '200');
+    await tester.tap(find.byKey(const Key('asset_save_button')));
+    await _pumpKinetic(tester);
+
+    // One option means there is nothing to ask about.
+    expect(submitted?.purity, 99.5);
+  });
+
   testWidgets('rejects invalid metal purity and incomplete sale details', (
     tester,
   ) async {
