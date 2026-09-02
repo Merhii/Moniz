@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'models/asset.dart';
 import 'models/metal_price_snapshot.dart';
@@ -2544,6 +2545,78 @@ Future<void> _showAssetFormDialog(
   } else {
     await notifier.updateAsset(result);
   }
+
+  final justSold = result.isSold && !(asset?.isSold ?? false);
+  if (justSold && context.mounted) {
+    await _offerToRecordProceeds(context, ref, result);
+  }
+}
+
+/// Offers to put the money from a sale back into the ledger.
+///
+/// Marking a holding sold takes it out of wealth and zakat but records
+/// nothing in its place, so the proceeds simply vanish: sell 20g of gold for
+/// $2,000 and the total drops by $2,000 with the money nowhere. It is offered
+/// rather than automatic because the cash may already have been recorded by
+/// hand, and adding it twice would be worse than not adding it at all.
+Future<void> _offerToRecordProceeds(
+  BuildContext context,
+  WidgetRef ref,
+  Asset sold,
+) async {
+  final proceeds = sold.soldPrice;
+  if (proceeds == null || proceeds <= 0) return;
+
+  final amount = CurrencyConverter.formatMoney(proceeds, sold.currency);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Record what you received?'),
+      content: Text(
+        'This sale takes ${sold.type.label.toLowerCase()} out of your wealth '
+        'and zakat. Add the $amount you received as cash so it still counts. '
+        'Skip if you have already recorded it.',
+      ),
+      actions: [
+        TextButton(
+          key: const Key('skip_sale_proceeds'),
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Not now'),
+        ),
+        TextButton(
+          key: const Key('record_sale_proceeds'),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Add as cash'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  await ref
+      .read(assetProvider.notifier)
+      .addAsset(buildSaleProceeds(sold, const Uuid().v4()));
+}
+
+/// The cash holding standing in for a sale.
+///
+/// It carries the sold holding's own start date, not the sale date, so the
+/// lunar year continues across the sale. Restarting it would let selling just
+/// before an anniversary reset the zakat owed on that wealth.
+@visibleForTesting
+Asset buildSaleProceeds(Asset sold, String id) {
+  return Asset(
+    id: id,
+    type: AssetType.cash,
+    amount: sold.soldPrice!,
+    unit: sold.currency,
+    currency: sold.currency,
+    boughtDate: sold.boughtDate,
+    tag: sold.tag,
+    note:
+        'Proceeds from selling ${_trimNumber(sold.amount)} ${sold.unit} '
+        'of ${sold.type.label.toLowerCase()}',
+  );
 }
 
 PageRouteBuilder<T> _kineticRoute<T>(Widget child) {

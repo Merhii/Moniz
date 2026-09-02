@@ -240,6 +240,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                           ),
                           const SizedBox(height: 18),
                           _DateField(
+                            key: const Key('asset_bought_date_field'),
                             label: 'Holding start date',
                             date: _boughtDate,
                             onTap: () => _selectDate(isBoughtDate: true),
@@ -310,6 +311,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                             if (_isSold) ...[
                               const SizedBox(height: 18),
                               _DateField(
+                                key: const Key('asset_sold_date_field'),
                                 label: 'Sold date',
                                 date: _soldDate,
                                 onTap: () => _selectDate(isBoughtDate: false),
@@ -842,6 +844,7 @@ class _SelectionMenuItem<T> extends StatelessWidget {
 
 class _DateField extends StatelessWidget {
   const _DateField({
+    super.key,
     required this.label,
     required this.date,
     required this.onTap,
