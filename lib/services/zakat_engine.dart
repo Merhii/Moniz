@@ -77,7 +77,7 @@ class ZakatEngine {
         amountDueUsd: 0,
         canCalculate: false,
         isScheduleDue: false,
-        message: 'Refresh prices to calculate the current nisab and zakat.',
+        message: _blockedMessage(settings),
       );
     }
 
@@ -120,6 +120,23 @@ class ZakatEngine {
         nisabThresholdUsd: nisabThresholdUsd,
       ),
     );
+  }
+
+  /// Everything standing between the user and a zakat figure, at once.
+  ///
+  /// Missing prices short-circuit the whole calculation, so a new user was
+  /// told to refresh prices and only afterwards discovered they also had to
+  /// pick a Ramadan date - two dead ends in a row instead of one list.
+  static String _blockedMessage(ZakatSettings settings) {
+    final needsRamadanDate =
+        settings.scheduleMode == ZakatScheduleMode.ramadanAnnual &&
+        settings.nextRamadanDueDate == null;
+    if (!needsRamadanDate) {
+      return 'Refresh metal prices in Settings to calculate the current nisab '
+          'and zakat.';
+    }
+    return 'Zakat needs two things here: refresh metal prices in Settings, '
+        'and choose your next Ramadan date.';
   }
 
   static ZakatAssetAssessment _assessAsset({

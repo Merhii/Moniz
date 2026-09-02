@@ -123,6 +123,74 @@ void main() {
     expect(silverResult.nisabThresholdUsd, 612.36);
   });
 
+  group('what is blocking a calculation', () {
+    test('names prices and the Ramadan date together, not one then the '
+        'other', () {
+      final result = ZakatEngine.calculate(
+        assets: const [
+          Asset(id: 'cash', type: AssetType.cash, amount: 50000, unit: 'USD'),
+        ],
+        prices: null,
+        settings: const ZakatSettings(),
+        payments: const {},
+        today: DateTime(2026, 9, 2),
+      );
+
+      // A fresh install has neither. Reporting only the prices sent people
+      // to Settings, then straight into a second dead end.
+      expect(result.canCalculate, isFalse);
+      expect(result.message, contains('prices'));
+      expect(result.message, contains('Ramadan date'));
+    });
+
+    test('mentions only prices when the schedule is already set up', () {
+      final result = ZakatEngine.calculate(
+        assets: const [
+          Asset(id: 'cash', type: AssetType.cash, amount: 50000, unit: 'USD'),
+        ],
+        prices: null,
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2026, 9, 2),
+      );
+
+      expect(result.message, contains('prices'));
+      expect(result.message, isNot(contains('Ramadan')));
+    });
+
+    test('mentions only prices when a Ramadan date is already chosen', () {
+      final result = ZakatEngine.calculate(
+        assets: const [
+          Asset(id: 'cash', type: AssetType.cash, amount: 50000, unit: 'USD'),
+        ],
+        prices: null,
+        settings: ZakatSettings(nextRamadanDueDate: DateTime(2027, 3, 1)),
+        payments: const {},
+        today: DateTime(2026, 9, 2),
+      );
+
+      expect(result.message, contains('prices'));
+      expect(result.message, isNot(contains('Ramadan')));
+    });
+
+    test('once prices arrive, the Ramadan date is still asked for', () {
+      final result = ZakatEngine.calculate(
+        assets: const [
+          Asset(id: 'cash', type: AssetType.cash, amount: 50000, unit: 'USD'),
+        ],
+        prices: _prices(),
+        settings: const ZakatSettings(),
+        payments: const {},
+        today: DateTime(2026, 9, 2),
+      );
+
+      expect(result.canCalculate, isTrue);
+      expect(result.message, contains('Ramadan'));
+    });
+  });
+
   group('payments across schedule modes', () {
     final asset = Asset(
       id: 'cash',
