@@ -70,6 +70,51 @@ void main() {
     expect(find.text('No assets yet'), findsOneWidget);
   });
 
+  testWidgets('first run offers a way to add a holding, not empty filters', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    expect(find.byKey(const Key('dashboard_empty_title')), findsOneWidget);
+    expect(
+      find.byKey(const Key('dashboard_add_first_holding')),
+      findsOneWidget,
+    );
+
+    // Controls that need holdings to mean anything are not shown.
+    expect(find.byKey(const Key('filter_type_all')), findsNothing);
+    expect(find.byKey(const Key('dashboard_filter_result')), findsNothing);
+    expect(find.text('Asset allocation'), findsNothing);
+
+    // And the call to action opens the form.
+    final cta = find.byKey(const Key('dashboard_add_first_holding'));
+    await tester.ensureVisible(cta);
+    await _pumpKinetic(tester);
+    await tester.tap(cta);
+    await _pumpKinetic(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('asset_amount_field')), findsOneWidget);
+  });
+
+  testWidgets('filters and analytics come back once a holding exists', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'cash',
+        const Asset(id: 'cash', type: AssetType.cash, amount: 100, unit: 'USD'),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    expect(find.byKey(const Key('dashboard_empty_title')), findsNothing);
+    expect(find.byKey(const Key('filter_type_all')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard_add_first_holding')), findsNothing);
+  });
+
   testWidgets('dashboard fits a compact mobile viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -89,6 +134,13 @@ void main() {
   testWidgets('fades the tag filter rail when it runs off a phone screen', (
     tester,
   ) async {
+    // The filter rail only appears once there is something to filter.
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'cash',
+        const Asset(id: 'cash', type: AssetType.cash, amount: 100, unit: 'USD'),
+      );
+    });
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
