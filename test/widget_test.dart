@@ -818,6 +818,120 @@ void main() {
     expect(submittedAsset?.note, 'Updated holding');
   });
 
+  testWidgets('selling a holding offers to record the proceeds', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'gold',
+        Asset(
+          id: 'gold',
+          type: AssetType.gold,
+          amount: 20,
+          unit: 'g',
+          purity: 99.9,
+          boughtDate: DateTime(2024, 1, 1),
+        ),
+      );
+    });
+
+    final notifier = _RecordingAssetNotifier();
+    await tester.pumpWidget(
+      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    );
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('asset_amount_field')), findsOneWidget);
+
+    final soldToggle = find.byKey(const Key('asset_is_sold_toggle'));
+    await tester.ensureVisible(soldToggle);
+    await tester.tap(soldToggle);
+    await _pumpKinetic(tester);
+
+    final soldDate = find.byKey(const Key('asset_sold_date_field'));
+    await tester.ensureVisible(soldDate);
+    await tester.tap(soldDate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('asset_sold_price_field')),
+      '2000',
+    );
+    final save = find.byKey(const Key('asset_save_button'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await _pumpKinetic(tester);
+    await _pumpKinetic(tester);
+
+    // Without this the $2,000 simply leaves the ledger.
+    expect(find.text('Record what you received?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('record_sale_proceeds')));
+    await _pumpKinetic(tester);
+
+    expect(notifier.added, hasLength(1));
+    expect(notifier.added.single.type, AssetType.cash);
+    expect(notifier.added.single.amount, 2000);
+    expect(notifier.added.single.boughtDate, DateTime(2024, 1, 1));
+  });
+
+  testWidgets('and takes no for an answer', (tester) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'gold',
+        Asset(
+          id: 'gold',
+          type: AssetType.gold,
+          amount: 20,
+          unit: 'g',
+          purity: 99.9,
+          boughtDate: DateTime(2024, 1, 1),
+        ),
+      );
+    });
+
+    final notifier = _RecordingAssetNotifier();
+    await tester.pumpWidget(
+      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    );
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('asset_amount_field')), findsOneWidget);
+
+    final soldToggle = find.byKey(const Key('asset_is_sold_toggle'));
+    await tester.ensureVisible(soldToggle);
+    await tester.tap(soldToggle);
+    await _pumpKinetic(tester);
+    final soldDate = find.byKey(const Key('asset_sold_date_field'));
+    await tester.ensureVisible(soldDate);
+    await tester.tap(soldDate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('asset_sold_price_field')),
+      '2000',
+    );
+    final save = find.byKey(const Key('asset_save_button'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await _pumpKinetic(tester);
+    await _pumpKinetic(tester);
+
+    await tester.tap(find.byKey(const Key('skip_sale_proceeds')));
+    await _pumpKinetic(tester);
+
+    expect(notifier.added, isEmpty);
+  });
+
   testWidgets('deleting a holding asks first and can be cancelled', (
     tester,
   ) async {
@@ -1192,11 +1306,28 @@ Widget _buildApp({
 /// delete flow without a disk write that never settles under fake async.
 class _RecordingAssetNotifier extends AssetNotifier {
   final removed = <String>[];
+  final added = <Asset>[];
+  final updated = <Asset>[];
 
   @override
   Future<void> removeAsset(String id) async {
     removed.add(id);
     state = state.where((asset) => asset.id != id).toList();
+  }
+
+  @override
+  Future<void> addAsset(Asset asset) async {
+    added.add(asset);
+    state = [...state, asset];
+  }
+
+  @override
+  Future<void> updateAsset(Asset asset) async {
+    updated.add(asset);
+    state = [
+      for (final existing in state)
+        if (existing.id == asset.id) asset else existing,
+    ];
   }
 }
 
