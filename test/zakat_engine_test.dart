@@ -267,10 +267,91 @@ void main() {
         ),
       });
 
+      // Anniversaries sit on the holding's own grid, so the later payment
+      // settles that year without moving the next one.
       expect(
         result.assessments.single.nextDueDate,
-        DateTime(2026, 3, 1).add(const Duration(days: 354)),
+        DateTime(2025, 1, 1).add(const Duration(days: 354 * 2)),
       );
+    });
+  });
+
+  group('the anniversary does not drift', () {
+    final asset = Asset(
+      id: 'cash',
+      type: AssetType.cash,
+      amount: 50000,
+      unit: 'USD',
+      boughtDate: DateTime(2025, 1, 1),
+    );
+
+    DateTime? nextDueAfterPaying(DateTime paidAt) {
+      return ZakatEngine.calculate(
+        assets: [asset],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: {
+          'cash': ZakatPaymentRecord(
+            referenceId: 'cash',
+            paidAt: paidAt,
+            amountUsd: 1250,
+          ),
+        },
+        today: paidAt.add(const Duration(days: 1)),
+      ).assessments.single.nextDueDate;
+    }
+
+    final firstDue = DateTime(2025, 1, 1).add(const Duration(days: 354));
+    final secondDue = DateTime(2025, 1, 1).add(const Duration(days: 354 * 2));
+
+    test('paying late settles the year without moving the next one', () {
+      // Paying 60 days late used to push the next anniversary 60 days out,
+      // and every late payment moved it again.
+      expect(nextDueAfterPaying(firstDue), secondDue);
+      expect(
+        nextDueAfterPaying(firstDue.add(const Duration(days: 60))),
+        secondDue,
+      );
+      expect(
+        nextDueAfterPaying(firstDue.add(const Duration(days: 300))),
+        secondDue,
+      );
+    });
+
+    test('paying early still settles the coming year', () {
+      // Otherwise an advance payment would be followed immediately by the
+      // same year falling due again.
+      expect(
+        nextDueAfterPaying(DateTime(2025, 1, 1).add(const Duration(days: 90))),
+        secondDue,
+      );
+    });
+
+    test('a payment covering several missed years settles all of them', () {
+      final paidAt = DateTime(
+        2025,
+        1,
+        1,
+      ).add(const Duration(days: 354 * 2 + 5));
+      expect(
+        nextDueAfterPaying(paidAt),
+        DateTime(2025, 1, 1).add(const Duration(days: 354 * 3)),
+      );
+    });
+
+    test('an unpaid holding is first due one lunar year in', () {
+      final result = ZakatEngine.calculate(
+        assets: [asset],
+        prices: _prices(),
+        settings: const ZakatSettings(
+          scheduleMode: ZakatScheduleMode.individualDueDates,
+        ),
+        payments: const {},
+        today: DateTime(2025, 6, 1),
+      );
+      expect(result.assessments.single.nextDueDate, firstDue);
     });
   });
 

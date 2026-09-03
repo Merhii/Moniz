@@ -185,8 +185,10 @@ class ZakatEngine {
       );
     }
 
-    final cycleStart = _settledAt(asset, payments) ?? asset.boughtDate!;
-    final nextDueDate = cycleStart.add(const Duration(days: _hawlDays));
+    final nextDueDate = _nextDueDate(
+      boughtDate: asset.boughtDate!,
+      settledAt: _settledAt(asset, payments),
+    );
     final due = !today.isBefore(nextDueDate);
     return ZakatAssetAssessment(
       asset: asset,
@@ -195,6 +197,28 @@ class ZakatEngine {
       nextDueDate: nextDueDate,
       exclusionReason: due ? null : 'Not held for one lunar year yet',
     );
+  }
+
+  /// The next anniversary that has not been settled.
+  ///
+  /// Anniversaries sit on a fixed grid from the holding's own start date, one
+  /// lunar year apart. Previously the next one was measured from the day
+  /// zakat was handed over, so paying 60 days late pushed it 60 days out and
+  /// every late payment moved it again - a habitually late payer would drift
+  /// a whole year off over time, skipping an obligation.
+  ///
+  /// A payment settles the anniversary year it falls in, and the next one
+  /// stays where it always was. Paying early still settles the coming year,
+  /// so nobody is charged twice for it.
+  static DateTime _nextDueDate({
+    required DateTime boughtDate,
+    DateTime? settledAt,
+  }) {
+    const cycle = Duration(days: _hawlDays);
+    if (settledAt == null) return boughtDate.add(cycle);
+    final elapsedDays = settledAt.difference(boughtDate).inDays;
+    final settledYears = elapsedDays < _hawlDays ? 1 : elapsedDays ~/ _hawlDays;
+    return boughtDate.add(Duration(days: _hawlDays * (settledYears + 1)));
   }
 
   /// When zakat was last settled on [asset], from either schedule.
