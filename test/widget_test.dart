@@ -295,6 +295,53 @@ void main() {
     expect(find.textContaining('LIVE GOLD \$100.00 / G'), findsWidgets);
   });
 
+  testWidgets('metal row does not restate a currency the amounts already show', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<dynamic>('uiPreferences').put('displayCurrency', 'AED');
+      await Hive.box<Asset>('assets').put(
+        'gold',
+        const Asset(
+          id: 'gold',
+          type: AssetType.gold,
+          amount: 10,
+          unit: 'g',
+          purity: 50,
+          currency: 'USD',
+          boughtPrice: 1000,
+        ),
+      );
+      await Hive.box<MetalPriceSnapshot>('metalPrices').put(
+        'latest_usd_gram_prices',
+        MetalPriceSnapshot(
+          goldPerGramUsd: 100,
+          silverPerGramUsd: 1,
+          priceTimestamp: DateTime.utc(2026, 5, 27, 10),
+          fetchedAt: DateTime.utc(2026, 5, 27, 10),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+
+    // The worth is in the display currency, the bought price in the currency
+    // it was recorded in. Both say so themselves, so a separate "Prices in
+    // USD" only reads as a contradiction of the AED line above it.
+    final worth = tester.widget<KineticText>(
+      find.byKey(const Key('asset_value_gold')),
+    );
+    expect(worth.text, 'Worth AED 1,836.25');
+    final detail = tester.widget<KineticText>(
+      find.byKey(const Key('asset_metal_detail_gold')),
+    );
+    expect(detail.text, '50.0% purity / Bought \$1,000.00');
+    expect(find.textContaining('Prices in'), findsNothing);
+  });
+
   testWidgets('ticker follows a stored non-USD display currency', (
     tester,
   ) async {
