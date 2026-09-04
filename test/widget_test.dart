@@ -502,6 +502,79 @@ void main() {
     expect(find.byKey(const Key('select_ramadan_due_date')), findsOneWidget);
   });
 
+  testWidgets('each row edits its own holding, even with several on screen', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'gold',
+        const Asset(
+          id: 'gold',
+          type: AssetType.gold,
+          amount: 20,
+          unit: 'g',
+          purity: 99.9,
+        ),
+      );
+      await Hive.box<Asset>('assets').put(
+        'savings',
+        const Asset(
+          id: 'savings',
+          type: AssetType.cash,
+          amount: 4200,
+          unit: 'USD',
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('holdings_nav')));
+    await _pumpKinetic(tester);
+
+    // Every row has its own Edit, so the label alone cannot say which one
+    // a test or the driver means. The key can.
+    expect(find.text('Edit'), findsNWidgets(2));
+    expect(find.byKey(const Key('edit_asset_gold')), findsOneWidget);
+    expect(find.byKey(const Key('edit_asset_savings')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('edit_asset_savings')));
+    await tester.pumpAndSettle();
+    final amount = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const Key('asset_amount_field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(amount.controller.text, '4200');
+  });
+
+  testWidgets('the zakat schedule and nisab pickers can be addressed by key', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+    await tester.tap(find.byKey(const Key('zakat_nav')));
+    await _pumpKinetic(tester);
+
+    // 'Silver nisab' already appears more than once on this page, so a text
+    // finder cannot reach the picker. Flutter Driver rejects anything but an
+    // exact single match.
+    expect(find.text('Silver nisab'), findsWidgets);
+
+    final schedule = tester.widget<KineticDropdown<ZakatScheduleMode>>(
+      find.byKey(const Key('zakat_schedule_mode')),
+    );
+    expect(schedule.value, ZakatScheduleMode.ramadanAnnual);
+    expect(schedule.items, ZakatScheduleMode.values);
+
+    final nisab = tester.widget<KineticDropdown<NisabStandard>>(
+      find.byKey(const Key('zakat_nisab_standard')),
+    );
+    expect(nisab.value, NisabStandard.silver);
+    expect(nisab.items, NisabStandard.values);
+  });
+
   testWidgets('navigates between dashboard holdings and settings pages', (
     tester,
   ) async {

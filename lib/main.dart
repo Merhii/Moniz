@@ -1333,6 +1333,7 @@ class _ZakatSettingsBlock extends ConsumerWidget {
           children: [
             Expanded(
               child: KineticDropdown<ZakatScheduleMode>(
+                key: const Key('zakat_schedule_mode'),
                 label: 'Schedule',
                 value: settings.scheduleMode,
                 items: ZakatScheduleMode.values,
@@ -1345,6 +1346,7 @@ class _ZakatSettingsBlock extends ConsumerWidget {
             const SizedBox(width: 16),
             Expanded(
               child: KineticDropdown<NisabStandard>(
+                key: const Key('zakat_nisab_standard'),
                 label: 'Nisab Standard',
                 value: settings.nisabStandard,
                 items: NisabStandard.values,
@@ -2273,6 +2275,7 @@ class AssetTile extends ConsumerWidget {
             runSpacing: 8,
             children: [
               BrutalistButton(
+                key: Key('edit_asset_${asset.id}'),
                 label: 'Edit',
                 onPressed: () =>
                     _showAssetFormDialog(context, ref, asset: asset),
