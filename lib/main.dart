@@ -2241,10 +2241,10 @@ class AssetTile extends ConsumerWidget {
                 KineticText(
                   [
                     '${asset.purity ?? '-'}% purity',
-                    'Prices in ${asset.currency}',
                     if (asset.boughtPrice != null)
                       'Bought ${CurrencyConverter.formatMoney(asset.boughtPrice!, asset.currency)}',
                   ].join(' / '),
+                  key: Key('asset_metal_detail_${asset.id}'),
                   muted: true,
                 ),
               ],
