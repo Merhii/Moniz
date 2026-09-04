@@ -216,13 +216,13 @@ class BrutalistButton extends StatelessWidget {
     final disabled = onPressed == null;
     final background = switch (tone) {
       BrutalistButtonTone.primary => colors.accent,
-      BrutalistButtonTone.danger => colors.loss.withValues(alpha: 0.16),
+      BrutalistButtonTone.danger => colors.danger.withValues(alpha: 0.16),
       BrutalistButtonTone.muted => colors.muted,
       BrutalistButtonTone.outline => Colors.transparent,
     };
     final foreground = switch (tone) {
       BrutalistButtonTone.primary => colors.accentForeground,
-      BrutalistButtonTone.danger => colors.loss,
+      BrutalistButtonTone.danger => colors.danger,
       BrutalistButtonTone.muted => colors.foreground,
       BrutalistButtonTone.outline => colors.mutedForeground,
     };

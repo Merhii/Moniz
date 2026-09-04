@@ -284,7 +284,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                                   key: const Key('asset_purity_error'),
                                   style: AppTheme.bodyStyle(
                                     colors,
-                                  ).copyWith(color: colors.loss, fontSize: 12),
+                                  ).copyWith(color: colors.danger, fontSize: 12),
                                   uppercase: false,
                                 ),
                               ),
@@ -338,7 +338,7 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
                                   key: const Key('asset_date_error'),
                                   style: AppTheme.bodyStyle(
                                     colors,
-                                  ).copyWith(color: colors.loss, fontSize: 12),
+                                  ).copyWith(color: colors.danger, fontSize: 12),
                                   uppercase: false,
                                 ),
                               ),
