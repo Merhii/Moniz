@@ -2057,7 +2057,7 @@ class MetalPricesCard extends ConsumerWidget {
             KineticText(
               state.errorMessage!,
               key: const Key('metal_price_error'),
-              style: AppTheme.bodyStyle(colors).copyWith(color: colors.loss),
+              style: AppTheme.bodyStyle(colors).copyWith(color: colors.danger),
               uppercase: false,
             ),
           ],

@@ -12,6 +12,7 @@ class KineticColors extends ThemeExtension<KineticColors> {
     required this.border,
     required this.profit,
     required this.loss,
+    required this.danger,
   });
 
   final Color background;
@@ -24,6 +25,10 @@ class KineticColors extends ThemeExtension<KineticColors> {
   final Color profit;
   final Color loss;
 
+  /// Reserved for things that went wrong. [loss] is a market direction and
+  /// sits in the neutral part of the palette, so it cannot carry alarm.
+  final Color danger;
+
   @override
   KineticColors copyWith({
     Color? background,
@@ -35,6 +40,7 @@ class KineticColors extends ThemeExtension<KineticColors> {
     Color? border,
     Color? profit,
     Color? loss,
+    Color? danger,
   }) {
     return KineticColors(
       background: background ?? this.background,
@@ -46,6 +52,7 @@ class KineticColors extends ThemeExtension<KineticColors> {
       border: border ?? this.border,
       profit: profit ?? this.profit,
       loss: loss ?? this.loss,
+      danger: danger ?? this.danger,
     );
   }
 
@@ -66,6 +73,7 @@ class KineticColors extends ThemeExtension<KineticColors> {
       border: Color.lerp(border, other.border, t)!,
       profit: Color.lerp(profit, other.profit, t)!,
       loss: Color.lerp(loss, other.loss, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
     );
   }
 }
@@ -79,6 +87,8 @@ class AppTheme {
   static const white = Color(0xFFFCFCFC);
   static const cream = Color(0xFFE7E3DB);
   static const deepShadow = Color(0xFF02163B);
+  static const crimson = Color(0xFFB3261E);
+  static const lightCrimson = Color(0xFFFF7A6B);
 
   static const fontFamily = 'Inter';
   static const displayFontFamily = 'SpaceGrotesk';
@@ -100,6 +110,7 @@ class AppTheme {
     border: Color(0x99F7D398),
     profit: lightGold,
     loss: cream,
+    danger: lightCrimson,
   );
 
   static const lightColors = KineticColors(
@@ -112,6 +123,7 @@ class AppTheme {
     border: lightGold,
     profit: navy,
     loss: deepShadow,
+    danger: crimson,
   );
 
   static ThemeData get dark => _build(Brightness.dark, darkColors);
@@ -137,7 +149,7 @@ class AppTheme {
         onPrimary: colors.accentForeground,
         secondary: lightGold,
         onSecondary: deepShadow,
-        error: colors.loss,
+        error: colors.danger,
         onError: colors.accentForeground,
         surface: colors.background,
         onSurface: colors.foreground,
@@ -191,12 +203,12 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: tightRadius,
-          borderSide: BorderSide(color: colors.loss, width: thickBorderWidth),
+          borderSide: BorderSide(color: colors.danger, width: thickBorderWidth),
         ),
         labelStyle: labelStyle(colors),
         floatingLabelStyle: labelStyle(colors).copyWith(color: colors.accent),
         errorStyle: TextStyle(
-          color: colors.loss,
+          color: colors.danger,
           fontFamily: ledgerFontFamily,
           fontSize: 12,
           fontWeight: FontWeight.w700,

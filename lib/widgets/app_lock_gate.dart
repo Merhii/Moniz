@@ -164,7 +164,7 @@ class _AppUnlockScreenState extends ConsumerState<AppUnlockScreen> {
                           uppercase: false,
                           style: AppTheme.bodyStyle(
                             colors,
-                          ).copyWith(color: colors.loss, fontSize: 13),
+                          ).copyWith(color: colors.danger, fontSize: 13),
                         ),
                       ],
                       const SizedBox(height: 14),
@@ -359,7 +359,7 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
                     uppercase: false,
                     style: AppTheme.bodyStyle(
                       colors,
-                    ).copyWith(color: colors.loss, fontSize: 13),
+                    ).copyWith(color: colors.danger, fontSize: 13),
                   ),
                 ],
                 const SizedBox(height: 16),

@@ -79,7 +79,7 @@ class _NotificationSettingsScreenState
               state.errorMessage!,
               key: const Key('notification_preferences_error'),
               uppercase: false,
-              style: AppTheme.bodyStyle(colors).copyWith(color: colors.loss),
+              style: AppTheme.bodyStyle(colors).copyWith(color: colors.danger),
             ),
           ],
         ],

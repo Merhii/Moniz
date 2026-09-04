@@ -134,7 +134,7 @@ class SecuritySettingsCard extends ConsumerWidget {
               uppercase: false,
               style: AppTheme.bodyStyle(
                 colors,
-              ).copyWith(color: colors.loss, fontSize: 13),
+              ).copyWith(color: colors.danger, fontSize: 13),
             ),
           ],
         ],
