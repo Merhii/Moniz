@@ -64,3 +64,28 @@ Holdings live in Hive boxes encrypted at rest, with the key held in the
 platform keychain or keystore. App lock adds a 4-digit PIN (and biometrics
 where available) on launch and on resume; the PIN is stored as a PBKDF2-SHA256
 verifier, and repeated wrong entries are throttled.
+
+## Releasing to Google Play
+
+Release builds are signed with an upload key that lives outside the repo.
+Copy `android/key.properties.example` to `android/key.properties`, create the
+keystore it points at, and fill in the two passwords:
+
+```
+keytool -genkey -v -keystore ~/moniz-upload.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Then build the bundle Play expects:
+
+```
+flutter build appbundle --release
+```
+
+The `.aab` lands in `build/app/outputs/bundle/release/`. Bump `version:` in
+`pubspec.yaml` before every upload — Play rejects a repeated version code.
+
+Without `android/key.properties` the release build falls back to the debug key
+so a fresh clone still runs; Play refuses such a build, so this is for local
+use only. Back the keystore up somewhere durable, because losing it means
+never shipping an update to an existing listing.
