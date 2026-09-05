@@ -1,5 +1,5 @@
 name: moniz
-description: "A new Flutter project."
+description: "Track gold, silver and cash holdings and work out the zakat due on them."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -61,6 +61,12 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/images/moniz.png
+  # Android 8+ masks the icon to the launcher's own shape. Without these the
+  # square icon is letterboxed inside that mask instead of filling it. The
+  # foreground drops the tagline, which is an unreadable smudge at this size,
+  # and keeps the wordmark inside the 66dp circle every mask leaves visible.
+  adaptive_icon_background: "#0A2447"
+  adaptive_icon_foreground: assets/images/moniz_adaptive_foreground.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
