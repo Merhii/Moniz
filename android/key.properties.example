@@ -1,0 +1,15 @@
+# Copy to android/key.properties and fill in. That file is gitignored and must
+# never be committed: it, plus the keystore it points at, is what proves an
+# upload came from us.
+#
+# Create the keystore first (it prompts for the two passwords):
+#
+#   keytool -genkey -v -keystore ~/moniz-upload.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Back up the .jks somewhere durable. Without it you cannot ship an update.
+
+storeFile=/absolute/path/to/moniz-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=
