@@ -39,5 +39,18 @@ class LocalNotificationTopicCatalog implements NotificationTopicCatalog {
       thresholdPercent: 3,
       description: 'Spot silver moves across either configured threshold.',
     ),
+    NotificationTopic.zakatDue(
+      id: 'zakat.due.soon',
+      title: 'Zakat due in a week',
+      leadDays: 7,
+      description: 'A week before a holding completes its lunar year, or '
+          'before your Ramadan date.',
+    ),
+    NotificationTopic.zakatDue(
+      id: 'zakat.due.today',
+      title: 'Zakat due today',
+      leadDays: 0,
+      description: 'On the day zakat becomes payable.',
+    ),
   ];
 }

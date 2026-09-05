@@ -37,6 +37,10 @@ dependencies:
   http: ^1.2.2
   uuid: ^4.5.1
   flutter_local_notifications: ^22.0.1
+  # zonedSchedule needs a real IANA zone; without the device's own the
+  # reminder fires at 09:00 UTC rather than 09:00 where the owner is.
+  timezone: ^0.11.0
+  flutter_timezone: ^5.0.0
   local_auth: ^3.0.1
   flutter_secure_storage: ^10.3.1
   crypto: ^3.0.7

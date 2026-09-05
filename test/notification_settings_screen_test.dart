@@ -31,7 +31,16 @@ void main() {
     expect(find.text('Notification interests'), findsOneWidget);
     expect(find.text('Gold'), findsOneWidget);
     expect(find.text('Silver'), findsOneWidget);
-    expect(find.text('0 / 2 selected'), findsOneWidget);
+    expect(find.text('Zakat'), findsOneWidget);
+    expect(find.text('0 / 3 selected'), findsOneWidget);
+
+    // A due date is not a price feed and must not describe itself as one.
+    // Short enough to survive the single line the row allows: the first
+    // attempt rendered as "A week before zakat is due, and again ...".
+    expect(
+      find.text('A week before it is due, and on the day.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const Key('notification_interest_hit_gold')));
     await tester.runAsync(() async {
@@ -39,7 +48,7 @@ void main() {
     });
     await tester.pump();
 
-    expect(find.text('1 / 2 selected'), findsOneWidget);
+    expect(find.text('1 / 3 selected'), findsOneWidget);
     expect(preferencesService.subscribedTopicIds, {
       'gold.price.increase.3',
       'gold.price.decrease.3',

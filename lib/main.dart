@@ -15,6 +15,7 @@ import 'providers/display_currency_provider.dart';
 import 'providers/metal_price_provider.dart';
 import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
+import 'providers/zakat_reminder_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
 import 'services/hive_encryption.dart';
@@ -332,7 +333,7 @@ class MonizApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      home: const KineticHome(),
+      home: const ZakatReminderSync(child: KineticHome()),
       builder: (context, child) =>
           AppLockGate(child: child ?? const SizedBox.shrink()),
     );
