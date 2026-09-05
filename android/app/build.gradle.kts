@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.moniz"
+    namespace = "com.merhii.moniz"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "25.2.9519653"
 
@@ -21,8 +21,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.moniz"
+        // Permanent once published: Play keys the listing on this and it can
+        // never be changed afterwards.
+        applicationId = "com.merhii.moniz"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
