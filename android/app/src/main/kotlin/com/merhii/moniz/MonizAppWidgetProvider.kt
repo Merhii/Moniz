@@ -1,4 +1,4 @@
-package com.example.moniz
+package com.merhii.moniz
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

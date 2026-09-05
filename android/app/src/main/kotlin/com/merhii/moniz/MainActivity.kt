@@ -1,4 +1,4 @@
-package com.example.moniz
+package com.merhii.moniz
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
