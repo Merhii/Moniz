@@ -94,7 +94,7 @@ bare.
 | `waitfor <finder>` / `waitgone <finder>` | wait for a widget to appear/disappear |
 | `exists <finder>` | `yes` / `no` (3s probe) |
 | `text <finder>` | reads a real `Text` widget — usually fails here, see Gotchas |
-| `scroll <finder> <dx> <dy>` | scrollable keys are `dashboard_scroll`, `holdings_scroll`, `zakat_scroll`, `settings_scroll`, `about_scroll`, `notifications_scroll` |
+| `scroll <finder> <dx> <dy>` | scrollable keys are `dashboard_scroll`, `zakat_scroll`, `settings_scroll`, `about_scroll`, `notifications_scroll` |
 | `rendertree [path]` | full dump to a file (multi-MB) — grep it |
 | `focus` | force the macOS window to the front |
 | `reload` / `restart` | hot reload / hot restart (spawned mode only) |
@@ -107,7 +107,7 @@ Finders are `key:<value>`, `text:<value>`, `tooltip:<value>`, `type:<Widget>`.
 grep -rn "Key('" lib/ | sed "s/.*Key('\([^']*\)').*/\1/" | sort -u
 ```
 
-Useful ones: `dashboard_nav`, `holdings_nav`, `zakat_nav`, `settings_nav`,
+Useful ones: `dashboard_nav`, `zakat_nav`, `settings_nav`,
 `about_nav`, `open_notifications`, `close_notifications`, `add_asset_button`,
 `asset_amount_field`, `asset_save_button`, `back_asset_form`,
 `refresh_metal_prices`, `theme_mode_toggle`, `wealth_hero_total`.
@@ -119,7 +119,8 @@ backed out without saving:
 
 ```bash
 dart run .claude/skills/run-moniz/driver.dart --vm-service "$URI" 2>/dev/null <<'EOF'
-tap key:holdings_nav
+tap key:dashboard_nav
+scroll key:dashboard_scroll 0 -700
 tap key:add_asset_button
 waitfor key:asset_amount_field
 tap key:asset_amount_field

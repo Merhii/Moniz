@@ -379,7 +379,6 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
   Widget build(BuildContext context) {
     final pages = [
       const DashboardPage(),
-      const HoldingsPage(),
       const ZakatPage(),
       const SettingsPage(),
       const AboutPage(),
@@ -395,9 +394,8 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
         title: _selectedPage == 0
             ? const _MonizLogo()
             : KineticText(switch (_selectedPage) {
-                1 => 'Ledger',
-                2 => 'Zakat',
-                3 => 'Settings',
+                1 => 'Zakat',
+                2 => 'Settings',
                 _ => 'About',
               }, style: AppTheme.titleStyle(colors).copyWith(fontSize: 22)),
         actions: [
@@ -458,11 +456,6 @@ class _KineticNav extends StatelessWidget {
       label: 'Wealth',
       icon: Icons.account_balance_wallet_outlined,
       key: Key('dashboard_nav'),
-    ),
-    (
-      label: 'Ledger',
-      icon: Icons.receipt_long_outlined,
-      key: Key('holdings_nav'),
     ),
     (
       label: 'Zakat',
@@ -657,9 +650,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               onAddHolding: () => _showAssetFormDialog(context, ref),
             ),
           )
-        else
+        else ...[
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
             sliver: SliverList.list(
               children: [
                 DashboardFiltersCard(
@@ -683,6 +676,40 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     colors,
                   ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
+              ],
+            ),
+          ),
+          // Directly under the filters and the count that describes it. These
+          // used to be on separate tabs, so filtering changed a number on one
+          // screen and a list on another.
+          SliverToBoxAdapter(
+            child: _SectionHeading(
+              title: 'Holdings',
+              trailing: BrutalistButton(
+                key: const Key('add_asset_button'),
+                label: 'Add asset',
+                tone: BrutalistButtonTone.primary,
+                onPressed: () => _showAssetFormDialog(context, ref),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            sliver: SliverList.separated(
+              itemCount: filteredAssets.length,
+              itemBuilder: (context, index) =>
+                  AssetTile(asset: filteredAssets[index], cardless: true),
+              separatorBuilder: (context, index) => Divider(
+                height: 32,
+                thickness: 1,
+                color: colors.border.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            sliver: SliverList.list(
+              children: [
                 sectionDivider,
                 PortfolioInsightsCard(
                   analytics: analytics,
@@ -713,6 +740,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ],
             ),
           ),
+          SliverToBoxAdapter(
+            child: _SectionHeading(title: 'Transaction history'),
+          ),
+          ..._transactionHistorySlivers(context, assets),
+        ],
       ],
     );
   }
@@ -934,116 +966,84 @@ class _WealthHero extends StatelessWidget {
   }
 }
 
-class HoldingsPage extends ConsumerWidget {
-  const HoldingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final assets = ref.watch(assetProvider);
-    final events = TransactionHistoryService.eventsFor(assets);
-    final groupedEvents = _groupEventsByDate(events);
-    final slivers = <Widget>[
+/// The timeline that used to sit at the bottom of the Ledger tab.
+List<Widget> _transactionHistorySlivers(
+  BuildContext context,
+  List<Asset> assets,
+) {
+  final groupedEvents = _groupEventsByDate(
+    TransactionHistoryService.eventsFor(assets),
+  );
+  if (groupedEvents.isEmpty) {
+    return const [
       SliverToBoxAdapter(
-        child: _PageHeader(
-          eyebrow: null,
-          title: 'Holdings',
-          detail: 'Add, edit, and scan asset records.',
-          trailing: BrutalistButton(
-            key: const Key('add_asset_button'),
-            label: 'Add asset',
-            tone: BrutalistButtonTone.primary,
-            onPressed: () => _showAssetFormDialog(context, ref),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: LedgerFrame(
+            cardless: true,
+            padding: EdgeInsets.zero,
+            child: KineticText(
+              'Add holding start or sold dates to build the timeline.',
+              muted: true,
+            ),
           ),
         ),
       ),
-      if (assets.isEmpty)
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: LedgerFrame(
-              cardless: true,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 28),
-                  child: KineticText('No assets yet'),
-                ),
-              ),
-            ),
-          ),
-        )
-      else
+    ];
+  }
+
+  final slivers = <Widget>[];
+  for (final entry in groupedEvents.entries) {
+    slivers
+      ..add(
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: StickyDateHeader(label: _formatDate(entry.key)),
+        ),
+      )
+      ..add(
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           sliver: SliverList.separated(
-            itemCount: assets.length,
+            itemCount: entry.value.length,
             itemBuilder: (context, index) =>
-                AssetTile(asset: assets[index], cardless: true),
+                _TransactionEventRow(event: entry.value[index], cardless: true),
             separatorBuilder: (context, index) => Divider(
-              height: 32,
+              height: 20,
               thickness: 1,
               color: context.kinetic.border.withValues(alpha: 0.15),
             ),
           ),
         ),
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-          child: KineticText(
-            'Transaction history',
-            style: AppTheme.titleStyle(context.kinetic).copyWith(fontSize: 22),
-          ),
-        ),
-      ),
-    ];
-
-    if (groupedEvents.isEmpty) {
-      slivers.add(
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: LedgerFrame(
-              cardless: true,
-              padding: EdgeInsets.zero,
-              child: KineticText(
-                'Add holding start or sold dates to build the timeline.',
-                muted: true,
-              ),
-            ),
-          ),
-        ),
       );
-    } else {
-      for (final entry in groupedEvents.entries) {
-        slivers
-          ..add(
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: StickyDateHeader(label: _formatDate(entry.key)),
-            ),
-          )
-          ..add(
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              sliver: SliverList.separated(
-                itemCount: entry.value.length,
-                itemBuilder: (context, index) => _TransactionEventRow(
-                  event: entry.value[index],
-                  cardless: true,
-                ),
-                separatorBuilder: (context, index) => Divider(
-                  height: 20,
-                  thickness: 1,
-                  color: context.kinetic.border.withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-          );
-      }
-    }
+  }
+  return slivers;
+}
 
-    return CustomScrollView(
-      key: const Key('holdings_scroll'),
-      slivers: slivers,
+/// Titles a run of slivers inside the one scroll view the Wealth tab now is.
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title, this.trailing});
+
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: KineticText(
+              title,
+              style: AppTheme.titleStyle(
+                context.kinetic,
+              ).copyWith(fontSize: 22),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
     );
   }
 }
@@ -1653,13 +1653,11 @@ class _PageHeader extends StatelessWidget {
     this.eyebrow,
     required this.title,
     required this.detail,
-    this.trailing,
   });
 
   final String? eyebrow;
   final String title;
   final String detail;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1668,58 +1666,34 @@ class _PageHeader extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, eyebrow == null ? 6 : 16, 16, 0),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: eyebrow == null ? 4 : 8),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final content = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (eyebrow != null) ...[
-                  KineticText(
-                    eyebrow!.toUpperCase(),
-                    muted: true,
-                    style: AppTheme.labelStyle(colors).copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
-                KineticText(
-                  title,
-                  style: AppTheme.titleStyle(
-                    colors,
-                  ).copyWith(fontSize: 24, color: colors.foreground),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (eyebrow != null) ...[
+              KineticText(
+                eyebrow!.toUpperCase(),
+                muted: true,
+                style: AppTheme.labelStyle(colors).copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  fontSize: 12,
                 ),
-                const SizedBox(height: 6),
-                KineticText(
-                  detail,
-                  muted: true,
-                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
-                ),
-              ],
-            );
-            if (trailing == null || constraints.maxWidth < 560) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  content,
-                  if (trailing != null) ...[
-                    const SizedBox(height: 14),
-                    trailing!,
-                  ],
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(child: content),
-                const SizedBox(width: 18),
-                trailing!,
-              ],
-            );
-          },
+              ),
+              const SizedBox(height: 6),
+            ],
+            KineticText(
+              title,
+              style: AppTheme.titleStyle(
+                colors,
+              ).copyWith(fontSize: 24, color: colors.foreground),
+            ),
+            const SizedBox(height: 6),
+            KineticText(
+              detail,
+              muted: true,
+              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+            ),
+          ],
         ),
       ),
     );
