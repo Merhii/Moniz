@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import '../models/recurring_entry.dart';
+import '../services/recurrence_planner.dart';
+import 'money_entry_provider.dart';
 
 class RecurringEntryNotifier extends StateNotifier<List<RecurringEntry>> {
   RecurringEntryNotifier({Box<RecurringEntry>? ruleBox})
@@ -51,3 +53,26 @@ final recurringEntryProvider =
     StateNotifierProvider<RecurringEntryNotifier, List<RecurringEntry>>(
       (ref) => RecurringEntryNotifier(),
     );
+
+/// Writes whatever the current rules owe, through the providers so the screen
+/// updates without a restart.
+///
+/// Startup does the same thing straight against the boxes. This exists for the
+/// moments in between: saving a rule that started last month should fill in
+/// those entries now, not the next time the app is opened.
+Future<void> applyDueRecurrences(WidgetRef ref, {DateTime? now}) async {
+  const planner = RecurrencePlanner();
+  final rules = ref.read(recurringEntryProvider);
+  final entryNotifier = ref.read(moneyEntryProvider.notifier);
+  final ruleNotifier = ref.read(recurringEntryProvider.notifier);
+  final at = now ?? DateTime.now();
+
+  for (final rule in rules) {
+    final result = planner.materialise(rule: rule, now: at);
+    if (result.entries.isEmpty) continue;
+    for (final entry in result.entries) {
+      await entryNotifier.addEntry(entry);
+    }
+    await ruleNotifier.upsert(result.rule);
+  }
+}
