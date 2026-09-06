@@ -11,6 +11,7 @@ import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/asset_provider.dart';
+import 'package:moniz/services/currency_converter.dart';
 import 'package:moniz/providers/metal_price_provider.dart';
 import 'package:moniz/providers/app_lock_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
@@ -340,6 +341,45 @@ void main() {
     );
     expect(detail.text, '50.0% purity / Bought \$1,000.00');
     expect(find.textContaining('Prices in'), findsNothing);
+  });
+
+  testWidgets('display currency is set in Settings, not on the dashboard', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<Asset>('assets').put(
+        'cash',
+        const Asset(id: 'cash', type: AssetType.cash, amount: 100, unit: 'USD'),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pumpKinetic(tester);
+
+    // The dashboard used to carry a currency pill under the hero total. It sat
+    // beside the number it changed, which made a preference look like a filter.
+    for (final currency in CurrencyConverter.supportedCurrencies) {
+      expect(
+        find.byKey(Key('home_display_currency_$currency')),
+        findsNothing,
+        reason: '$currency chip should not be on the dashboard',
+      );
+    }
+
+    // It lives in one place now, with the rest of the preferences.
+    await tester.tap(find.byKey(const Key('settings_nav')));
+    await _pumpKinetic(tester);
+    final dropdown = find.byKey(const Key('settings_currency_dropdown'));
+    await tester.scrollUntilVisible(
+      dropdown,
+      300,
+      scrollable: _verticalScrollableIn(const Key('settings_scroll')),
+    );
+    expect(dropdown, findsOneWidget);
+    expect(
+      tester.widget<DropdownButton<String>>(dropdown).items,
+      hasLength(CurrencyConverter.supportedCurrencies.length),
+    );
   });
 
   testWidgets('ticker follows a stored non-USD display currency', (

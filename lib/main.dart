@@ -640,9 +640,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             zakat: displayZakat.value,
             zakatCurrency: displayZakat.currency,
             currency: totals.currency,
-            onCurrencySelected: (currency) => ref
-                .read(displayCurrencyProvider.notifier)
-                .setCurrency(currency),
             note: summaryNote.isEmpty ? null : summaryNote,
           ),
         ),
@@ -821,7 +818,6 @@ class _WealthHero extends StatelessWidget {
     required this.zakat,
     required this.zakatCurrency,
     required this.currency,
-    required this.onCurrencySelected,
     this.note,
   });
 
@@ -830,7 +826,6 @@ class _WealthHero extends StatelessWidget {
   final double zakat;
   final String zakatCurrency;
   final String currency;
-  final ValueChanged<String> onCurrencySelected;
   final String? note;
 
   @override
@@ -900,11 +895,6 @@ class _WealthHero extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _CurrencySelector(
-                  selectedCurrency: currency,
-                  onSelected: onCurrencySelected,
-                ),
-                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -940,46 +930,6 @@ class _WealthHero extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _CurrencySelector extends StatelessWidget {
-  const _CurrencySelector({
-    required this.selectedCurrency,
-    required this.onSelected,
-  });
-
-  final String selectedCurrency;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.kinetic;
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: colors.background.withValues(alpha: 0.28),
-        borderRadius: AppTheme.pillRadius,
-        border: Border.all(
-          color: colors.border.withValues(alpha: 0.5),
-          width: AppTheme.hairlineWidth,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: CurrencyConverter.supportedCurrencies
-            .map(
-              (currency) => CurrencyChip(
-                key: Key('home_display_currency_$currency'),
-                currency: currency,
-                selected: selectedCurrency == currency,
-                onTap: () => onSelected(currency),
-                compact: true,
-              ),
-            )
-            .toList(),
-      ),
     );
   }
 }
