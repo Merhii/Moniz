@@ -41,6 +41,10 @@ dependencies:
   # reminder fires at 09:00 UTC rather than 09:00 where the owner is.
   timezone: ^0.11.0
   flutter_timezone: ^5.0.0
+  # Price alerts run in a background isolate, which cannot open the Hive
+  # boxes the app already has open. Its small amount of state lives here.
+  shared_preferences: ^2.5.0
+  workmanager: ^0.10.0
   local_auth: ^3.0.1
   flutter_secure_storage: ^10.3.1
   crypto: ^3.0.7

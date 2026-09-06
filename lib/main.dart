@@ -15,6 +15,9 @@ import 'providers/display_currency_provider.dart';
 import 'providers/metal_price_provider.dart';
 import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
+import 'package:workmanager/workmanager.dart';
+
+import 'providers/price_alert_provider.dart';
 import 'providers/zakat_reminder_provider.dart';
 import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
@@ -26,6 +29,7 @@ import 'services/position_performance.dart';
 import 'services/portfolio_analytics.dart';
 import 'services/transaction_history_service.dart';
 import 'services/wealth_calculator.dart';
+import 'services/price_alert_worker.dart';
 import 'services/zakat_engine.dart';
 import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
@@ -186,6 +190,16 @@ class _MonizBootstrapState extends State<MonizBootstrap> {
       // Ignored on purpose.
     }
 
+    // Hands the OS the entry point for the background price check. Registering
+    // the check itself is separate, and only happens once somebody subscribes.
+    if (PriceAlertScheduler.isSupported) {
+      try {
+        await Workmanager().initialize(priceAlertCallbackDispatcher);
+      } catch (_) {
+        // Ignored on purpose, same reasoning as above.
+      }
+    }
+
     if (!mounted) return;
     setState(() => _startup = _Startup.ready);
   }
@@ -333,7 +347,9 @@ class MonizApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      home: const ZakatReminderSync(child: KineticHome()),
+      home: const PriceAlertSync(
+        child: ZakatReminderSync(child: KineticHome()),
+      ),
       builder: (context, child) =>
           AppLockGate(child: child ?? const SizedBox.shrink()),
     );
