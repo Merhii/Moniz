@@ -732,6 +732,7 @@ class KineticInput extends StatelessWidget {
     this.minLines = 1,
     this.maxLines = 1,
     this.hero = false,
+    this.autofocus = false,
   });
 
   final Key? fieldKey;
@@ -742,6 +743,7 @@ class KineticInput extends StatelessWidget {
   final int minLines;
   final int maxLines;
   final bool hero;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -750,6 +752,7 @@ class KineticInput extends StatelessWidget {
     return TextFormField(
       key: fieldKey,
       controller: controller,
+      autofocus: autofocus,
       keyboardType: keyboardType,
       textInputAction: isMultiline
           ? TextInputAction.newline

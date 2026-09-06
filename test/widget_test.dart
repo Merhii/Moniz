@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:moniz/main.dart';
 import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
+import 'package:moniz/models/money_entry.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/asset_provider.dart';
@@ -35,12 +36,19 @@ void main() {
     Hive.registerAdapter(ZakatSettingsAdapter());
     Hive.registerAdapter(ZakatPaymentRecordAdapter());
     Hive.registerAdapter(PortfolioSnapshotAdapter());
+    Hive.registerAdapter(MoneyDirectionAdapter());
+    Hive.registerAdapter(MoneyCategoryAdapter());
+    Hive.registerAdapter(MoneyAccountAdapter());
+    Hive.registerAdapter(MoneyEntryAdapter());
     await Hive.openBox<Asset>('assets');
     await Hive.openBox<MetalPriceSnapshot>('metalPrices');
     await Hive.openBox<ZakatSettings>('zakatSettings');
     await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
     await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
     await Hive.openBox<dynamic>('uiPreferences');
+    await Hive.openBox<MoneyEntry>('moneyEntries');
+    await Hive.openBox<MoneyCategory>('moneyCategories');
+    await Hive.openBox<MoneyAccount>('moneyAccounts');
   });
 
   setUp(() async {
@@ -52,6 +60,10 @@ void main() {
     // Display currency and theme live here; leaving them set would carry a
     // preference from one test into the next.
     await Hive.box<dynamic>('uiPreferences').clear();
+    await Hive.box<MoneyEntry>('moneyEntries').clear();
+    await Hive.box<MoneyCategory>('moneyCategories').clear();
+    await Hive.box<MoneyAccount>('moneyAccounts').clear();
+    await seedMoneyDefaults();
   });
 
   tearDownAll(() async {
@@ -61,8 +73,7 @@ void main() {
   });
 
   testWidgets('shows the empty persisted assets dashboard', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.text('Wealth'), findsOneWidget);
     expect(find.text('TOTAL WEALTH'), findsOneWidget);
@@ -74,8 +85,7 @@ void main() {
   testWidgets('first run offers a way to add a holding, not empty filters', (
     tester,
   ) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.byKey(const Key('dashboard_empty_title')), findsOneWidget);
     expect(
@@ -108,8 +118,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.byKey(const Key('dashboard_empty_title')), findsNothing);
     expect(find.byKey(const Key('filter_type_all')), findsOneWidget);
@@ -124,8 +133,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('wealth_hero_total')), findsOneWidget);
@@ -149,8 +157,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     final tagRail = find.ancestor(
       of: find.byKey(const Key('filter_tag_all')),
@@ -172,8 +179,7 @@ void main() {
   testWidgets('notification app bar action opens notifications', (
     tester,
   ) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     await tester.tap(find.byKey(const Key('open_notifications')));
     await tester.pump();
@@ -204,8 +210,7 @@ void main() {
     tester,
   ) async {
     final service = _RecordingUnavailableMetalPriceService();
-    await tester.pumpWidget(_buildApp(service: service));
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester, app: _buildApp(service: service));
 
     expect(service.callCount, 1);
     expect(find.byKey(const Key('refresh_metal_prices')), findsNothing);
@@ -250,8 +255,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.text('450.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_nav')));
@@ -290,8 +294,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     expect(find.textContaining('LIVE GOLD \$100.00 / G'), findsWidgets);
   });
 
@@ -323,8 +326,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     await _scrollToHolding(tester, const Key('asset_value_gold'));
 
     // The worth is in the display currency, the bought price in the currency
@@ -351,8 +353,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     // The dashboard used to carry a currency pill under the hero total. It sat
     // beside the number it changed, which made a preference look like a filter.
@@ -398,8 +399,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     // 100 USD/g at the 3.6725 peg.
     expect(find.textContaining('LIVE GOLD AED 367.25 / G'), findsWidgets);
@@ -421,8 +421,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     // The hero total, and then the holding's own line further down.
     expect(find.text('1,234,567.89'), findsOneWidget);
@@ -577,8 +576,7 @@ void main() {
   testWidgets('zakat tab shows payment mode and nisab settings', (
     tester,
   ) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     await tester.tap(find.byKey(const Key('zakat_nav')));
     await _pumpKinetic(tester);
@@ -614,8 +612,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     // Every row has its own Edit, so the label alone cannot say which one a
     // test or the driver means. The key can — and each row is reachable by it
     // even when the list is long enough that rows build lazily.
@@ -640,8 +637,7 @@ void main() {
   testWidgets('the zakat schedule and nisab pickers can be addressed by key', (
     tester,
   ) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     await tester.tap(find.byKey(const Key('zakat_nav')));
     await _pumpKinetic(tester);
 
@@ -666,8 +662,7 @@ void main() {
   testWidgets('navigates between wealth, zakat and settings', (
     tester,
   ) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.text('Live position'), findsOneWidget);
 
@@ -713,8 +708,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     // 50,000 USD -> 1,250 USD zakat -> AED 4,590.63 at the peg. The dashboard
     // already converts.
@@ -733,8 +727,7 @@ void main() {
   });
 
   testWidgets('opens the About tab from bottom navigation', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     await tester.tap(find.byKey(const Key('about_nav')));
     await _pumpKinetic(tester);
@@ -768,8 +761,7 @@ void main() {
         ),
       });
     });
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     expect(find.text('150.00'), findsOneWidget);
     await tester.tap(find.byKey(const Key('filter_tag_salary')));
@@ -832,9 +824,7 @@ void main() {
         ),
       });
     });
-    await tester.pumpWidget(_buildApp());
-
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     expect(find.byKey(const Key('portfolio_jump_30d')), findsOneWidget);
     expect(find.byKey(const Key('portfolio_jump_90d')), findsOneWidget);
     expect(find.byKey(const Key('portfolio_jump_all')), findsOneWidget);
@@ -901,9 +891,7 @@ void main() {
       );
     });
 
-    await tester.pumpWidget(_buildApp());
-
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     expect(find.text('Cash added'), findsOneWidget);
     expect(find.text('Gold change'), findsOneWidget);
     expect(find.text(r'+$200'), findsOneWidget);
@@ -919,8 +907,7 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
     await tester.tap(find.byKey(const Key('open_transaction_history')));
     await _pumpKinetic(tester);
 
@@ -997,10 +984,12 @@ void main() {
     });
 
     final notifier = _RecordingAssetNotifier();
-    await tester.pumpWidget(
-      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    await _pumpWealth(
+      tester,
+      app: _buildApp(
+        overrides: [assetProvider.overrideWith((ref) => notifier)],
+      ),
     );
-    await _pumpKinetic(tester);
     await _scrollToHolding(tester, const Key('edit_asset_gold'));
 
     await tester.tap(find.byKey(const Key('edit_asset_gold')));
@@ -1056,10 +1045,12 @@ void main() {
     });
 
     final notifier = _RecordingAssetNotifier();
-    await tester.pumpWidget(
-      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    await _pumpWealth(
+      tester,
+      app: _buildApp(
+        overrides: [assetProvider.overrideWith((ref) => notifier)],
+      ),
     );
-    await _pumpKinetic(tester);
     await _scrollToHolding(tester, const Key('edit_asset_gold'));
     await tester.tap(find.byKey(const Key('edit_asset_gold')));
     await tester.pumpAndSettle();
@@ -1111,10 +1102,12 @@ void main() {
     // resolves synchronously.
     final notifier = _RecordingAssetNotifier();
 
-    await tester.pumpWidget(
-      _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
+    await _pumpWealth(
+      tester,
+      app: _buildApp(
+        overrides: [assetProvider.overrideWith((ref) => notifier)],
+      ),
     );
-    await _pumpKinetic(tester);
     await _scrollToHolding(tester, const Key('delete_asset_doomed'));
 
     // Delete no longer removes anything on its own.
@@ -1419,8 +1412,7 @@ void main() {
   });
 
   testWidgets('persists the kinetic theme mode toggle', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await _pumpKinetic(tester);
+    await _pumpWealth(tester);
 
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
@@ -1519,6 +1511,16 @@ class _UnavailableBiometricAuthService implements BiometricAuthService {
 /// and scrolling further down would never reach it. Each call starts from the
 /// top, which makes it independent of where the last one stopped and of the
 /// order the box happens to return holdings in.
+/// The app opens on Today now, so a test about the Wealth tab has to go there
+/// first. Kept as one helper so the landing tab can move again without
+/// touching every test that happens to look at holdings.
+Future<void> _pumpWealth(WidgetTester tester, {Widget? app}) async {
+  await tester.pumpWidget(app ?? _buildApp());
+  await _pumpKinetic(tester);
+  await tester.tap(find.byKey(const Key('dashboard_nav')));
+  await _pumpKinetic(tester);
+}
+
 Future<void> _scrollToHolding(WidgetTester tester, Key key) async {
   final scrollable = _verticalScrollableIn(const Key('dashboard_scroll'));
   await tester.drag(scrollable, const Offset(0, 6000));

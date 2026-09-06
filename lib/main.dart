@@ -36,6 +36,7 @@ import 'services/zakat_engine.dart';
 import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
 import 'widgets/about_page.dart';
+import 'widgets/today_page.dart';
 import 'widgets/asset_form_dialog.dart';
 import 'widgets/app_lock_gate.dart';
 import 'widgets/dashboard_charts.dart';
@@ -422,6 +423,7 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
   @override
   Widget build(BuildContext context) {
     final pages = [
+      const TodayPage(),
       const DashboardPage(),
       const ZakatPage(),
       const SettingsPage(),
@@ -435,11 +437,12 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
         leadingWidth: 64,
         leading: const SizedBox(width: 64),
         centerTitle: true,
-        title: _selectedPage == 0
+        title: _selectedPage == 1
             ? const _MonizLogo()
             : KineticText(switch (_selectedPage) {
-                1 => 'Zakat',
-                2 => 'Settings',
+                0 => 'Today',
+                2 => 'Zakat',
+                3 => 'Settings',
                 _ => 'About',
               }, style: AppTheme.titleStyle(colors).copyWith(fontSize: 22)),
         actions: [
@@ -496,6 +499,11 @@ class _KineticNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const _tabs = [
+    (
+      label: 'Today',
+      icon: Icons.receipt_long_outlined,
+      key: Key('today_nav'),
+    ),
     (
       label: 'Wealth',
       icon: Icons.account_balance_wallet_outlined,

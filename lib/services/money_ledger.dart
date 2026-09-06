@@ -143,6 +143,45 @@ class MoneyLedger {
     return balance;
   }
 
+  /// Categories for one direction, the ones used most recently first.
+  ///
+  /// The category tap is one of the three the capture budget allows, so the
+  /// right answer should almost always be near the front. What somebody spent
+  /// on an hour ago beats any fixed ordering at predicting that; the seeded
+  /// order is only a fallback for categories never used.
+  static List<MoneyCategory> byRecentUse(
+    List<MoneyCategory> categories,
+    List<MoneyEntry> entries, {
+    required MoneyDirection direction,
+  }) {
+    final offered = categories
+        .where((category) => !category.isHidden)
+        .where((category) => category.direction == direction)
+        .toList();
+
+    final lastUsed = <String, DateTime>{};
+    for (final entry in entries) {
+      if (entry.direction != direction) continue;
+      final id = entry.categoryId;
+      if (id == null) continue;
+      final seen = lastUsed[id];
+      if (seen == null || entry.happenedAt.isAfter(seen)) {
+        lastUsed[id] = entry.happenedAt;
+      }
+    }
+
+    offered.sort((a, b) {
+      final aUsed = lastUsed[a.id];
+      final bUsed = lastUsed[b.id];
+      if (aUsed != null && bUsed != null) return bUsed.compareTo(aUsed);
+      if (aUsed != null) return -1;
+      if (bUsed != null) return 1;
+      final byOrder = a.sortIndex.compareTo(b.sortIndex);
+      return byOrder != 0 ? byOrder : a.label.compareTo(b.label);
+    });
+    return List.unmodifiable(offered);
+  }
+
   /// Totals per category for one direction, largest first — the order a
   /// spending breakdown is read in.
   static List<CategoryTotal> byCategory(
