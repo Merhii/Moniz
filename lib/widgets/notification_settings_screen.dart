@@ -240,7 +240,21 @@ class _NotificationInterest {
   final List<NotificationTopic> topics;
 
   String get description {
-    return 'Receive ${label.toLowerCase()} updates and alerts.';
+    // A due date is not a price feed, so it should not borrow the wording of
+    // one. "Receive zakat updates and alerts" says nothing about when.
+    final isReminder = topics.every(
+      (topic) => topic.kind == NotificationTopicKind.zakatDue,
+    );
+    if (!isReminder) return 'Receive ${label.toLowerCase()} updates and alerts.';
+    // The row gives this one line before it ellipsises, so it has to be short.
+    final leads = topics.map((topic) => topic.leadDays).toSet();
+    final parts = <String>[
+      if (leads.contains(7)) 'a week before it is due',
+      if (leads.contains(0)) 'on the day',
+    ];
+    if (parts.isEmpty) return 'Reminders for upcoming zakat.';
+    final sentence = parts.join(', and ');
+    return '${sentence[0].toUpperCase()}${sentence.substring(1)}.';
   }
 
   bool isSelected(Set<String> subscribedTopicIds) {

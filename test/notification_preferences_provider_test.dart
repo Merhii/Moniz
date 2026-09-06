@@ -38,6 +38,8 @@ void main() {
       'gold.price.increase.3',
       'gold.price.decrease.3',
       'silver.price.movement.3',
+      'zakat.due.soon',
+      'zakat.due.today',
     ]);
   });
 
