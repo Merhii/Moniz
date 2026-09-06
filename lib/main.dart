@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import 'models/asset.dart';
 import 'models/money_entry.dart';
+import 'models/recurring_entry.dart';
 import 'models/metal_price_snapshot.dart';
 import 'models/portfolio_snapshot.dart';
 import 'models/zakat_settings.dart';
@@ -25,6 +26,7 @@ import 'services/dashboard_filter.dart';
 import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
 import 'services/money_category_catalog.dart';
+import 'services/recurrence_planner.dart';
 import 'services/app_lock_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
@@ -68,6 +70,7 @@ const monizBoxNames = [
   'moneyEntries',
   'moneyCategories',
   'moneyAccounts',
+  'moneyRecurrences',
 ];
 
 /// Opens the encrypted Hive boxes the app runs on.
@@ -111,7 +114,12 @@ Future<void> openMonizStorage() async {
     encryptionCipher: cipher,
   );
   await Hive.openBox<MoneyAccount>('moneyAccounts', encryptionCipher: cipher);
+  await Hive.openBox<RecurringEntry>(
+    'moneyRecurrences',
+    encryptionCipher: cipher,
+  );
   await seedMoneyDefaults();
+  await materialiseDueRecurrences();
 
   await discardOrphanedAppLock(
     isFreshInstall: isFreshInstall,
@@ -161,12 +169,38 @@ Future<void> seedMoneyDefaults() async {
   }
 }
 
+/// Writes the entries every recurring rule owes since it last ran.
+///
+/// Runs at startup, before anything reads the ledger, so a salary that landed
+/// while the app was closed is already there. Idempotent: each rule records
+/// the last date it produced, and occurrences are generated strictly after it.
+@visibleForTesting
+Future<void> materialiseDueRecurrences({DateTime? now}) async {
+  final rules = Hive.box<RecurringEntry>('moneyRecurrences');
+  if (rules.isEmpty) return;
+
+  final entries = Hive.box<MoneyEntry>('moneyEntries');
+  const planner = RecurrencePlanner();
+  final at = now ?? DateTime.now();
+
+  for (final rule in rules.values.toList()) {
+    final result = planner.materialise(rule: rule, now: at);
+    if (result.entries.isEmpty) continue;
+    await entries.putAll({
+      for (final entry in result.entries) entry.id: entry,
+    });
+    await rules.put(rule.id, result.rule);
+  }
+}
+
 @visibleForTesting
 void registerMonizAdapters() {
   _registerAdapter(MoneyDirectionAdapter());
   _registerAdapter(MoneyCategoryAdapter());
   _registerAdapter(MoneyAccountAdapter());
   _registerAdapter(MoneyEntryAdapter());
+  _registerAdapter(RecurrenceFrequencyAdapter());
+  _registerAdapter(RecurringEntryAdapter());
   _registerAdapter(AssetTypeAdapter());
   _registerAdapter(AssetTagAdapter());
   _registerAdapter(AssetAdapter());
@@ -1093,7 +1127,11 @@ class _SectionHeading extends StatelessWidget {
               ).copyWith(fontSize: 22),
             ),
           ),
-          ?trailing,
+          // Not `?trailing`: that null-aware element is valid Dart and the
+          // analyzer prefers it, but the analyzer build_runner pins cannot
+          // parse it, which breaks adapter generation for the whole project.
+          // ignore: use_null_aware_elements
+          if (trailing != null) trailing!,
         ],
       ),
     );
