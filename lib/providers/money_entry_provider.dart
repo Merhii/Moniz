@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import '../models/money_entry.dart';
+import '../services/launch_action_service.dart';
 import '../services/money_category_catalog.dart';
 
 class MoneyEntryNotifier extends StateNotifier<List<MoneyEntry>> {
@@ -106,3 +107,7 @@ final visibleMoneyCategoriesProvider = Provider<List<MoneyCategory>>((ref) {
     ref.watch(moneyCategoryProvider).where((category) => !category.isHidden),
   );
 });
+
+final launchActionReaderProvider = Provider<LaunchActionReader>(
+  (ref) => const PlatformLaunchActionReader(),
+);

@@ -18,6 +18,7 @@ import 'package:moniz/providers/money_entry_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
 import 'package:moniz/services/biometric_auth_service.dart';
 import 'package:moniz/services/metal_price_service.dart';
+import 'package:moniz/services/launch_action_service.dart';
 import 'package:moniz/services/money_ledger.dart';
 import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 
@@ -53,6 +54,28 @@ void main() {
     if (await hiveDirectory.exists()) {
       await hiveDirectory.delete(recursive: true);
     }
+  });
+
+  testWidgets('a widget quick-add tap opens capture on launch', (
+    tester,
+  ) async {
+    final reader = _StubLaunchAction(LaunchAction.addEntry);
+    await tester.pumpWidget(_buildApp(launchAction: reader));
+    await _pump(tester);
+    await _pump(tester);
+
+    expect(find.byKey(const Key('money_amount_field')), findsOneWidget);
+    expect(reader.consumed, 1);
+  });
+
+  testWidgets('an ordinary launch opens Today, not capture', (tester) async {
+    final reader = _StubLaunchAction(null);
+    await tester.pumpWidget(_buildApp(launchAction: reader));
+    await _pump(tester);
+    await _pump(tester);
+
+    expect(find.byKey(const Key('money_amount_field')), findsNothing);
+    expect(find.byKey(const Key('today_spend_total')), findsOneWidget);
   });
 
   testWidgets('the app opens on Today', (tester) async {
@@ -640,10 +663,12 @@ Future<void> _pump(WidgetTester tester) {
   return tester.pump(const Duration(milliseconds: 200));
 }
 
-Widget _buildApp({_RecordingEntries? entries}) {
+Widget _buildApp({_RecordingEntries? entries, LaunchActionReader? launchAction}) {
   return ProviderScope(
     overrides: [
       if (entries != null) moneyEntryProvider.overrideWith((ref) => entries),
+      if (launchAction != null)
+        launchActionReaderProvider.overrideWithValue(launchAction),
       appLockStorageProvider.overrideWithValue(_InMemoryAppLockStorage()),
       biometricAuthServiceProvider.overrideWithValue(
         const _UnavailableBiometrics(),
@@ -655,6 +680,22 @@ Widget _buildApp({_RecordingEntries? entries}) {
     ],
     child: const MonizApp(),
   );
+}
+
+/// Stands in for the platform channel, which has no host under tests.
+class _StubLaunchAction implements LaunchActionReader {
+  _StubLaunchAction(this._action);
+
+  final LaunchAction? _action;
+  var consumed = 0;
+
+  @override
+  Future<LaunchAction?> consume() async {
+    consumed++;
+    // Consumed, so a resume after the first read gets nothing.
+    final action = consumed == 1 ? _action : null;
+    return action;
+  }
 }
 
 class _UnavailablePrices implements MetalPriceService {

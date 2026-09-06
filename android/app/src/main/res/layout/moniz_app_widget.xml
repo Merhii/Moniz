@@ -10,39 +10,35 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/moniz_widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.08"
+        android:text="MONIZ"
+        android:textAllCaps="true"
+        android:textColor="#F7D38D"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/moniz_widget_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fontFamily="sans-serif-condensed"
-            android:letterSpacing="0.08"
-            android:text="MONIZ"
-            android:textAllCaps="true"
-            android:textColor="#F7D38D"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/moniz_widget_version"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/moniz_widget_accent_background"
-            android:paddingLeft="10dp"
-            android:paddingTop="5dp"
-            android:paddingRight="10dp"
-            android:paddingBottom="5dp"
-            android:text="v1.0.0"
-            android:textColor="#F7D38D"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+    <TextView
+        android:id="@+id/moniz_widget_add"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/moniz_widget_accent_background"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:paddingLeft="14dp"
+        android:paddingTop="12dp"
+        android:paddingRight="14dp"
+        android:paddingBottom="12dp"
+        android:text="+ Add entry"
+        android:textColor="#0A2447"
+        android:textSize="15sp"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/moniz_widget_subtitle"
@@ -50,19 +46,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:ellipsize="end"
-        android:maxLines="2"
-        android:text="Gold, silver, portfolio, and Zakat at a glance."
+        android:maxLines="1"
+        android:text="Tap the tile to open MONIZ"
         android:textColor="#D8D0C5"
-        android:textSize="13sp" />
-
-    <TextView
-        android:id="@+id/moniz_widget_action"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Tap to open MONIZ"
-        android:textAllCaps="true"
-        android:textColor="#B8862F"
-        android:textSize="11sp"
-        android:textStyle="bold" />
+        android:textSize="12sp" />
 </LinearLayout>
