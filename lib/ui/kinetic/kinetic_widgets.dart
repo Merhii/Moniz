@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../services/currency_converter.dart';
 import '../../theme/app_theme.dart';
 
 class KineticText extends StatelessWidget {
@@ -536,7 +537,9 @@ class CurrencyLogoMark extends StatelessWidget {
     if (raw) {
       return asset == null
           ? Text(
-              currency,
+              // The symbol, not the code: the code is already rendered right
+              // beside this, and showing both reads as "CAD CAD".
+              CurrencyConverter.symbolFor(currency),
               textAlign: TextAlign.center,
               style: AppTheme.labelStyle(colors).copyWith(
                 color: foreground,
@@ -568,11 +571,12 @@ class CurrencyLogoMark extends StatelessWidget {
       ),
       child: asset == null
           ? Text(
-              currency,
+              // Symbol, not code — see the raw branch above.
+              CurrencyConverter.symbolFor(currency),
               textAlign: TextAlign.center,
               style: AppTheme.labelStyle(colors).copyWith(
                 color: foreground,
-                fontSize: 9,
+                fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0,
                 height: 1,
