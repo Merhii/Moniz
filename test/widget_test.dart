@@ -66,9 +66,9 @@ void main() {
 
     expect(find.text('Wealth'), findsOneWidget);
     expect(find.text('TOTAL WEALTH'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-    expect(find.text('No assets yet'), findsOneWidget);
+    // With no holdings the dashboard shows its own empty state; there is no
+    // separate Ledger tab holding a second one.
+    expect(find.byKey(const Key('dashboard_empty_title')), findsOneWidget);
   });
 
   testWidgets('first run offers a way to add a holding, not empty filters', (
@@ -271,8 +271,7 @@ void main() {
       scrollable: _verticalScrollableIn(const Key('dashboard_scroll')),
     );
     expect(find.byKey(const Key('portfolio_pie_chart')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
+    await _scrollToHolding(tester, const Key('asset_tag_chip_gold'));
     expect(find.byKey(const Key('asset_tag_chip_gold')), findsOneWidget);
   });
 
@@ -326,8 +325,7 @@ void main() {
 
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
+    await _scrollToHolding(tester, const Key('asset_value_gold'));
 
     // The worth is in the display currency, the bought price in the currency
     // it was recorded in. Both say so themselves, so a separate "Prices in
@@ -426,10 +424,12 @@ void main() {
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
 
+    // The hero total, and then the holding's own line further down.
     expect(find.text('1,234,567.89'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-    expect(find.text('1,234,567.89'), findsOneWidget);
+    // A USD holding shown in USD needs no converted line, so the row is
+    // reached by a control it does have.
+    await _scrollToHolding(tester, const Key('edit_asset_cash'));
+    expect(find.textContaining('1,234,567.89'), findsWidgets);
   });
 
   testWidgets('adds a gold asset using rich finance fields', (tester) async {
@@ -616,13 +616,14 @@ void main() {
 
     await tester.pumpWidget(_buildApp());
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-
-    // Every row has its own Edit, so the label alone cannot say which one
-    // a test or the driver means. The key can.
-    expect(find.text('Edit'), findsNWidgets(2));
+    // Every row has its own Edit, so the label alone cannot say which one a
+    // test or the driver means. The key can — and each row is reachable by it
+    // even when the list is long enough that rows build lazily.
+    await _scrollToHolding(tester, const Key('edit_asset_gold'));
     expect(find.byKey(const Key('edit_asset_gold')), findsOneWidget);
+    expect(find.text('Edit'), findsWidgets);
+
+    await _scrollToHolding(tester, const Key('edit_asset_savings'));
     expect(find.byKey(const Key('edit_asset_savings')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('edit_asset_savings')));
@@ -662,7 +663,7 @@ void main() {
     expect(nisab.items, NisabStandard.values);
   });
 
-  testWidgets('navigates between dashboard holdings and settings pages', (
+  testWidgets('navigates between wealth, zakat and settings', (
     tester,
   ) async {
     await tester.pumpWidget(_buildApp());
@@ -670,9 +671,9 @@ void main() {
 
     expect(find.text('Live position'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-    expect(find.text('Add, edit, and scan asset records.'), findsOneWidget);
+    // Wealth carries the holdings now, so with none it shows their empty state
+    // instead of a second tab doing it.
+    expect(find.byKey(const Key('dashboard_add_first_holding')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings_nav')));
     await _pumpKinetic(tester);
@@ -1000,10 +1001,9 @@ void main() {
       _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
     );
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
+    await _scrollToHolding(tester, const Key('edit_asset_gold'));
 
-    await tester.tap(find.text('Edit'));
+    await tester.tap(find.byKey(const Key('edit_asset_gold')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('asset_amount_field')), findsOneWidget);
 
@@ -1060,9 +1060,8 @@ void main() {
       _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
     );
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
-    await tester.tap(find.text('Edit'));
+    await _scrollToHolding(tester, const Key('edit_asset_gold'));
+    await tester.tap(find.byKey(const Key('edit_asset_gold')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('asset_amount_field')), findsOneWidget);
 
@@ -1116,8 +1115,7 @@ void main() {
       _buildApp(overrides: [assetProvider.overrideWith((ref) => notifier)]),
     );
     await _pumpKinetic(tester);
-    await tester.tap(find.byKey(const Key('holdings_nav')));
-    await _pumpKinetic(tester);
+    await _scrollToHolding(tester, const Key('delete_asset_doomed'));
 
     // Delete no longer removes anything on its own.
     await tester.tap(find.byKey(const Key('delete_asset_doomed')));
@@ -1512,6 +1510,20 @@ class _UnavailableBiometricAuthService implements BiometricAuthService {
 
   @override
   Future<AppBiometricType> availableType() async => AppBiometricType.none;
+}
+
+/// Holdings sit under the filters on the Wealth tab now rather than on a tab
+/// of their own, so reaching one is a scroll rather than a tab change.
+///
+/// Rows build lazily, so a row above the current position is not in the tree
+/// and scrolling further down would never reach it. Each call starts from the
+/// top, which makes it independent of where the last one stopped and of the
+/// order the box happens to return holdings in.
+Future<void> _scrollToHolding(WidgetTester tester, Key key) async {
+  final scrollable = _verticalScrollableIn(const Key('dashboard_scroll'));
+  await tester.drag(scrollable, const Offset(0, 6000));
+  await tester.pump();
+  await tester.scrollUntilVisible(find.byKey(key), 300, scrollable: scrollable);
 }
 
 Future<void> _pumpKinetic(WidgetTester tester) {
