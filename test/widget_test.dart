@@ -9,6 +9,7 @@ import 'package:moniz/main.dart';
 import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/money_entry.dart';
+import 'package:moniz/models/recurring_entry.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/asset_provider.dart';
@@ -40,6 +41,8 @@ void main() {
     Hive.registerAdapter(MoneyCategoryAdapter());
     Hive.registerAdapter(MoneyAccountAdapter());
     Hive.registerAdapter(MoneyEntryAdapter());
+    Hive.registerAdapter(RecurrenceFrequencyAdapter());
+    Hive.registerAdapter(RecurringEntryAdapter());
     await Hive.openBox<Asset>('assets');
     await Hive.openBox<MetalPriceSnapshot>('metalPrices');
     await Hive.openBox<ZakatSettings>('zakatSettings');
@@ -49,6 +52,7 @@ void main() {
     await Hive.openBox<MoneyEntry>('moneyEntries');
     await Hive.openBox<MoneyCategory>('moneyCategories');
     await Hive.openBox<MoneyAccount>('moneyAccounts');
+    await Hive.openBox<RecurringEntry>('moneyRecurrences');
   });
 
   setUp(() async {
@@ -63,6 +67,7 @@ void main() {
     await Hive.box<MoneyEntry>('moneyEntries').clear();
     await Hive.box<MoneyCategory>('moneyCategories').clear();
     await Hive.box<MoneyAccount>('moneyAccounts').clear();
+    await Hive.box<RecurringEntry>('moneyRecurrences').clear();
     await seedMoneyDefaults();
   });
 

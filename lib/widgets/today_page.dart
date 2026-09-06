@@ -5,12 +5,14 @@ import '../models/money_entry.dart';
 import '../providers/display_currency_provider.dart';
 import '../providers/metal_price_provider.dart';
 import '../providers/money_entry_provider.dart';
+import '../providers/recurring_entry_provider.dart';
 import '../services/currency_converter.dart';
 import '../services/money_ledger.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
 import 'category_breakdown.dart';
 import 'money_capture_sheet.dart';
+import 'recurring_entries_screen.dart';
 import 'spending_period.dart';
 
 /// The surface the app opens on. A wallet that opens on a total-wealth screen
@@ -50,6 +52,10 @@ class _TodayPageState extends ConsumerState<TodayPage> {
             displayCurrency: displayCurrency,
             prices: prices,
           );
+    final activeRepeats = ref
+        .watch(recurringEntryProvider)
+        .where((rule) => !rule.isPaused)
+        .length;
     final byCategory = MoneyLedger.byCategory(
       periodEntries,
       direction: MoneyDirection.expense,
@@ -80,13 +86,40 @@ class _TodayPageState extends ConsumerState<TodayPage> {
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
             child: BrutalistButton(
               key: const Key('add_money_entry'),
               label: 'Add entry',
               tone: BrutalistButtonTone.primary,
               expand: true,
               onPressed: () => captureMoneyEntry(context, ref),
+            ),
+          ),
+        ),
+        // Quiet, and directly under the primary action rather than competing
+        // with it. Somebody who just typed rent for the third month should be
+        // able to find this without going hunting in Settings.
+        SliverToBoxAdapter(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('open_recurring_entries'),
+              onPressed: () => Navigator.of(context).push<void>(
+                PageRouteBuilder<void>(
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                  pageBuilder: (_, _, _) => const RecurringEntriesScreen(),
+                ),
+              ),
+              child: KineticText(
+                activeRepeats == 0
+                    ? 'Set up something that repeats'
+                    : '$activeRepeats repeating',
+                uppercase: false,
+                style: AppTheme.bodyStyle(
+                  colors,
+                ).copyWith(color: colors.accent, fontSize: 13),
+              ),
             ),
           ),
         ),

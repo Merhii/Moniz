@@ -9,6 +9,7 @@ import 'package:moniz/main.dart';
 import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/money_entry.dart';
+import 'package:moniz/models/recurring_entry.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/app_lock_provider.dart';
@@ -36,12 +37,14 @@ void main() {
     await Hive.openBox<MoneyEntry>('moneyEntries');
     await Hive.openBox<MoneyCategory>('moneyCategories');
     await Hive.openBox<MoneyAccount>('moneyAccounts');
+    await Hive.openBox<RecurringEntry>('moneyRecurrences');
   });
 
   setUp(() async {
     await Hive.box<MoneyEntry>('moneyEntries').clear();
     await Hive.box<MoneyCategory>('moneyCategories').clear();
     await Hive.box<MoneyAccount>('moneyAccounts').clear();
+    await Hive.box<RecurringEntry>('moneyRecurrences').clear();
     await Hive.box<dynamic>('uiPreferences').clear();
     await seedMoneyDefaults();
   });
@@ -128,10 +131,23 @@ void main() {
     await _pump(tester);
 
     expect(find.byKey(const Key('today_empty_title')), findsNothing);
-    // Once in the breakdown, once in the entry list.
-    expect(find.text('Groceries'), findsNWidgets(2));
     expect(find.byKey(const Key('breakdown_expense.groceries')), findsOneWidget);
     // The row, and the "Left" figure, which is −12 with nothing coming in.
+    // The id is generated, so the row is reached by predicate rather than key.
+    await tester.scrollUntilVisible(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is KineticText &&
+            widget.key.toString().contains('money_entry_amount_'),
+      ),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('today_scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     final entryAmount = find.byWidgetPredicate(
       (widget) =>
           widget is KineticText &&
@@ -305,6 +321,7 @@ void main() {
     await tester.pumpWidget(_buildApp(entries: entries));
     await _pump(tester);
 
+    await _scrollTodayTo(tester, const Key('money_entry_lunch'));
     await tester.tap(find.byKey(const Key('money_entry_lunch')));
     await _pump(tester);
     await tester.enterText(find.byKey(const Key('money_amount_field')), '15');
@@ -539,6 +556,22 @@ class _RecordingEntries extends MoneyEntryNotifier {
   }
 }
 
+/// Today gained a row above the entries, so a row can start below the test
+/// viewport. The list builds lazily, so it has to be scrolled to rather than
+/// made visible.
+Future<void> _scrollTodayTo(WidgetTester tester, Key key) {
+  return tester.scrollUntilVisible(
+    find.byKey(key),
+    200,
+    scrollable: find
+        .descendant(
+          of: find.byKey(const Key('today_scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+}
+
 /// The capture sheet is taller than a test viewport and its list builds
 /// lazily, so a control at the foot is not in the tree until scrolled to.
 /// `ensureVisible` cannot reach an element that does not exist yet.
@@ -574,6 +607,7 @@ Future<_RecordingEntries> _openEntryForEditing(WidgetTester tester) async {
   final entries = _recorder();
   await tester.pumpWidget(_buildApp(entries: entries));
   await _pump(tester);
+  await _scrollTodayTo(tester, const Key('money_entry_lunch'));
   await tester.tap(find.byKey(const Key('money_entry_lunch')));
   await _pump(tester);
   await _pump(tester);
