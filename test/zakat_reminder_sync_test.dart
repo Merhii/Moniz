@@ -60,6 +60,9 @@ class _RecordingScheduler implements ReminderScheduler {
   Future<void> syncZakatReminders(List<ScheduledReminder> reminders) async {
     syncs.add(reminders);
   }
+
+  @override
+  Future<void> syncDailyNudge(ScheduledReminder? reminder) async {}
 }
 
 void main() {

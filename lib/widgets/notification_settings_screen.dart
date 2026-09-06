@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/notification_topic.dart';
+import '../providers/daily_nudge_provider.dart';
 import '../providers/notification_preferences_provider.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
@@ -73,6 +74,8 @@ class _NotificationSettingsScreenState
                 ),
               ),
             ),
+          const SizedBox(height: 24),
+          const _DailyNudgeCard(),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 2),
             KineticText(
@@ -279,5 +282,89 @@ class _NotificationInterest {
           ),
         )
         .toList(growable: false);
+  }
+}
+
+/// The end-of-day reminder. Separate from the topic list because it is the one
+/// notification with a time attached, and because it is about the owner's own
+/// habit rather than a market.
+class _DailyNudgeCard extends ConsumerWidget {
+  const _DailyNudgeCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.kinetic;
+    final settings = ref.watch(dailyNudgeProvider);
+    final notifier = ref.read(dailyNudgeProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KineticText(
+          'End of day',
+          style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+        ),
+        const SizedBox(height: 6),
+        KineticText(
+          'A nudge if the day has nothing logged yet. Days you have already '
+          'logged are skipped.',
+          muted: true,
+          uppercase: false,
+          style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: KineticText(
+                settings.isEnabled
+                    ? 'Remind me at ${settings.timeLabel}'
+                    : 'Remind me',
+                key: const Key('daily_nudge_label'),
+                uppercase: false,
+                style: AppTheme.bodyStyle(
+                  colors,
+                ).copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Switch(
+              key: const Key('daily_nudge_toggle'),
+              value: settings.isEnabled,
+              onChanged: notifier.setEnabled,
+            ),
+          ],
+        ),
+        if (settings.isEnabled) ...[
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('daily_nudge_time'),
+              onPressed: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(
+                    hour: settings.hour,
+                    minute: settings.minute,
+                  ),
+                );
+                if (picked == null) return;
+                await notifier.setTime(
+                  hour: picked.hour,
+                  minute: picked.minute,
+                );
+              },
+              child: KineticText(
+                'Change time',
+                uppercase: false,
+                style: AppTheme.bodyStyle(
+                  colors,
+                ).copyWith(color: colors.accent, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
