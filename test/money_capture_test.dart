@@ -171,6 +171,51 @@ void main() {
     expect(entry.signedAmount, 3000);
   });
 
+  testWidgets('switching direction leaves you in the amount field', (
+    tester,
+  ) async {
+    final entries = _recorder();
+    await tester.pumpWidget(_buildApp(entries: entries));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('add_money_entry')));
+    await _pump(tester);
+
+    Future<bool> amountHasFocus() async => tester
+        .widget<EditableText>(
+          find.descendant(
+            of: find.byKey(const Key('money_amount_field')),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .focusNode
+        .hasFocus;
+
+    expect(await amountHasFocus(), isTrue, reason: 'autofocus on open');
+
+    // On a device, tapping any control outside the field fires its
+    // onTapOutside and drops focus — that is what made a switch-then-type
+    // income entry silently save nothing. A synthetic tap does not reproduce
+    // it, so the drop is done explicitly here and the toggle has to put focus
+    // back. Without that, this expectation fails.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await _pump(tester);
+    expect(await amountHasFocus(), isFalse, reason: 'focus really was lost');
+
+    await tester.tap(find.byKey(const Key('money_direction_income')));
+    await _pump(tester);
+    expect(await amountHasFocus(), isTrue);
+
+    // And typing lands, rather than going nowhere.
+    await tester.enterText(find.byKey(const Key('money_amount_field')), '2500');
+    await tester.tap(find.byKey(const Key('money_category_income.salary')));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('money_save_button')));
+    await _pump(tester);
+
+    expect(entries.added.single.amount, 2500);
+    expect(entries.added.single.direction, MoneyDirection.income);
+  });
+
   testWidgets('switching direction drops a category that no longer applies', (
     tester,
   ) async {

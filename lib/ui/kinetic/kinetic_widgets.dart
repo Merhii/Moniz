@@ -733,6 +733,7 @@ class KineticInput extends StatelessWidget {
     this.maxLines = 1,
     this.hero = false,
     this.autofocus = false,
+    this.focusNode,
   });
 
   final Key? fieldKey;
@@ -745,6 +746,11 @@ class KineticInput extends StatelessWidget {
   final bool hero;
   final bool autofocus;
 
+  /// Supply one when something outside the field needs to hand focus back to
+  /// it — tapping any other control fires [onTapOutside] and dismisses the
+  /// keyboard, which is right in general and wrong mid-entry.
+  final FocusNode? focusNode;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
@@ -752,6 +758,7 @@ class KineticInput extends StatelessWidget {
     return TextFormField(
       key: fieldKey,
       controller: controller,
+      focusNode: focusNode,
       autofocus: autofocus,
       keyboardType: keyboardType,
       textInputAction: isMultiline

@@ -35,6 +35,7 @@ class MoneyCaptureSheet extends ConsumerStatefulWidget {
 
 class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
   late final TextEditingController _amount;
+  final _amountFocus = FocusNode();
   late final TextEditingController _note;
   late MoneyDirection _direction;
   late DateTime _happenedAt;
@@ -64,6 +65,7 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
   @override
   void dispose() {
     _amount.dispose();
+    _amountFocus.dispose();
     _note.dispose();
     super.dispose();
   }
@@ -102,15 +104,23 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
             children: [
               _DirectionToggle(
                 direction: _direction,
-                onChanged: (direction) => setState(() {
-                  _direction = direction;
-                  _categoryId = null;
-                }),
+                onChanged: (direction) {
+                  setState(() {
+                    _direction = direction;
+                    _categoryId = null;
+                  });
+                  // The tap dismissed the keyboard on its way here. Switching
+                  // direction before typing is a normal way to start an
+                  // income entry, and it should not cost a tap to get back
+                  // into the field.
+                  _amountFocus.requestFocus();
+                },
               ),
               const SizedBox(height: 20),
               KineticInput(
                 fieldKey: const Key('money_amount_field'),
                 controller: _amount,
+                focusNode: _amountFocus,
                 label: 'Amount',
                 hero: true,
                 // Opens with the keyboard up and the cursor here, so the
