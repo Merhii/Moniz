@@ -1,0 +1,181 @@
+import '../models/metal_price_snapshot.dart';
+import '../models/money_entry.dart';
+import 'currency_converter.dart';
+
+/// A window of time, inclusive of [start] and exclusive of [end].
+class DateRange {
+  const DateRange({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+
+  factory DateRange.day(DateTime day) {
+    final start = DateTime(day.year, day.month, day.day);
+    return DateRange(start: start, end: start.add(const Duration(days: 1)));
+  }
+
+  factory DateRange.month(DateTime day) {
+    return DateRange(
+      start: DateTime(day.year, day.month),
+      end: DateTime(day.year, day.month + 1),
+    );
+  }
+
+  bool contains(DateTime moment) {
+    return !moment.isBefore(start) && moment.isBefore(end);
+  }
+}
+
+class MoneyTotals {
+  const MoneyTotals({
+    required this.income,
+    required this.expense,
+    required this.currency,
+    required this.excludedEntryCount,
+  });
+
+  final double income;
+  final double expense;
+  final String currency;
+
+  /// Entries in a currency with no rate. Counted rather than silently dropped,
+  /// so the screen can say a total is incomplete instead of quietly lying.
+  final int excludedEntryCount;
+
+  double get net => income - expense;
+  bool get isComplete => excludedEntryCount == 0;
+}
+
+class CategoryTotal {
+  const CategoryTotal({
+    required this.categoryId,
+    required this.amount,
+    required this.direction,
+  });
+
+  /// Null for entries saved without one.
+  final String? categoryId;
+  final double amount;
+  final MoneyDirection direction;
+}
+
+/// Every figure the wallet shows is summed from entries here. Nothing stores a
+/// balance: a stored balance drifts from the entries behind it, and a drifting
+/// balance is the problem the wallet exists to remove.
+class MoneyLedger {
+  const MoneyLedger();
+
+  static List<MoneyEntry> inRange(List<MoneyEntry> entries, DateRange range) {
+    return entries
+        .where((entry) => range.contains(entry.happenedAt))
+        .toList(growable: false);
+  }
+
+  /// Newest first, which is the order every screen wants.
+  static List<MoneyEntry> newestFirst(List<MoneyEntry> entries) {
+    final sorted = [...entries]
+      ..sort((a, b) => b.happenedAt.compareTo(a.happenedAt));
+    return List.unmodifiable(sorted);
+  }
+
+  static MoneyTotals totals(
+    List<MoneyEntry> entries, {
+    required String displayCurrency,
+    MetalPriceSnapshot? prices,
+  }) {
+    final currency = CurrencyConverter.normalize(displayCurrency);
+    var income = 0.0;
+    var expense = 0.0;
+    var excluded = 0;
+
+    for (final entry in entries) {
+      final converted = CurrencyConverter.convert(
+        entry.amount,
+        from: entry.currency,
+        to: currency,
+        prices: prices,
+      );
+      if (converted == null) {
+        excluded++;
+        continue;
+      }
+      if (entry.isIncome) {
+        income += converted;
+      } else {
+        expense += converted;
+      }
+    }
+
+    return MoneyTotals(
+      income: income,
+      expense: expense,
+      currency: currency,
+      excludedEntryCount: excluded,
+    );
+  }
+
+  /// What an account is worth right now, from everything that ever moved
+  /// through it. Entries dated in the future are excluded — money promised is
+  /// not money held, and zakat cares about the difference.
+  static double balanceOf(
+    List<MoneyEntry> entries, {
+    required String accountId,
+    required String currency,
+    DateTime? asOf,
+    MetalPriceSnapshot? prices,
+  }) {
+    final cutoff = asOf ?? DateTime.now();
+    final target = CurrencyConverter.normalize(currency);
+    var balance = 0.0;
+
+    for (final entry in entries) {
+      if (entry.accountId != accountId) continue;
+      if (entry.happenedAt.isAfter(cutoff)) continue;
+      final converted = CurrencyConverter.convert(
+        entry.amount,
+        from: entry.currency,
+        to: target,
+        prices: prices,
+      );
+      if (converted == null) continue;
+      balance += converted * entry.direction.sign;
+    }
+    return balance;
+  }
+
+  /// Totals per category for one direction, largest first — the order a
+  /// spending breakdown is read in.
+  static List<CategoryTotal> byCategory(
+    List<MoneyEntry> entries, {
+    required MoneyDirection direction,
+    required String displayCurrency,
+    MetalPriceSnapshot? prices,
+  }) {
+    final currency = CurrencyConverter.normalize(displayCurrency);
+    final sums = <String?, double>{};
+
+    for (final entry in entries) {
+      if (entry.direction != direction) continue;
+      final converted = CurrencyConverter.convert(
+        entry.amount,
+        from: entry.currency,
+        to: currency,
+        prices: prices,
+      );
+      if (converted == null) continue;
+      sums[entry.categoryId] = (sums[entry.categoryId] ?? 0) + converted;
+    }
+
+    final totals = sums.entries
+        .map(
+          (sum) => CategoryTotal(
+            categoryId: sum.key,
+            amount: sum.value,
+            direction: direction,
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+    return List.unmodifiable(totals);
+  }
+}

@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'models/asset.dart';
+import 'models/money_entry.dart';
 import 'models/metal_price_snapshot.dart';
 import 'models/portfolio_snapshot.dart';
 import 'models/zakat_settings.dart';
@@ -23,6 +24,7 @@ import 'providers/zakat_provider.dart';
 import 'services/dashboard_filter.dart';
 import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
+import 'services/money_category_catalog.dart';
 import 'services/app_lock_service.dart';
 import 'services/currency_converter.dart';
 import 'services/position_performance.dart';
@@ -52,6 +54,21 @@ void main() {
   runApp(const ProviderScope(child: MonizBootstrap()));
 }
 
+/// Every box the app stores data in. Encryption is bootstrapped from this
+/// list, so a box added here is encrypted by that fact alone — and a box left
+/// off it would sit in plaintext beside the rest.
+const monizBoxNames = [
+  'assets',
+  'metalPrices',
+  'zakatSettings',
+  'zakatPayments',
+  'portfolioSnapshots',
+  'uiPreferences',
+  'moneyEntries',
+  'moneyCategories',
+  'moneyAccounts',
+];
+
 /// Opens the encrypted Hive boxes the app runs on.
 ///
 /// Safe to call again after a failure: adapters are only registered once, and
@@ -68,15 +85,7 @@ Future<void> openMonizStorage() async {
   // to a previous one.
   final isFreshInstall = !await Hive.boxExists('assets');
 
-  const boxNames = [
-    'assets',
-    'metalPrices',
-    'zakatSettings',
-    'zakatPayments',
-    'portfolioSnapshots',
-    'uiPreferences',
-  ];
-  final cipher = await HiveEncryption().bootstrap(boxNames);
+  final cipher = await HiveEncryption().bootstrap(monizBoxNames);
 
   await Hive.openBox<Asset>('assets', encryptionCipher: cipher);
   await Hive.openBox<MetalPriceSnapshot>(
@@ -93,6 +102,15 @@ Future<void> openMonizStorage() async {
     encryptionCipher: cipher,
   );
   await Hive.openBox<dynamic>('uiPreferences', encryptionCipher: cipher);
+  // Spending is at least as sensitive as holdings, so it gets the same cipher
+  // rather than a plaintext box beside the encrypted ones.
+  await Hive.openBox<MoneyEntry>('moneyEntries', encryptionCipher: cipher);
+  await Hive.openBox<MoneyCategory>(
+    'moneyCategories',
+    encryptionCipher: cipher,
+  );
+  await Hive.openBox<MoneyAccount>('moneyAccounts', encryptionCipher: cipher);
+  await seedMoneyDefaults();
 
   await discardOrphanedAppLock(
     isFreshInstall: isFreshInstall,
@@ -120,8 +138,34 @@ Future<void> discardOrphanedAppLock({
 /// The type argument matters: Hive matches a value to an adapter with
 /// `value is T`, so registering through a `TypeAdapter<dynamic>` makes the
 /// first adapter match every value and every write goes to the wrong one.
+/// Writes the starting categories and the single wallet account a fresh
+/// install needs. Runs on every start so a later release can add a category
+/// without a migration; anything already stored is left alone.
+@visibleForTesting
+Future<void> seedMoneyDefaults() async {
+  final categories = Hive.box<MoneyCategory>('moneyCategories');
+  final missing = MoneyCategoryCatalog.missingFrom(categories.keys.cast());
+  if (missing.isNotEmpty) {
+    await categories.putAll({
+      for (final category in missing) category.id: category,
+    });
+  }
+
+  final accounts = Hive.box<MoneyAccount>('moneyAccounts');
+  if (!accounts.containsKey(MoneyAccount.defaultId)) {
+    await accounts.put(
+      MoneyAccount.defaultId,
+      MoneyCategoryCatalog.defaultAccount,
+    );
+  }
+}
+
 @visibleForTesting
 void registerMonizAdapters() {
+  _registerAdapter(MoneyDirectionAdapter());
+  _registerAdapter(MoneyCategoryAdapter());
+  _registerAdapter(MoneyAccountAdapter());
+  _registerAdapter(MoneyEntryAdapter());
   _registerAdapter(AssetTypeAdapter());
   _registerAdapter(AssetTagAdapter());
   _registerAdapter(AssetAdapter());

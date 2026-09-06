@@ -20,9 +20,8 @@ class ZakatSettingsAdapter extends TypeAdapter<ZakatSettings> {
       scheduleMode: fields[0] == null
           ? ZakatScheduleMode.ramadanAnnual
           : fields[0] as ZakatScheduleMode,
-      nisabStandard: fields[1] == null
-          ? NisabStandard.silver
-          : fields[1] as NisabStandard,
+      nisabStandard:
+          fields[1] == null ? NisabStandard.silver : fields[1] as NisabStandard,
       nextRamadanDueDate: fields[2] as DateTime?,
     );
   }
