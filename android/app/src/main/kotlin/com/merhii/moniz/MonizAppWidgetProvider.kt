@@ -8,6 +8,12 @@ import android.content.Intent
 import android.os.Build
 import android.widget.RemoteViews
 
+/**
+ * A quick-add tile. The button opens Moniz straight into capture; the rest of
+ * the tile opens the app normally.
+ *
+ * It used to show the installed version number, which told nobody anything.
+ */
 class MonizAppWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
@@ -20,14 +26,41 @@ class MonizAppWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        /** Read on the Dart side to decide whether to open capture on launch. */
+        const val EXTRA_LAUNCH_ACTION = "moniz.launch_action"
+        const val ACTION_ADD_ENTRY = "add_entry"
+
         private fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
             val views = RemoteViews(context.packageName, R.layout.moniz_app_widget)
-            val launchIntent = Intent(context, MainActivity::class.java).apply {
+            views.setOnClickPendingIntent(
+                R.id.moniz_widget_root,
+                launchIntent(context, appWidgetId, requestOffset = 0, action = null)
+            )
+            views.setOnClickPendingIntent(
+                R.id.moniz_widget_add,
+                launchIntent(
+                    context,
+                    appWidgetId,
+                    requestOffset = 1,
+                    action = ACTION_ADD_ENTRY
+                )
+            )
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        private fun launchIntent(
+            context: Context,
+            appWidgetId: Int,
+            requestOffset: Int,
+            action: String?
+        ): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                if (action != null) putExtra(EXTRA_LAUNCH_ACTION, action)
             }
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -35,17 +68,15 @@ class MonizAppWidgetProvider : AppWidgetProvider() {
                 } else {
                     0
                 }
-            val pendingIntent = PendingIntent.getActivity(context, 0, launchIntent, flags)
-            val versionName = runCatching {
-                context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            }.getOrNull().orEmpty()
-
-            views.setTextViewText(
-                R.id.moniz_widget_version,
-                if (versionName.isBlank()) "MONIZ" else "v$versionName"
+            // Distinct request codes, or the two taps would share one
+            // PendingIntent and the second would silently reuse the first's
+            // extras.
+            return PendingIntent.getActivity(
+                context,
+                appWidgetId * 2 + requestOffset,
+                intent,
+                flags
             )
-            views.setOnClickPendingIntent(R.id.moniz_widget_root, pendingIntent)
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
 }

@@ -7,6 +7,7 @@ import '../providers/metal_price_provider.dart';
 import '../providers/money_entry_provider.dart';
 import '../providers/recurring_entry_provider.dart';
 import '../services/currency_converter.dart';
+import '../services/launch_action_service.dart';
 import '../services/money_ledger.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
@@ -24,8 +25,43 @@ class TodayPage extends ConsumerStatefulWidget {
   ConsumerState<TodayPage> createState() => _TodayPageState();
 }
 
-class _TodayPageState extends ConsumerState<TodayPage> {
+class _TodayPageState extends ConsumerState<TodayPage>
+    with WidgetsBindingObserver {
   var _period = SpendingPeriod.today;
+  var _isCapturing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleLaunchAction());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Tapping the widget while the app is already running delivers the action
+    // to the running activity rather than a fresh launch.
+    if (state == AppLifecycleState.resumed) _handleLaunchAction();
+  }
+
+  Future<void> _handleLaunchAction() async {
+    // A second tap while capture is already open should not stack another.
+    if (_isCapturing || !mounted) return;
+    final action = await ref.read(launchActionReaderProvider).consume();
+    if (action != LaunchAction.addEntry || !mounted) return;
+    _isCapturing = true;
+    try {
+      await captureMoneyEntry(context, ref);
+    } finally {
+      _isCapturing = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
