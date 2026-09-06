@@ -10,6 +10,16 @@ import '../services/money_ledger.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
 
+/// What capture came back with. An entry can be saved or removed, and the
+/// caller has to be able to tell which without inspecting the entry.
+class MoneyCaptureResult {
+  const MoneyCaptureResult.saved(this.entry) : isDeleted = false;
+  const MoneyCaptureResult.deleted(this.entry) : isDeleted = true;
+
+  final MoneyEntry entry;
+  final bool isDeleted;
+}
+
 /// Logging a spend has a budget of three taps and one number, so everything
 /// except the amount and the category is defaulted and tucked behind a
 /// disclosure. Trackers are abandoned over exactly this.
@@ -202,6 +212,18 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
                 expand: true,
                 onPressed: _submit,
               ),
+              // Delete lives where you already are when you noticed the entry
+              // was wrong, rather than behind a gesture you have to know about.
+              if (_isEditing) ...[
+                const SizedBox(height: 12),
+                BrutalistButton(
+                  key: const Key('money_delete_button'),
+                  label: 'Delete',
+                  tone: BrutalistButtonTone.danger,
+                  expand: true,
+                  onPressed: _confirmDelete,
+                ),
+              ],
             ],
           ),
         ),
@@ -247,17 +269,48 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
 
     final note = _note.text.trim();
     Navigator.of(context).pop(
-      MoneyEntry(
-        id: widget.entry?.id ?? const Uuid().v4(),
-        amount: amount,
-        direction: _direction,
-        currency: _currency,
-        happenedAt: _happenedAt,
-        accountId: widget.entry?.accountId ?? MoneyAccount.defaultId,
-        categoryId: _categoryId,
-        note: note.isEmpty ? null : note,
+      MoneyCaptureResult.saved(
+        MoneyEntry(
+          id: widget.entry?.id ?? const Uuid().v4(),
+          amount: amount,
+          direction: _direction,
+          currency: _currency,
+          happenedAt: _happenedAt,
+          accountId: widget.entry?.accountId ?? MoneyAccount.defaultId,
+          categoryId: _categoryId,
+          note: note.isEmpty ? null : note,
+        ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final entry = widget.entry;
+    if (entry == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this entry?'),
+        content: const Text(
+          'It will be removed from your totals permanently. This cannot be '
+          'undone.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('cancel_delete_entry'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirm_delete_entry'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    Navigator.of(context).pop(MoneyCaptureResult.deleted(entry));
   }
 
   static String _trim(double value) {
