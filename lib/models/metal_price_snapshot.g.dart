@@ -23,13 +23,14 @@ class MetalPriceSnapshotAdapter extends TypeAdapter<MetalPriceSnapshot> {
       fetchedAt: fields[3] as DateTime,
       eurToUsd: fields[4] as double?,
       aedToUsd: fields[5] as double?,
+      cadToUsd: fields[6] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MetalPriceSnapshot obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.goldPerGramUsd)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class MetalPriceSnapshotAdapter extends TypeAdapter<MetalPriceSnapshot> {
       ..writeByte(4)
       ..write(obj.eurToUsd)
       ..writeByte(5)
-      ..write(obj.aedToUsd);
+      ..write(obj.aedToUsd)
+      ..writeByte(6)
+      ..write(obj.cadToUsd);
   }
 
   @override
