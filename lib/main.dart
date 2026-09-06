@@ -19,6 +19,7 @@ import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'providers/daily_nudge_provider.dart';
 import 'providers/price_alert_provider.dart';
 import 'providers/zakat_reminder_provider.dart';
 import 'providers/zakat_provider.dart';
@@ -427,7 +428,9 @@ class MonizApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       home: const PriceAlertSync(
-        child: ZakatReminderSync(child: KineticHome()),
+        child: ZakatReminderSync(
+          child: DailyNudgeSync(child: KineticHome()),
+        ),
       ),
       builder: (context, child) =>
           AppLockGate(child: child ?? const SizedBox.shrink()),

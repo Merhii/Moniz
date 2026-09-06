@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:moniz/models/notification_topic.dart';
 import 'package:moniz/providers/notification_preferences_provider.dart';
 import 'package:moniz/services/notification_preferences_service.dart';
@@ -8,6 +11,24 @@ import 'package:moniz/theme/app_theme.dart';
 import 'package:moniz/widgets/notification_settings_screen.dart';
 
 void main() {
+  late Directory hiveDirectory;
+
+  // The screen carries the end-of-day nudge now, and that reads its settings
+  // from the preferences box.
+  setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp('moniz_notif_ui_');
+    Hive.init(hiveDirectory.path);
+    await Hive.openBox<dynamic>('uiPreferences');
+  });
+
+  setUp(() => Hive.box<dynamic>('uiPreferences').clear());
+
+  tearDownAll(() async {
+    if (await hiveDirectory.exists()) {
+      await hiveDirectory.delete(recursive: true);
+    }
+  });
+
   testWidgets('groups alert signals into selectable notification interests', (
     tester,
   ) async {

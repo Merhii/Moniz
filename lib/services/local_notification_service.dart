@@ -4,6 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'daily_nudge_planner.dart';
 import 'zakat_reminder_planner.dart';
 
 enum TestNotificationResult { sent, permissionDenied }
@@ -16,6 +17,9 @@ abstract class TestNotificationSender {
 /// ones it no longer wants.
 abstract class ReminderScheduler {
   Future<void> syncZakatReminders(List<ScheduledReminder> reminders);
+
+  /// The single pending "anything to log?" reminder, or null to take it down.
+  Future<void> syncDailyNudge(ScheduledReminder? reminder);
 
   /// Asks for notification permission at the moment the owner turns something
   /// on, rather than on every resync.
@@ -111,6 +115,41 @@ class LocalNotificationService
         payload: 'zakat.reminder',
       );
     }
+  }
+
+  @override
+  Future<void> syncDailyNudge(ScheduledReminder? reminder) async {
+    await initialize();
+    if (!_isSupportedPlatform) return;
+    await _prepareTimeZone();
+
+    // One id, always replaced. There is only ever one nudge pending, and
+    // rescheduling must move it rather than add a second.
+    await _plugin.cancel(id: DailyNudgePlanner.notificationId);
+    if (reminder == null) return;
+
+    await _plugin.zonedSchedule(
+      id: DailyNudgePlanner.notificationId,
+      title: reminder.title,
+      body: reminder.body,
+      scheduledDate: tz.TZDateTime.from(reminder.scheduledFor, tz.local),
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'moniz_daily_nudge',
+          'Daily logging reminder',
+          channelDescription: 'A reminder to log the day if nothing was.',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: false,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: 'daily.nudge',
+    );
   }
 
   bool _isReminderId(int id) {
