@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:moniz/main.dart';
 import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
+import 'package:moniz/models/money_entry.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/app_lock_provider.dart';
@@ -39,12 +40,19 @@ void main() {
     Hive.registerAdapter(ZakatSettingsAdapter());
     Hive.registerAdapter(ZakatPaymentRecordAdapter());
     Hive.registerAdapter(PortfolioSnapshotAdapter());
+    Hive.registerAdapter(MoneyDirectionAdapter());
+    Hive.registerAdapter(MoneyCategoryAdapter());
+    Hive.registerAdapter(MoneyAccountAdapter());
+    Hive.registerAdapter(MoneyEntryAdapter());
     await Hive.openBox<Asset>('assets');
     await Hive.openBox<MetalPriceSnapshot>('metalPrices');
     await Hive.openBox<ZakatSettings>('zakatSettings');
     await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
     await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
     await Hive.openBox<dynamic>('uiPreferences');
+    await Hive.openBox<MoneyEntry>('moneyEntries');
+    await Hive.openBox<MoneyCategory>('moneyCategories');
+    await Hive.openBox<MoneyAccount>('moneyAccounts');
   });
 
   tearDownAll(() async {
@@ -126,7 +134,7 @@ void main() {
 
     // Reached the real app: notifications are a convenience, not a gate.
     expect(find.byKey(const Key('startup_failure_title')), findsNothing);
-    expect(find.byKey(const Key('dashboard_nav')), findsOneWidget);
+    expect(find.byKey(const Key('today_nav')), findsOneWidget);
   });
 }
 
