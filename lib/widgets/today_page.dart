@@ -9,15 +9,24 @@ import '../services/currency_converter.dart';
 import '../services/money_ledger.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
+import 'category_breakdown.dart';
 import 'money_capture_sheet.dart';
+import 'spending_period.dart';
 
 /// The surface the app opens on. A wallet that opens on a total-wealth screen
 /// is telling you it is not really a wallet.
-class TodayPage extends ConsumerWidget {
+class TodayPage extends ConsumerStatefulWidget {
   const TodayPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayPage> createState() => _TodayPageState();
+}
+
+class _TodayPageState extends ConsumerState<TodayPage> {
+  var _period = SpendingPeriod.today;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.kinetic;
     final entries = ref.watch(moneyEntryProvider);
     final categories = ref.watch(moneyCategoryProvider);
@@ -25,16 +34,25 @@ class TodayPage extends ConsumerWidget {
     final prices = ref.watch(metalPriceProvider).snapshot;
 
     final now = DateTime.now();
-    final todaysEntries = MoneyLedger.newestFirst(
-      MoneyLedger.inRange(entries, DateRange.day(now)),
+    final periodEntries = MoneyLedger.newestFirst(
+      MoneyLedger.inRange(entries, _period.rangeAt(now)),
     );
-    final today = MoneyLedger.totals(
-      todaysEntries,
+    final totals = MoneyLedger.totals(
+      periodEntries,
       displayCurrency: displayCurrency,
       prices: prices,
     );
-    final month = MoneyLedger.totals(
-      MoneyLedger.inRange(entries, DateRange.month(now)),
+    final wider = _period.widerPeriod;
+    final widerTotals = wider == null
+        ? null
+        : MoneyLedger.totals(
+            MoneyLedger.inRange(entries, wider.rangeAt(now)),
+            displayCurrency: displayCurrency,
+            prices: prices,
+          );
+    final byCategory = MoneyLedger.byCategory(
+      periodEntries,
+      direction: MoneyDirection.expense,
       displayCurrency: displayCurrency,
       prices: prices,
     );
@@ -44,7 +62,21 @@ class TodayPage extends ConsumerWidget {
       key: const Key('today_scroll'),
       slivers: [
         SliverToBoxAdapter(
-          child: _SpendHero(today: today, month: month),
+          child: _SpendHero(
+            period: _period,
+            totals: totals,
+            wider: wider,
+            widerTotals: widerTotals,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: _PeriodSelector(
+              period: _period,
+              onChanged: (period) => setState(() => _period = period),
+            ),
+          ),
         ),
         SliverToBoxAdapter(
           child: Padding(
@@ -58,7 +90,7 @@ class TodayPage extends ConsumerWidget {
             ),
           ),
         ),
-        if (todaysEntries.isEmpty)
+        if (periodEntries.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
@@ -71,7 +103,7 @@ class TodayPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
                   KineticText(
-                    'Nothing logged today',
+                    _period.emptyLabel,
                     key: const Key('today_empty_title'),
                     align: TextAlign.center,
                     style: AppTheme.titleStyle(colors).copyWith(fontSize: 19),
@@ -89,14 +121,41 @@ class TodayPage extends ConsumerWidget {
               ),
             ),
           )
-        else
+        else ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+              child: MoneyFlowSummary(totals: totals),
+            ),
+          ),
+          if (byCategory.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                child: CategoryBreakdown(
+                  totals: byCategory,
+                  labels: labels,
+                  currency: totals.currency,
+                ),
+              ),
+            ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: KineticText(
+                'Entries',
+                style: AppTheme.titleStyle(colors).copyWith(fontSize: 20),
+              ),
+            ),
+          ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
             sliver: SliverList.separated(
-              itemCount: todaysEntries.length,
+              itemCount: periodEntries.length,
               itemBuilder: (context, index) => _EntryRow(
-                entry: todaysEntries[index],
-                categoryLabel: labels[todaysEntries[index].categoryId],
+                entry: periodEntries[index],
+                categoryLabel: labels[periodEntries[index].categoryId],
+                showsDate: _period != SpendingPeriod.today,
               ),
               separatorBuilder: (context, index) => Divider(
                 height: 24,
@@ -105,6 +164,7 @@ class TodayPage extends ConsumerWidget {
               ),
             ),
           ),
+        ],
       ],
     );
   }
@@ -112,15 +172,15 @@ class TodayPage extends ConsumerWidget {
 
 /// Opens capture and stores whatever comes back. Returns the saved entry so a
 /// caller can react to it.
-Future<MoneyEntry?> captureMoneyEntry(
+Future<MoneyCaptureResult?> captureMoneyEntry(
   BuildContext context,
   WidgetRef ref, {
   MoneyEntry? entry,
 }) async {
   // Zero-duration like the app's other pushes: capture is on a three-tap
   // budget and a transition is time spent looking at nothing.
-  final result = await Navigator.of(context).push<MoneyEntry>(
-    PageRouteBuilder<MoneyEntry>(
+  final result = await Navigator.of(context).push<MoneyCaptureResult>(
+    PageRouteBuilder<MoneyCaptureResult>(
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (_, _, _) => MoneyCaptureSheet(entry: entry),
@@ -130,30 +190,93 @@ Future<MoneyEntry?> captureMoneyEntry(
   if (result == null) return null;
 
   final notifier = ref.read(moneyEntryProvider.notifier);
-  if (entry == null) {
-    await notifier.addEntry(result);
+  if (result.isDeleted) {
+    await notifier.removeEntry(result.entry.id);
+  } else if (entry == null) {
+    await notifier.addEntry(result.entry);
   } else {
-    await notifier.updateEntry(result);
+    await notifier.updateEntry(result.entry);
   }
   return result;
 }
 
-class _SpendHero extends StatelessWidget {
-  const _SpendHero({required this.today, required this.month});
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({required this.period, required this.onChanged});
 
-  final MoneyTotals today;
-  final MoneyTotals month;
+  final SpendingPeriod period;
+  final ValueChanged<SpendingPeriod> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.foreground.withValues(alpha: 0.04),
+        borderRadius: AppTheme.pillRadius,
+        border: Border.all(color: colors.border.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          for (final option in SpendingPeriod.values)
+            Expanded(
+              child: GestureDetector(
+                key: Key('spending_period_${option.name}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(option),
+                child: AnimatedContainer(
+                  duration: AppTheme.fast,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    color: period == option
+                        ? colors.accent
+                        : Colors.transparent,
+                    borderRadius: AppTheme.pillRadius,
+                  ),
+                  child: Center(
+                    child: KineticText(
+                      option.label,
+                      style: AppTheme.labelStyle(colors).copyWith(
+                        color: period == option
+                            ? colors.accentForeground
+                            : colors.mutedForeground,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpendHero extends StatelessWidget {
+  const _SpendHero({
+    required this.period,
+    required this.totals,
+    required this.wider,
+    required this.widerTotals,
+  });
+
+  final SpendingPeriod period;
+  final MoneyTotals totals;
+  final SpendingPeriod? wider;
+  final MoneyTotals? widerTotals;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.kinetic;
+    final widerTotal = widerTotals;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           KineticText(
-            'Spent today',
+            period.spentLabel,
+            key: const Key('today_spend_label'),
             style: AppTheme.labelStyle(
               colors,
             ).copyWith(fontSize: 12, letterSpacing: 1.5),
@@ -162,42 +285,31 @@ class _SpendHero extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: KineticNumber(
-              CurrencyConverter.formatMoney(today.expense, today.currency),
+              CurrencyConverter.formatMoney(totals.expense, totals.currency),
               key: const Key('today_spend_total'),
               fontSize: 48,
               color: colors.foreground,
-              currency: today.currency,
+              currency: totals.currency,
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _MiniStat(
-                label: 'In today',
-                value: CurrencyConverter.formatMoney(
-                  today.income,
-                  today.currency,
-                ),
-              ),
-              const SizedBox(width: 28),
-              _MiniStat(
-                key: const Key('month_spend_total'),
-                label: 'This month',
-                value: CurrencyConverter.formatMoney(
-                  month.expense,
-                  month.currency,
-                ),
-              ),
-            ],
-          ),
-          if (!month.isComplete) ...[
+          if (widerTotal != null && wider != null) ...[
+            const SizedBox(height: 10),
+            KineticText(
+              'of ${CurrencyConverter.formatMoney(widerTotal.expense, widerTotal.currency)} '
+              'this ${wider!.label.toLowerCase()}',
+              key: const Key('today_wider_total'),
+              muted: true,
+              uppercase: false,
+              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+            ),
+          ],
+          if (!totals.isComplete) ...[
             const SizedBox(height: 12),
             KineticText(
-              month.excludedEntryCount == 1
+              totals.excludedEntryCount == 1
                   ? '1 entry is in a currency with no exchange rate and is '
                         'left out of these totals.'
-                  : '${month.excludedEntryCount} entries are in a currency '
+                  : '${totals.excludedEntryCount} entries are in a currency '
                         'with no exchange rate and are left out of these '
                         'totals.',
               key: const Key('today_excluded_note'),
@@ -213,40 +325,18 @@ class _SpendHero extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({super.key, required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.kinetic;
-    return Column(
-      children: [
-        KineticText(
-          label,
-          muted: true,
-          style: AppTheme.labelStyle(colors).copyWith(fontSize: 10),
-        ),
-        const SizedBox(height: 4),
-        KineticText(
-          value,
-          uppercase: false,
-          style: AppTheme.bodyStyle(
-            colors,
-          ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-  }
-}
-
 class _EntryRow extends ConsumerWidget {
-  const _EntryRow({required this.entry, this.categoryLabel});
+  const _EntryRow({
+    required this.entry,
+    this.categoryLabel,
+    this.showsDate = false,
+  });
 
   final MoneyEntry entry;
   final String? categoryLabel;
+
+  /// Only outside the Today window, where "when" stops being obvious.
+  final bool showsDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -270,10 +360,13 @@ class _EntryRow extends ConsumerWidget {
                       colors,
                     ).copyWith(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
-                  if (entry.note != null && entry.note!.isNotEmpty) ...[
+                  if (showsDate || (entry.note?.isNotEmpty ?? false)) ...[
                     const SizedBox(height: 4),
                     KineticText(
-                      entry.note!,
+                      [
+                        if (showsDate) _shortDate(entry.happenedAt),
+                        if (entry.note?.isNotEmpty ?? false) entry.note!,
+                      ].join(' · '),
                       muted: true,
                       uppercase: false,
                       style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
@@ -298,4 +391,9 @@ class _EntryRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _shortDate(DateTime date) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return '${days[date.weekday - 1]} ${date.day}';
 }

@@ -18,6 +18,7 @@ import 'package:moniz/services/app_lock_service.dart';
 import 'package:moniz/services/biometric_auth_service.dart';
 import 'package:moniz/services/metal_price_service.dart';
 import 'package:moniz/services/money_ledger.dart';
+import 'package:moniz/ui/kinetic/kinetic_widgets.dart';
 
 void main() {
   late Directory hiveDirectory;
@@ -127,8 +128,24 @@ void main() {
     await _pump(tester);
 
     expect(find.byKey(const Key('today_empty_title')), findsNothing);
-    expect(find.text('Groceries'), findsOneWidget);
-    expect(find.text('−\$12.00'), findsOneWidget);
+    // Once in the breakdown, once in the entry list.
+    expect(find.text('Groceries'), findsNWidgets(2));
+    expect(find.byKey(const Key('breakdown_expense.groceries')), findsOneWidget);
+    // The row, and the "Left" figure, which is −12 with nothing coming in.
+    final entryAmount = find.byWidgetPredicate(
+      (widget) =>
+          widget is KineticText &&
+          widget.key.toString().contains('money_entry_amount_'),
+    );
+    expect(tester.widget<KineticText>(entryAmount).text, '−\$12.00');
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('flow_expense'))).text,
+      '\$12.00',
+    );
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('flow_net'))).text,
+      '−\$12.00',
+    );
   });
 
   testWidgets('income is a different direction, not a negative amount', (
@@ -254,6 +271,125 @@ void main() {
     expect(entries.updated.single.amount, 15);
   });
 
+  testWidgets('the period switch changes the window, not just the label', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await tester.runAsync(() async {
+      final box = Hive.box<MoneyEntry>('moneyEntries');
+      await box.put(
+        'today',
+        MoneyEntry(
+          id: 'today',
+          amount: 10,
+          direction: MoneyDirection.expense,
+          happenedAt: now,
+          categoryId: 'expense.groceries',
+        ),
+      );
+      // Far enough back to be outside today and this week, but inside a month
+      // for most of any month. Placed on the 1st so the month always holds it.
+      await box.put(
+        'earlier',
+        MoneyEntry(
+          id: 'earlier',
+          amount: 100,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime(now.year, now.month, 1, 9),
+          categoryId: 'expense.rent',
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('today_spend_label'))).text,
+      'Spent today',
+    );
+
+    await tester.tap(find.byKey(const Key('spending_period_month')));
+    await _pump(tester);
+
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('today_spend_label'))).text,
+      'Spent this month',
+    );
+    // The month total has to actually include the older entry, not just
+    // rename the heading above the same number.
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('flow_expense'))).text,
+      '\$110.00',
+    );
+    expect(find.byKey(const Key('breakdown_expense.rent')), findsOneWidget);
+  });
+
+  testWidgets('the widest window has nothing wider to compare against', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<MoneyEntry>('moneyEntries').put(
+        'today',
+        MoneyEntry(
+          id: 'today',
+          amount: 10,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime.now(),
+        ),
+      );
+    });
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+
+    expect(find.byKey(const Key('today_wider_total')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('spending_period_month')));
+    await _pump(tester);
+
+    expect(find.byKey(const Key('today_wider_total')), findsNothing);
+  });
+
+  testWidgets('adding offers no delete, because there is nothing to delete', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('add_money_entry')));
+    await _pump(tester);
+    await _scrollCapture(tester);
+
+    expect(find.byKey(const Key('money_save_button')), findsOneWidget);
+    expect(find.byKey(const Key('money_delete_button')), findsNothing);
+  });
+
+  testWidgets('cancelling the delete confirmation keeps the entry', (
+    tester,
+  ) async {
+    final entries = await _openEntryForEditing(tester);
+    await _tapDelete(tester);
+
+    await tester.tap(find.byKey(const Key('cancel_delete_entry')));
+    await _pump(tester);
+    await _pump(tester);
+
+    expect(find.byKey(const Key('cancel_delete_entry')), findsNothing);
+    expect(entries.removed, isEmpty);
+  });
+
+  testWidgets('confirming the delete removes the entry', (tester) async {
+    final entries = await _openEntryForEditing(tester);
+    await _tapDelete(tester);
+
+    await tester.tap(find.byKey(const Key('confirm_delete_entry')));
+    await _pump(tester);
+    await _pump(tester);
+
+    expect(entries.removed, ['lunch']);
+    expect(entries.updated, isEmpty, reason: 'deleted, not saved');
+    expect(find.byKey(const Key('money_entry_lunch')), findsNothing);
+  });
+
   group('category ordering', () {
     final categories = [
       const MoneyCategory(
@@ -331,11 +467,21 @@ class _RecordingEntries extends MoneyEntryNotifier {
 
   final added = <MoneyEntry>[];
   final updated = <MoneyEntry>[];
+  final removed = <String>[];
 
   @override
   Future<void> addEntry(MoneyEntry entry) async {
     added.add(entry);
     state = [...state, entry];
+  }
+
+  @override
+  Future<void> removeEntry(String id) async {
+    removed.add(id);
+    state = [
+      for (final existing in state)
+        if (existing.id != id) existing,
+    ];
   }
 
   @override
@@ -346,6 +492,66 @@ class _RecordingEntries extends MoneyEntryNotifier {
         if (existing.id == entry.id) entry else existing,
     ];
   }
+}
+
+/// The capture sheet is taller than a test viewport and its list builds
+/// lazily, so a control at the foot is not in the tree until scrolled to.
+/// `ensureVisible` cannot reach an element that does not exist yet.
+Future<void> _scrollCaptureTo(WidgetTester tester, Key key) {
+  return tester.scrollUntilVisible(
+    find.byKey(key),
+    200,
+    // The text fields carry their own Scrollables, so take the list's own —
+    // the outermost, and therefore first in a depth-first walk.
+    scrollable: find
+        .descendant(
+          of: find.byKey(const Key('money_capture_scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+}
+
+/// Seeds one entry, opens it for editing, and hands back the recorder.
+Future<_RecordingEntries> _openEntryForEditing(WidgetTester tester) async {
+  await tester.runAsync(() async {
+    await Hive.box<MoneyEntry>('moneyEntries').put(
+      'lunch',
+      MoneyEntry(
+        id: 'lunch',
+        amount: 12,
+        direction: MoneyDirection.expense,
+        happenedAt: DateTime.now(),
+        categoryId: 'expense.eatingout',
+      ),
+    );
+  });
+  final entries = _recorder();
+  await tester.pumpWidget(_buildApp(entries: entries));
+  await _pump(tester);
+  await tester.tap(find.byKey(const Key('money_entry_lunch')));
+  await _pump(tester);
+  await _pump(tester);
+  return entries;
+}
+
+/// Brings the delete button into the tree, taps it, and lets the confirmation
+/// build. Both the cancel and the confirm path start here, and the sheet's
+/// scroll position is not assumed between them.
+Future<void> _tapDelete(WidgetTester tester) async {
+  await _scrollCaptureTo(tester, const Key('money_delete_button'));
+  await tester.tap(find.byKey(const Key('money_delete_button')));
+  await _pump(tester);
+  await _pump(tester);
+}
+
+/// Scrolls the sheet to its foot without needing a target.
+Future<void> _scrollCapture(WidgetTester tester) async {
+  await tester.drag(
+    find.byKey(const Key('money_capture_scroll')),
+    const Offset(0, -400),
+  );
+  await tester.pump();
 }
 
 _RecordingEntries _recorder() =>

@@ -9,9 +9,29 @@ class DateRange {
   final DateTime start;
   final DateTime end;
 
+  /// Boundaries are built by calendar arithmetic rather than by adding a
+  /// `Duration`. A Duration is absolute time, so on the days a clock shifts
+  /// for daylight saving, adding 24 hours lands at 23:00 or 01:00 of the wrong
+  /// date and an entry falls outside its own day. `DateTime(y, m, d + 1)`
+  /// normalises by the calendar and stays on midnight either way.
   factory DateRange.day(DateTime day) {
-    final start = DateTime(day.year, day.month, day.day);
-    return DateRange(start: start, end: start.add(const Duration(days: 1)));
+    return DateRange(
+      start: DateTime(day.year, day.month, day.day),
+      end: DateTime(day.year, day.month, day.day + 1),
+    );
+  }
+
+  /// The calendar week containing [day], Monday to Sunday.
+  ///
+  /// Calendar rather than a rolling seven days: "this week" resetting on a
+  /// Monday is what people mean, and a rolling window makes yesterday's total
+  /// change every time you look at it.
+  factory DateRange.week(DateTime day) {
+    final firstDay = day.day - (day.weekday - 1);
+    return DateRange(
+      start: DateTime(day.year, day.month, firstDay),
+      end: DateTime(day.year, day.month, firstDay + 7),
+    );
   }
 
   factory DateRange.month(DateTime day) {
