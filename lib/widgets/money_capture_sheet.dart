@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/money_entry.dart';
+import '../providers/metal_price_provider.dart';
 import '../providers/money_entry_provider.dart';
 import '../services/currency_converter.dart';
 import '../services/money_ledger.dart';
@@ -205,6 +206,18 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
                       ),
                   ],
                 ),
+                if (CurrencyConverter.normalize(_currency) !=
+                    CurrencyConverter.defaultCurrency) ...[
+                  const SizedBox(height: 8),
+                  KineticText(
+                    'Converted at today\'s rate and kept at it, so this entry '
+                    'keeps the value it has now.',
+                    key: const Key('money_rate_note'),
+                    muted: true,
+                    uppercase: false,
+                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 12),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 KineticInput(
                   fieldKey: const Key('money_note_field'),
@@ -278,6 +291,13 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
     }
 
     final note = _note.text.trim();
+    // Recorded now, so the entry keeps the value it had rather than drifting
+    // with the currency. Editing re-reads it, because changing the currency or
+    // the amount is a new statement about what was spent.
+    final usdRate = CurrencyConverter.usdRateFor(
+      _currency,
+      prices: ref.read(metalPriceProvider).snapshot,
+    );
     Navigator.of(context).pop(
       MoneyCaptureResult.saved(
         MoneyEntry(
@@ -289,6 +309,7 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
           accountId: widget.entry?.accountId ?? MoneyAccount.defaultId,
           categoryId: _categoryId,
           note: note.isEmpty ? null : note,
+          usdRate: usdRate,
         ),
       ),
     );

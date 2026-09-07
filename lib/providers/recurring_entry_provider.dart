@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import '../models/recurring_entry.dart';
+import '../services/currency_converter.dart';
 import '../services/recurrence_planner.dart';
+import 'metal_price_provider.dart';
 import 'money_entry_provider.dart';
 
 class RecurringEntryNotifier extends StateNotifier<List<RecurringEntry>> {
@@ -66,9 +68,14 @@ Future<void> applyDueRecurrences(WidgetRef ref, {DateTime? now}) async {
   final entryNotifier = ref.read(moneyEntryProvider.notifier);
   final ruleNotifier = ref.read(recurringEntryProvider.notifier);
   final at = now ?? DateTime.now();
+  final prices = ref.read(metalPriceProvider).snapshot;
 
   for (final rule in rules) {
-    final result = planner.materialise(rule: rule, now: at);
+    final result = planner.materialise(
+      rule: rule,
+      now: at,
+      usdRate: CurrencyConverter.usdRateFor(rule.currency, prices: prices),
+    );
     if (result.entries.isEmpty) continue;
     for (final entry in result.entries) {
       await entryNotifier.addEntry(entry);

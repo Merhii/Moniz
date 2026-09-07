@@ -118,6 +118,14 @@ class MoneyEntry {
   @HiveField(7)
   final String? note;
 
+  /// USD per unit of [currency] when the entry was recorded.
+  ///
+  /// A past expense is a historical fact: EUR 100 spent in March cost what it
+  /// cost then, and should not drift as the euro moves. Null on entries saved
+  /// before this was stored, and on those the live rate is used instead.
+  @HiveField(8)
+  final double? usdRate;
+
   const MoneyEntry({
     required this.id,
     required this.amount,
@@ -127,6 +135,7 @@ class MoneyEntry {
     this.accountId = MoneyAccount.defaultId,
     this.categoryId,
     this.note,
+    this.usdRate,
   });
 
   /// Positive for income, negative for expense.
@@ -144,6 +153,8 @@ class MoneyEntry {
     bool clearCategory = false,
     String? note,
     bool clearNote = false,
+    double? usdRate,
+    bool clearRate = false,
   }) {
     return MoneyEntry(
       id: id,
@@ -154,6 +165,7 @@ class MoneyEntry {
       accountId: accountId ?? this.accountId,
       categoryId: clearCategory ? null : categoryId ?? this.categoryId,
       note: clearNote ? null : note ?? this.note,
+      usdRate: clearRate ? null : usdRate ?? this.usdRate,
     );
   }
 }
