@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import 'package:moniz/main.dart';
+import 'package:moniz/models/metal_price_snapshot.dart';
 import 'package:moniz/models/money_entry.dart';
 import 'package:moniz/models/recurring_entry.dart';
 import 'package:moniz/providers/money_entry_provider.dart';
@@ -69,6 +70,8 @@ void main() {
     Hive.init(hiveDirectory.path);
     registerMonizAdapters();
     await Hive.openBox<MoneyEntry>('moneyEntries');
+    // Materialising a rule now reads the rate to freeze onto its entries.
+    await Hive.openBox<MetalPriceSnapshot>('metalPrices');
     await Hive.openBox<MoneyCategory>('moneyCategories');
     await Hive.openBox<MoneyAccount>('moneyAccounts');
     await Hive.openBox<RecurringEntry>('moneyRecurrences');

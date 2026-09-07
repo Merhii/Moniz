@@ -89,6 +89,7 @@ class RecurrencePlanner {
     required RecurringEntry rule,
     required DateTime now,
     String Function()? idFactory,
+    double? usdRate,
   }) {
     final dates = dueDates(rule: rule, now: now);
     if (dates.isEmpty) return (entries: const <MoneyEntry>[], rule: rule);
@@ -105,6 +106,8 @@ class RecurrencePlanner {
           accountId: rule.accountId,
           categoryId: rule.categoryId,
           note: rule.note,
+          // The rate when the entry was created, not when the rule was.
+          usdRate: usdRate,
         ),
     ];
     return (entries: entries, rule: rule.copyWith(lastRunOn: dates.last));

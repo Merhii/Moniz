@@ -98,6 +98,32 @@ class MoneyLedger {
     return List.unmodifiable(sorted);
   }
 
+  /// What an entry is worth in [displayCurrency].
+  ///
+  /// The rate the entry was recorded at is preferred over today's, so a past
+  /// expense keeps the value it had. Two rules make that safe:
+  ///
+  /// An entry shown in its own currency is never converted. EUR 100 must read
+  /// as EUR 100 forever, and dividing a frozen rate by today's would drift it.
+  ///
+  /// The display side always uses today's rate. Only the entry is history; the
+  /// currency it is being read in is a present-tense choice.
+  static double? valueOf(
+    MoneyEntry entry, {
+    required String displayCurrency,
+    MetalPriceSnapshot? prices,
+  }) {
+    final target = CurrencyConverter.normalize(displayCurrency);
+    final from = CurrencyConverter.normalize(entry.currency);
+    if (from == target) return entry.amount;
+
+    final fromRate =
+        entry.usdRate ?? CurrencyConverter.usdRateFor(from, prices: prices);
+    final toRate = CurrencyConverter.usdRateFor(target, prices: prices);
+    if (fromRate == null || toRate == null || toRate == 0) return null;
+    return entry.amount * fromRate / toRate;
+  }
+
   static MoneyTotals totals(
     List<MoneyEntry> entries, {
     required String displayCurrency,
@@ -109,10 +135,9 @@ class MoneyLedger {
     var excluded = 0;
 
     for (final entry in entries) {
-      final converted = CurrencyConverter.convert(
-        entry.amount,
-        from: entry.currency,
-        to: currency,
+      final converted = valueOf(
+        entry,
+        displayCurrency: currency,
         prices: prices,
       );
       if (converted == null) {
@@ -151,10 +176,9 @@ class MoneyLedger {
     for (final entry in entries) {
       if (entry.accountId != accountId) continue;
       if (entry.happenedAt.isAfter(cutoff)) continue;
-      final converted = CurrencyConverter.convert(
-        entry.amount,
-        from: entry.currency,
-        to: target,
+      final converted = valueOf(
+        entry,
+        displayCurrency: target,
         prices: prices,
       );
       if (converted == null) continue;
@@ -215,10 +239,9 @@ class MoneyLedger {
 
     for (final entry in entries) {
       if (entry.direction != direction) continue;
-      final converted = CurrencyConverter.convert(
-        entry.amount,
-        from: entry.currency,
-        to: currency,
+      final converted = valueOf(
+        entry,
+        displayCurrency: currency,
         prices: prices,
       );
       if (converted == null) continue;

@@ -184,8 +184,16 @@ Future<void> materialiseDueRecurrences({DateTime? now}) async {
   const planner = RecurrencePlanner();
   final at = now ?? DateTime.now();
 
+  final prices = Hive.box<MetalPriceSnapshot>(
+    'metalPrices',
+  ).get('latest_usd_gram_prices');
+
   for (final rule in rules.values.toList()) {
-    final result = planner.materialise(rule: rule, now: at);
+    final result = planner.materialise(
+      rule: rule,
+      now: at,
+      usdRate: CurrencyConverter.usdRateFor(rule.currency, prices: prices),
+    );
     if (result.entries.isEmpty) continue;
     await entries.putAll({
       for (final entry in result.entries) entry.id: entry,
