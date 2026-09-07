@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/asset.dart';
+import '../services/currency_converter.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
 
@@ -33,10 +34,15 @@ class _AssetFormDialogState extends State<AssetFormDialog> {
       key: Key('asset_type_silver'),
     ),
   ];
-  static const _currencyOptions = <_MenuOption<String>>[
-    _MenuOption(value: 'USD', label: 'USD', key: Key('asset_currency_usd')),
-    _MenuOption(value: 'AED', label: 'AED', key: Key('asset_currency_aed')),
-    _MenuOption(value: 'EUR', label: 'EUR', key: Key('asset_currency_eur')),
+  /// Derived rather than listed, so adding a currency cannot leave this form
+  /// offering a stale set while the rest of the app has moved on.
+  static final _currencyOptions = [
+    for (final currency in CurrencyConverter.recordableCurrencies)
+      _MenuOption(
+        value: currency,
+        label: currency,
+        key: Key('asset_currency_${currency.toLowerCase()}'),
+      ),
   ];
   static const _tagOptions = <_MenuOption<AssetTag?>>[
     _MenuOption(value: null, label: 'No tag', key: Key('asset_tag_none')),

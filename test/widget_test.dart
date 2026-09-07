@@ -535,12 +535,16 @@ void main() {
     expect(submittedAsset?.soldPrice, isNull);
   });
 
-  testWidgets('only offers USD EUR and AED for new assets', (tester) async {
+  testWidgets('offers exactly the recordable currencies for new assets', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: AssetFormDialog()));
 
-    expect(find.text('USD'), findsOneWidget);
-    expect(find.text('EUR'), findsOneWidget);
-    expect(find.text('AED'), findsOneWidget);
+    // Driven by the list rather than a copy of it, so adding a currency
+    // cannot leave this test asserting a stale set.
+    for (final currency in CurrencyConverter.recordableCurrencies) {
+      expect(find.text(currency), findsOneWidget, reason: currency);
+    }
     expect(find.text('LBP'), findsNothing);
     expect(find.text('SAR'), findsNothing);
   });

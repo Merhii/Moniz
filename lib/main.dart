@@ -1617,8 +1617,6 @@ class _SettingsCurrencyRow extends StatelessWidget {
   final String selectedCurrency;
   final ValueChanged<String> onSelected;
 
-  static const _currencySymbols = {'USD': '\$', 'EUR': '€', 'AED': 'د.إ'};
-
   @override
   Widget build(BuildContext context) {
     final colors = context.kinetic;
@@ -1675,7 +1673,7 @@ class _SettingsCurrencyRow extends StatelessWidget {
                   if (val != null) onSelected(val);
                 },
                 items: CurrencyConverter.supportedCurrencies.map((currency) {
-                  final symbol = _currencySymbols[currency] ?? '';
+                  final symbol = CurrencyConverter.symbolFor(currency);
                   return DropdownMenuItem<String>(
                     key: Key('settings_currency_option_$currency'),
                     value: currency,

@@ -8,12 +8,16 @@ class CurrencyConverter {
   /// Currencies totals, charts and zakat can be expressed in. A currency only
   /// belongs here while every holding can be converted into it from a rate we
   /// can stand behind.
-  static const supportedCurrencies = ['USD', 'AED'];
+  ///
+  /// EUR and CAD float, so they are only usable while a fetched rate exists;
+  /// [usdRateFor] returns null without one and every total that depends on it
+  /// says it is incomplete rather than guessing.
+  static const supportedCurrencies = ['USD', 'AED', 'EUR', 'CAD'];
 
   /// Currencies a holding can be recorded in. A recordable currency that has
   /// no rate is kept in the ledger but left out of valuation, and the
   /// dashboard says so.
-  static const recordableCurrencies = ['USD', 'AED', 'EUR'];
+  static const recordableCurrencies = ['USD', 'AED', 'EUR', 'CAD'];
 
   /// USD per unit, for currencies that do not need a live feed.
   ///
@@ -23,6 +27,21 @@ class CurrencyConverter {
   /// silently freezes at whatever it was the day it was typed, and this number
   /// feeds the zakat calculation.
   static const _defaultUsdRates = <String, double>{'USD': 1, 'AED': 1 / 3.6725};
+
+  /// The mark to show beside a currency code. One map, because the settings
+  /// dropdown and the currency chips both need it and had drifted apart.
+  ///
+  /// CAD is 'C$' rather than '$': sharing the dollar sign with USD in a picker
+  /// that offers both is how somebody records the wrong currency.
+  static const _symbols = <String, String>{
+    'USD': r'$',
+    'EUR': '€',
+    'AED': 'د.إ',
+    'CAD': r'C$',
+  };
+
+  static String symbolFor(String? currency) =>
+      _symbols[normalize(currency)] ?? normalize(currency);
 
   static String normalize(String? currency) {
     final normalized = (currency ?? defaultCurrency).trim().toUpperCase();

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/metal_price_snapshot.dart';
+import 'exchange_rate_service.dart';
 
 abstract class MetalPriceService {
   Future<MetalPriceSnapshot> fetchLatestPrices();
@@ -16,20 +17,25 @@ abstract class MetalPriceHistoryService {
 class GoldApiPriceService implements MetalPriceService {
   GoldApiPriceService({
     http.Client? client,
+    ExchangeRateService? exchangeRates,
     this.rateLimitRetryDelay = const Duration(seconds: 1),
     this.quoteSpacing = const Duration(milliseconds: 500),
     this.requestTimeout = const Duration(seconds: 30),
-  }) : _providedClient = client;
+  }) : _providedClient = client,
+       _exchangeRates = exchangeRates;
 
   static final _goldUri = Uri.parse('https://api.gold-api.com/price/XAU');
   static final _silverUri = Uri.parse('https://api.gold-api.com/price/XAG');
   static const _troyOunceInGrams = 31.1034768;
 
   final http.Client? _providedClient;
+  final ExchangeRateService? _exchangeRates;
   final Duration rateLimitRetryDelay;
   final Duration quoteSpacing;
   final Duration requestTimeout;
   late final http.Client _client = _providedClient ?? http.Client();
+  late final ExchangeRateService _rateService =
+      _exchangeRates ?? OpenExchangeRateService(client: _providedClient);
 
   @override
   Future<MetalPriceSnapshot> fetchLatestPrices() async {
@@ -41,11 +47,24 @@ class GoldApiPriceService implements MetalPriceService {
         ? gold.updatedAt
         : silver.updatedAt;
 
+    // Rates are a bonus on top of the metals, not a precondition: losing them
+    // costs EUR and CAD totals, and losing the metals costs the whole refresh.
+    var usdRates = const <String, double>{};
+    try {
+      usdRates = await _rateService.fetchUsdRates();
+    } on ExchangeRateException {
+      // Left empty; the snapshot keeps null rates and totals in those
+      // currencies say they are incomplete rather than guessing.
+    }
+
     return MetalPriceSnapshot(
       goldPerGramUsd: gold.priceUsdPerOunce / _troyOunceInGrams,
       silverPerGramUsd: silver.priceUsdPerOunce / _troyOunceInGrams,
       priceTimestamp: timestamp,
       fetchedAt: DateTime.now(),
+      eurToUsd: usdRates['EUR'],
+      aedToUsd: usdRates['AED'],
+      cadToUsd: usdRates['CAD'],
     );
   }
 
