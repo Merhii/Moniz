@@ -76,19 +76,42 @@ class MoneyAccount {
   @HiveField(2, defaultValue: 'USD')
   final String currency;
 
+  /// What was already in the account before any entry was logged.
+  ///
+  /// Without this an account starts at zero, so somebody who has been saving
+  /// for years would see their wallet as empty until they had logged a year of
+  /// entries. It is money held, so zakat will need it too.
+  @HiveField(3, defaultValue: 0.0)
+  final double openingBalance;
+
+  /// The date [openingBalance] was true on. Entries before it are already
+  /// counted inside it and would otherwise be added twice.
+  @HiveField(4)
+  final DateTime? openedOn;
+
   const MoneyAccount({
     required this.id,
     required this.label,
     this.currency = 'USD',
+    this.openingBalance = 0,
+    this.openedOn,
   });
 
   static const defaultId = 'default';
 
-  MoneyAccount copyWith({String? label, String? currency}) {
+  MoneyAccount copyWith({
+    String? label,
+    String? currency,
+    double? openingBalance,
+    DateTime? openedOn,
+    bool clearOpenedOn = false,
+  }) {
     return MoneyAccount(
       id: id,
       label: label ?? this.label,
       currency: currency ?? this.currency,
+      openingBalance: openingBalance ?? this.openingBalance,
+      openedOn: clearOpenedOn ? null : openedOn ?? this.openedOn,
     );
   }
 }

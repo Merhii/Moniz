@@ -168,14 +168,35 @@ class MoneyLedger {
     required String currency,
     DateTime? asOf,
     MetalPriceSnapshot? prices,
+    MoneyAccount? account,
   }) {
     final cutoff = asOf ?? DateTime.now();
     final target = CurrencyConverter.normalize(currency);
     var balance = 0.0;
 
+    // What was already there before anything was logged.
+    if (account != null && account.openingBalance != 0) {
+      final opened = account.openedOn;
+      if (opened == null || !opened.isAfter(cutoff)) {
+        final converted = CurrencyConverter.convert(
+          account.openingBalance,
+          from: account.currency,
+          to: target,
+          prices: prices,
+        );
+        if (converted != null) balance += converted;
+      }
+    }
+
     for (final entry in entries) {
       if (entry.accountId != accountId) continue;
       if (entry.happenedAt.isAfter(cutoff)) continue;
+      // Anything before the opening balance is already inside it, and adding
+      // it again would count the same money twice.
+      if (account?.openedOn != null &&
+          entry.happenedAt.isBefore(account!.openedOn!)) {
+        continue;
+      }
       final converted = valueOf(
         entry,
         displayCurrency: target,
