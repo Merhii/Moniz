@@ -69,19 +69,25 @@ class MoneyAccountAdapter extends TypeAdapter<MoneyAccount> {
       id: fields[0] as String,
       label: fields[1] as String,
       currency: fields[2] == null ? 'USD' : fields[2] as String,
+      openingBalance: fields[3] == null ? 0.0 : fields[3] as double,
+      openedOn: fields[4] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MoneyAccount obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.label)
       ..writeByte(2)
-      ..write(obj.currency);
+      ..write(obj.currency)
+      ..writeByte(3)
+      ..write(obj.openingBalance)
+      ..writeByte(4)
+      ..write(obj.openedOn);
   }
 
   @override

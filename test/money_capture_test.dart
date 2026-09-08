@@ -78,6 +78,59 @@ void main() {
     expect(find.byKey(const Key('today_spend_total')), findsOneWidget);
   });
 
+  testWidgets('the wallet balance appears once an opening balance is set', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<MoneyAccount>('moneyAccounts').put(
+        MoneyAccount.defaultId,
+        const MoneyAccount(
+          id: MoneyAccount.defaultId,
+          label: 'Wallet',
+          openingBalance: 1000,
+        ),
+      );
+      await Hive.box<MoneyEntry>('moneyEntries').put(
+        'lunch',
+        MoneyEntry(
+          id: 'lunch',
+          amount: 12,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime.now(),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('wallet_balance'))).text,
+      'In the wallet: \$988.00',
+    );
+  });
+
+  testWidgets('no wallet balance is shown until one is set', (tester) async {
+    // Without an opening balance the running total is just the negative of
+    // what has been logged, which reads as nonsense.
+    await tester.runAsync(() async {
+      await Hive.box<MoneyEntry>('moneyEntries').put(
+        'lunch',
+        MoneyEntry(
+          id: 'lunch',
+          amount: 12,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime.now(),
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+
+    expect(find.byKey(const Key('wallet_balance')), findsNothing);
+  });
+
   testWidgets('the app opens on Today', (tester) async {
     await tester.pumpWidget(_buildApp());
     await _pump(tester);

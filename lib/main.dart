@@ -15,6 +15,7 @@ import 'models/zakat_settings.dart';
 import 'providers/asset_provider.dart';
 import 'providers/display_currency_provider.dart';
 import 'providers/metal_price_provider.dart';
+import 'providers/money_entry_provider.dart';
 import 'providers/portfolio_snapshot_provider.dart';
 import 'providers/theme_mode_provider.dart';
 import 'package:workmanager/workmanager.dart';
@@ -1504,6 +1505,12 @@ class SettingsPage extends ConsumerWidget {
                         .read(displayCurrencyProvider.notifier)
                         .setCurrency(currency),
                   ),
+                  Divider(
+                    height: 24,
+                    thickness: 1,
+                    color: colors.border.withValues(alpha: 0.15),
+                  ),
+                  const _SettingsWalletBalanceRow(),
                 ],
               ),
               const SizedBox(height: 28),
@@ -2754,4 +2761,161 @@ String _formatTimestamp(DateTime date) {
 
 String _trimNumber(double value) {
   return CurrencyConverter.formatNumber(value);
+}
+
+/// What was in the wallet before any entry was logged.
+///
+/// A one-time setup value, so it sits with the other preferences rather than
+/// on the daily surface.
+class _SettingsWalletBalanceRow extends ConsumerWidget {
+  const _SettingsWalletBalanceRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.kinetic;
+    final account = ref.watch(defaultAccountProvider);
+    final opening = account?.openingBalance ?? 0;
+
+    return _SettingsSurface(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  'Wallet balance',
+                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 4),
+                KineticText(
+                  opening == 0
+                      ? 'What you had before you started logging'
+                      : 'Starting from '
+                            '${CurrencyConverter.formatMoney(opening, account?.currency ?? CurrencyConverter.defaultCurrency)}',
+                  key: const Key('settings_wallet_balance_detail'),
+                  muted: true,
+                  uppercase: false,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          BrutalistButton(
+            key: const Key('settings_wallet_balance_edit'),
+            label: opening == 0 ? 'Set' : 'Change',
+            onPressed: () => _editWalletBalance(context, ref, account),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _editWalletBalance(
+  BuildContext context,
+  WidgetRef ref,
+  MoneyAccount? account,
+) async {
+  final entered = await showDialog<double>(
+    context: context,
+    builder: (_) => _WalletBalanceDialog(
+      initial: account?.openingBalance ?? 0,
+    ),
+  );
+  if (entered == null) return;
+
+  final notifier = ref.read(moneyAccountProvider.notifier);
+  if (account == null) {
+    await notifier.upsert(
+      MoneyAccount(
+        id: MoneyAccount.defaultId,
+        label: 'Wallet',
+        openingBalance: entered,
+      ),
+    );
+  } else {
+    await notifier.setOpeningBalance(
+      account.id,
+      openingBalance: entered,
+      openedOn: account.openedOn,
+    );
+  }
+}
+
+/// Owns its own controller.
+///
+/// Creating the controller outside and disposing it when showDialog returns
+/// tears it down while the field still depends on it, which asserts and takes
+/// the screen with it.
+class _WalletBalanceDialog extends StatefulWidget {
+  const _WalletBalanceDialog({required this.initial});
+
+  final double initial;
+
+  @override
+  State<_WalletBalanceDialog> createState() => _WalletBalanceDialogState();
+}
+
+class _WalletBalanceDialogState extends State<_WalletBalanceDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial == 0 ? '' : _trimNumber(widget.initial),
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final text = _controller.text.trim();
+    // A blank field means zero, which is how somebody clears it.
+    if (text.isEmpty) {
+      Navigator.of(context).pop(0.0);
+      return;
+    }
+    final value = double.tryParse(text.replaceAll(',', ''));
+    if (value == null || !value.isFinite || value < 0) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Wallet balance'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'What was already there before you logged anything. Entries move '
+            'it from here.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('wallet_balance_field'),
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Amount'),
+            onSubmitted: (_) => _save(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          key: const Key('cancel_wallet_balance'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          key: const Key('save_wallet_balance'),
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
 }

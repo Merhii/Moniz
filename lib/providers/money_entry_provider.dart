@@ -111,3 +111,50 @@ final visibleMoneyCategoriesProvider = Provider<List<MoneyCategory>>((ref) {
 final launchActionReaderProvider = Provider<LaunchActionReader>(
   (ref) => const PlatformLaunchActionReader(),
 );
+
+class MoneyAccountNotifier extends StateNotifier<List<MoneyAccount>> {
+  MoneyAccountNotifier({Box<MoneyAccount>? accountBox})
+    : accountBox = accountBox ?? Hive.box<MoneyAccount>('moneyAccounts'),
+      super(
+        (accountBox ?? Hive.box<MoneyAccount>('moneyAccounts')).values.toList(),
+      );
+
+  final Box<MoneyAccount> accountBox;
+
+  void loadAccounts() {
+    state = accountBox.values.toList();
+  }
+
+  Future<void> upsert(MoneyAccount account) async {
+    await accountBox.put(account.id, account);
+    loadAccounts();
+  }
+
+  Future<void> setOpeningBalance(
+    String id, {
+    required double openingBalance,
+    DateTime? openedOn,
+  }) async {
+    final existing = accountBox.get(id);
+    if (existing == null) return;
+    await accountBox.put(
+      id,
+      existing.copyWith(openingBalance: openingBalance, openedOn: openedOn),
+    );
+    loadAccounts();
+  }
+}
+
+final moneyAccountProvider =
+    StateNotifierProvider<MoneyAccountNotifier, List<MoneyAccount>>(
+      (ref) => MoneyAccountNotifier(),
+    );
+
+/// The default wallet, which is the only account that exists so far.
+final defaultAccountProvider = Provider<MoneyAccount?>((ref) {
+  final accounts = ref.watch(moneyAccountProvider);
+  for (final account in accounts) {
+    if (account.id == MoneyAccount.defaultId) return account;
+  }
+  return null;
+});

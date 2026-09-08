@@ -88,6 +88,14 @@ class _TodayPageState extends ConsumerState<TodayPage>
             displayCurrency: displayCurrency,
             prices: prices,
           );
+    final account = ref.watch(defaultAccountProvider);
+    final balance = MoneyLedger.balanceOf(
+      entries,
+      accountId: MoneyAccount.defaultId,
+      currency: displayCurrency,
+      account: account,
+      prices: prices,
+    );
     final activeRepeats = ref
         .watch(recurringEntryProvider)
         .where((rule) => !rule.isPaused)
@@ -109,6 +117,9 @@ class _TodayPageState extends ConsumerState<TodayPage>
             totals: totals,
             wider: wider,
             widerTotals: widerTotals,
+            balance: balance,
+            balanceCurrency: CurrencyConverter.normalize(displayCurrency),
+            hasOpeningBalance: (account?.openingBalance ?? 0) != 0,
           ),
         ),
         SliverToBoxAdapter(
@@ -328,12 +339,21 @@ class _SpendHero extends StatelessWidget {
     required this.totals,
     required this.wider,
     required this.widerTotals,
+    required this.balance,
+    required this.balanceCurrency,
+    required this.hasOpeningBalance,
   });
 
   final SpendingPeriod period;
   final MoneyTotals totals;
   final SpendingPeriod? wider;
   final MoneyTotals? widerTotals;
+  final double balance;
+  final String balanceCurrency;
+
+  /// Until somebody says what was already in the wallet, a running balance is
+  /// just the negative of what they have logged, which reads as nonsense.
+  final bool hasOpeningBalance;
 
   @override
   Widget build(BuildContext context) {
@@ -367,6 +387,17 @@ class _SpendHero extends StatelessWidget {
               'of ${CurrencyConverter.formatMoney(widerTotal.expense, widerTotal.currency)} '
               'this ${wider!.label.toLowerCase()}',
               key: const Key('today_wider_total'),
+              muted: true,
+              uppercase: false,
+              style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
+            ),
+          ],
+          if (hasOpeningBalance) ...[
+            const SizedBox(height: 10),
+            KineticText(
+              'In the wallet: '
+              '${CurrencyConverter.formatMoney(balance, balanceCurrency)}',
+              key: const Key('wallet_balance'),
               muted: true,
               uppercase: false,
               style: AppTheme.bodyStyle(colors).copyWith(fontSize: 13),
