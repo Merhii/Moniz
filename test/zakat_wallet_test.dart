@@ -161,7 +161,7 @@ void main() {
         entries: [_spend(4000, DateTime(2025, 6, 1))],
       );
 
-      expect(result.assessments.single.asset.amount, 5000);
+      expect(result.assessments.single.asset!.amount, 5000);
       expect(result.eligibleWealthUsd, 1000);
     });
 
@@ -285,8 +285,15 @@ void main() {
         accounts: [_wallet],
       );
 
-      expect(result.eligibleWealthUsd, 2000);
-      expect(result.assessments.single.valuationNote, isNull);
+      // The gold is valued as gold: 20g at $100.
+      final gold = result.assessments.firstWhere((a) => a.asset != null);
+      expect(gold.valueUsd, 2000);
+      expect(gold.valuationNote, isNull);
+
+      // The wallet is still real money, and no cash holding speaks for it, so
+      // it is assessed on its own rather than dropped.
+      final wallet = result.assessments.firstWhere((a) => a.wallet != null);
+      expect(wallet.valueUsd, 4000);
     });
   });
 

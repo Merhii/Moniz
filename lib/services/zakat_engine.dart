@@ -6,17 +6,42 @@ import 'cash_account_migration.dart';
 import 'currency_converter.dart';
 import 'money_ledger.dart';
 
+/// One thing zakat was worked out on: a holding, or a wallet no holding backs.
+///
+/// Both are wealth somebody is holding, and the rules that decide whether the
+/// hawl completed do not care which one it is. Only the name on screen and the
+/// key a payment is filed under differ.
 class ZakatAssetAssessment {
   const ZakatAssetAssessment({
-    required this.asset,
+    this.asset,
+    this.wallet,
     required this.valueUsd,
     required this.isIncluded,
     this.nextDueDate,
     this.exclusionReason,
     this.valuationNote,
-  });
+  }) : assert(
+         asset != null || wallet != null,
+         'An assessment is of a holding or of a wallet',
+       );
 
-  final Asset asset;
+  /// The holding assessed, when a holding is what was assessed.
+  final Asset? asset;
+
+  /// The wallet assessed, when nothing in Holdings stands for this money.
+  final MoneyAccount? wallet;
+
+  /// What a payment against this is filed under.
+  ///
+  /// Wallet keys are prefixed so a wallet can never collide with a holding id
+  /// and quietly mark the wrong thing paid.
+  String get referenceId =>
+      asset?.id ?? ZakatEngine.walletPaymentKey(wallet!.id);
+
+  /// What to call it on screen.
+  String get label => asset?.type.label ?? wallet!.label;
+
+  bool get isSold => asset?.isSold ?? false;
   final double? valueUsd;
   final bool isIncluded;
   final DateTime? nextDueDate;
@@ -66,11 +91,17 @@ class ZakatEngine {
   /// one holding, so per-holding assessment has to look for it explicitly.
   static const annualPaymentKey = 'annual_ramadan';
 
+  /// Payments against a wallet are keyed apart from holdings, which own the
+  /// bare id space.
+  static String walletPaymentKey(String accountId) => 'wallet:$accountId';
+
   static const soldExclusion = 'Sold asset';
   static const unsupportedCurrencyExclusion = 'Unsupported currency';
   static const ramadanNotDueExclusion = 'Not due until Ramadan date';
   static const missingStartDateExclusion = 'Holding start date required';
   static const hawlNotReachedExclusion = 'Not held for one lunar year yet';
+  static const missingWalletStartExclusion =
+      'Wallet start date required';
 
   static const lowestBalanceNote = 'Lowest balance over the year';
   static const ramadanWalletNote = 'Wallet balance on the Ramadan date';
@@ -115,6 +146,23 @@ class ZakatEngine {
           ),
         )
         .toList();
+
+    // Money in a wallet no holding stands for was invisible to zakat: the
+    // engine only ever walked Holdings, so an opening balance and a year of
+    // income sat outside the calculation entirely.
+    assessments.addAll(
+      _assessUnbackedWallets(
+        assets: assets,
+        accounts: accounts,
+        moneyEntries: moneyEntries,
+        prices: prices,
+        settings: settings,
+        payments: payments,
+        today: today,
+        scheduleDue: scheduleDue,
+      ),
+    );
+
     final eligibleWealthUsd = assessments
         .where((assessment) => assessment.isIncluded)
         .fold<double>(0, (sum, assessment) => sum + (assessment.valueUsd ?? 0));
@@ -248,6 +296,120 @@ class ZakatEngine {
     );
   }
 
+  /// Wallets that no holding speaks for, assessed in their own right.
+  ///
+  /// A migrated cash holding is already assessed through the holding, so
+  /// counting its wallet here too would tithe the same money twice. Everything
+  /// else — the wallet somebody started with, anything added later — has no
+  /// holding behind it and would otherwise be missed.
+  static List<ZakatAssetAssessment> _assessUnbackedWallets({
+    required List<Asset> assets,
+    required List<MoneyAccount> accounts,
+    required List<MoneyEntry> moneyEntries,
+    required MetalPriceSnapshot prices,
+    required ZakatSettings settings,
+    required Map<String, ZakatPaymentRecord> payments,
+    required DateTime today,
+    required bool scheduleDue,
+  }) {
+    // A sold holding is excluded from zakat, so leaving its wallet backed by
+    // it would drop that money out of the calculation altogether.
+    final backed = {
+      for (final asset in assets)
+        if (asset.type == AssetType.cash && !asset.isSold)
+          CashAccountMigrationPlanner.accountIdFor(asset.id),
+    };
+
+    final assessments = <ZakatAssetAssessment>[];
+    for (final wallet in accounts) {
+      if (backed.contains(wallet.id)) continue;
+      // An untouched seeded wallet is a record, not money. Showing it as a
+      // zero row would put a line on the zakat screen for everybody who has
+      // never logged anything.
+      if (wallet.openingBalance == 0 &&
+          !moneyEntries.any((entry) => entry.accountId == wallet.id)) {
+        continue;
+      }
+      if (CurrencyConverter.usdRateFor(wallet.currency, prices: prices) ==
+          null) {
+        assessments.add(
+          ZakatAssetAssessment(
+            wallet: wallet,
+            valueUsd: null,
+            isIncluded: false,
+            exclusionReason: unsupportedCurrencyExclusion,
+          ),
+        );
+        continue;
+      }
+
+      if (settings.scheduleMode == ZakatScheduleMode.ramadanAnnual) {
+        assessments.add(
+          ZakatAssetAssessment(
+            wallet: wallet,
+            valueUsd: _walletValueUsd(
+              wallet: wallet,
+              moneyEntries: moneyEntries,
+              prices: prices,
+              asOf: settings.nextRamadanDueDate ?? today,
+            ),
+            isIncluded: scheduleDue,
+            nextDueDate: settings.nextRamadanDueDate,
+            exclusionReason: scheduleDue ? null : ramadanNotDueExclusion,
+            valuationNote: ramadanWalletNote,
+          ),
+        );
+        continue;
+      }
+
+      // The hawl has to start somewhere. For a holding that is the date it was
+      // acquired; for a wallet it is the date its balance was first true.
+      final openedOn = wallet.openedOn;
+      if (openedOn == null) {
+        assessments.add(
+          ZakatAssetAssessment(
+            wallet: wallet,
+            valueUsd: _walletValueUsd(
+              wallet: wallet,
+              moneyEntries: moneyEntries,
+              prices: prices,
+              asOf: today,
+            ),
+            isIncluded: false,
+            exclusionReason: missingWalletStartExclusion,
+          ),
+        );
+        continue;
+      }
+
+      final nextDueDate = _nextDueDate(
+        boughtDate: openedOn,
+        settledAt: _settledFor(
+          referenceId: walletPaymentKey(wallet.id),
+          startedOn: openedOn,
+          payments: payments,
+        ),
+      );
+      final due = !today.isBefore(nextDueDate);
+      assessments.add(
+        ZakatAssetAssessment(
+          wallet: wallet,
+          valueUsd: _lowestWalletValueUsd(
+            wallet: wallet,
+            moneyEntries: moneyEntries,
+            prices: prices,
+            to: nextDueDate,
+          ),
+          isIncluded: due,
+          nextDueDate: nextDueDate,
+          exclusionReason: due ? null : hawlNotReachedExclusion,
+          valuationNote: lowestBalanceNote,
+        ),
+      );
+    }
+    return assessments;
+  }
+
   /// The wallet a cash holding was migrated into, if it has one.
   static MoneyAccount? _walletFor(Asset asset, List<MoneyAccount> accounts) {
     if (asset.type != AssetType.cash) return null;
@@ -329,10 +491,22 @@ class ZakatEngine {
     Asset asset,
     Map<String, ZakatPaymentRecord> payments,
   ) {
-    final boughtDate = asset.boughtDate;
+    return _settledFor(
+      referenceId: asset.id,
+      startedOn: asset.boughtDate,
+      payments: payments,
+    );
+  }
+
+  static DateTime? _settledFor({
+    required String referenceId,
+    required DateTime? startedOn,
+    required Map<String, ZakatPaymentRecord> payments,
+  }) {
+    final boughtDate = startedOn;
     final candidates =
         [
-          payments[asset.id]?.paidAt,
+          payments[referenceId]?.paidAt,
           payments[annualPaymentKey]?.paidAt,
         ].whereType<DateTime>().where(
           (paidAt) => boughtDate == null || !paidAt.isBefore(boughtDate),
@@ -390,7 +564,7 @@ class ZakatEngine {
     List<ZakatAssetAssessment> assessments,
   ) {
     final unsold = assessments
-        .where((assessment) => !assessment.asset.isSold)
+        .where((assessment) => !assessment.isSold)
         .toList();
     if (unsold.isEmpty) {
       return 'Add a holding to calculate your zakat.';
