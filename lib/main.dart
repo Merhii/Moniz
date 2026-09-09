@@ -24,6 +24,7 @@ import 'providers/daily_nudge_provider.dart';
 import 'providers/price_alert_provider.dart';
 import 'providers/zakat_reminder_provider.dart';
 import 'providers/zakat_provider.dart';
+import 'services/cash_account_migration.dart';
 import 'services/dashboard_filter.dart';
 import 'services/hive_encryption.dart';
 import 'services/local_notification_service.dart';
@@ -121,6 +122,7 @@ Future<void> openMonizStorage() async {
     encryptionCipher: cipher,
   );
   await seedMoneyDefaults();
+  await migrateCashHoldingsToAccounts();
   await materialiseDueRecurrences();
 
   await discardOrphanedAppLock(
@@ -169,6 +171,35 @@ Future<void> seedMoneyDefaults() async {
       MoneyCategoryCatalog.defaultAccount,
     );
   }
+}
+
+/// Gives every cash holding a wallet to spend from.
+///
+/// A cash holding and a wallet are the same money described twice: one a
+/// number kept by hand, the other a running balance. This puts the holding's
+/// amount into an account, so entries can come out of it instead of out of
+/// nowhere.
+///
+/// Idempotent, and it has to be — it runs on every start. The account id is
+/// derived from the holding, so a second run finds the account already there
+/// and leaves its balance alone rather than resetting it to the holding's
+/// figure. The holdings themselves are not touched.
+@visibleForTesting
+Future<void> migrateCashHoldingsToAccounts() async {
+  final assets = Hive.box<Asset>('assets');
+  if (assets.isEmpty) return;
+
+  final accounts = Hive.box<MoneyAccount>('moneyAccounts');
+  const planner = CashAccountMigrationPlanner();
+  final plan = planner.plan(
+    assets: assets.values.toList(),
+    existingAccounts: accounts.values.toList(),
+  );
+  if (plan.isEmpty) return;
+
+  await accounts.putAll({
+    for (final account in plan.accounts) account.id: account,
+  });
 }
 
 /// Writes the entries every recurring rule owes since it last ran.

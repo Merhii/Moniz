@@ -323,4 +323,159 @@ void main() {
       closeTo(4200 * 3.6725, 0.01),
     );
   });
+
+  group('balance across wallets', () {
+    const chequing = MoneyAccount(
+      id: 'cash:chequing',
+      label: 'Chequing',
+      openingBalance: 5000,
+    );
+    const inHand = MoneyAccount(
+      id: 'cash:hand',
+      label: 'Cash in hand',
+      openingBalance: 200,
+    );
+    const started = MoneyAccount(id: MoneyAccount.defaultId, label: 'Wallet');
+
+    MoneyEntry against(String accountId, double amount) {
+      return MoneyEntry(
+        id: '$accountId-$amount',
+        amount: amount,
+        direction: MoneyDirection.expense,
+        currency: 'USD',
+        happenedAt: DateTime(2026, 9, 1),
+        accountId: accountId,
+      );
+    }
+
+    test('every wallet counts, not just the one entries started in', () {
+      expect(
+        MoneyLedger.balanceAcross(
+          const [],
+          accounts: const [started, chequing, inHand],
+          currency: 'USD',
+          asOf: DateTime(2026, 9, 7),
+        ),
+        5200,
+      );
+    });
+
+    test('spending comes out of the wallet it was logged against', () {
+      expect(
+        MoneyLedger.balanceAcross(
+          [against('cash:chequing', 300), against('cash:hand', 50)],
+          accounts: const [started, chequing, inHand],
+          currency: 'USD',
+          asOf: DateTime(2026, 9, 7),
+        ),
+        4850,
+      );
+    });
+
+    test('an entry against no known wallet is not counted twice', () {
+      // It is counted once, under its own wallet, or not at all — never once
+      // per wallet in the list.
+      expect(
+        MoneyLedger.balanceAcross(
+          [against('cash:gone', 100)],
+          accounts: const [started, chequing],
+          currency: 'USD',
+          asOf: DateTime(2026, 9, 7),
+        ),
+        5000,
+      );
+    });
+
+    test('no wallets is zero, not a crash', () {
+      expect(
+        MoneyLedger.balanceAcross(
+          [against('cash:chequing', 300)],
+          accounts: const [],
+          currency: 'USD',
+          asOf: DateTime(2026, 9, 7),
+        ),
+        0,
+      );
+    });
+
+    test('wallets in different currencies are converted before adding', () {
+      const dirhams = MoneyAccount(
+        id: 'cash:aed',
+        label: 'Dubai',
+        currency: 'AED',
+        openingBalance: 3672.5,
+      );
+      expect(
+        MoneyLedger.balanceAcross(
+          const [],
+          accounts: const [chequing, dirhams],
+          currency: 'USD',
+          asOf: DateTime(2026, 9, 7),
+        ),
+        closeTo(6000, 0.01),
+      );
+    });
+  });
+
+  group('telling migrated wallets apart', () {
+    Asset cash(String id, {String? note}) {
+      return Asset(
+        id: id,
+        type: AssetType.cash,
+        amount: 100,
+        unit: 'USD',
+        currency: 'USD',
+        note: note,
+      );
+    }
+
+    test('two unlabelled holdings do not both come out as Cash', () {
+      // A picker showing two identical chips is not offering a choice.
+      final migration = planner.plan(
+        assets: [cash('a'), cash('b')],
+        existingAccounts: const [],
+      );
+
+      expect(
+        migration.accounts.map((account) => account.label),
+        ['Cash', 'Cash 2'],
+      );
+    });
+
+    test('a holding does not take a name an account already has', () {
+      final migration = planner.plan(
+        assets: [cash('a', note: 'Wallet')],
+        existingAccounts: const [
+          MoneyAccount(id: MoneyAccount.defaultId, label: 'Wallet'),
+        ],
+      );
+
+      expect(migration.accounts.single.label, 'Wallet 2');
+    });
+
+    test('a name of its own is left alone', () {
+      final migration = planner.plan(
+        assets: [cash('a', note: 'Chequing'), cash('b', note: 'Savings')],
+        existingAccounts: const [
+          MoneyAccount(id: MoneyAccount.defaultId, label: 'Wallet'),
+        ],
+      );
+
+      expect(
+        migration.accounts.map((account) => account.label),
+        ['Chequing', 'Savings'],
+      );
+    });
+
+    test('the clash is judged without regard to case', () {
+      final migration = planner.plan(
+        assets: [cash('a', note: 'chequing')],
+        existingAccounts: const [
+          MoneyAccount(id: 'other', label: 'Chequing'),
+        ],
+      );
+
+      expect(migration.accounts.single.label, 'chequing 2');
+    });
+  });
 }

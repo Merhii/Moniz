@@ -42,6 +42,7 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
   late DateTime _happenedAt;
   late String _currency;
   String? _categoryId;
+  late String _accountId;
   String? _amountError;
   var _showsMore = false;
 
@@ -60,7 +61,23 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
     _happenedAt = entry?.happenedAt ?? DateTime.now();
     _currency = entry?.currency ?? CurrencyConverter.defaultCurrency;
     _categoryId = entry?.categoryId;
+    _accountId = entry?.accountId ?? _lastUsedAccountId();
     _showsMore = _isEditing;
+  }
+
+  /// The wallet the last entry came out of.
+  ///
+  /// Somebody with several wallets spends from one of them most of the time,
+  /// and it is rarely the one the app happened to create first. Falls back to
+  /// that one only when there is nothing to go on.
+  String _lastUsedAccountId() {
+    final ids = ref.read(moneyAccountProvider).map((a) => a.id).toSet();
+    final entries = ref.read(moneyEntryProvider).toList()
+      ..sort((a, b) => b.happenedAt.compareTo(a.happenedAt));
+    for (final entry in entries) {
+      if (ids.contains(entry.accountId)) return entry.accountId;
+    }
+    return MoneyAccount.defaultId;
   }
 
   @override
@@ -80,6 +97,7 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
       entries,
       direction: _direction,
     );
+    final accounts = ref.watch(spendableAccountsProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -162,6 +180,31 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
                     ),
                 ],
               ),
+              // Only worth asking once there is more than one answer. Before
+              // the cash holdings became wallets there was exactly one, and a
+              // picker with a single option is a tap that buys nothing.
+              if (accounts.length > 1) ...[
+                const SizedBox(height: 22),
+                KineticText(
+                  'Wallet',
+                  style: AppTheme.labelStyle(colors).copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final account in accounts)
+                      _CategoryChip(
+                        key: Key('money_account_${account.id}'),
+                        label: account.label,
+                        selected: _accountId == account.id,
+                        onTap: () =>
+                            setState(() => _accountId = account.id),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
               if (!_showsMore)
                 Align(
@@ -306,7 +349,7 @@ class _MoneyCaptureSheetState extends ConsumerState<MoneyCaptureSheet> {
           direction: _direction,
           currency: _currency,
           happenedAt: _happenedAt,
-          accountId: widget.entry?.accountId ?? MoneyAccount.defaultId,
+          accountId: _accountId,
           categoryId: _categoryId,
           note: note.isEmpty ? null : note,
           usdRate: usdRate,
