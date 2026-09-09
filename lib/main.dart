@@ -704,6 +704,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       settings: zakatSettings,
       payments: ref.read(zakatProvider.notifier).payments,
       today: DateTime.now(),
+      moneyEntries: ref.watch(moneyEntryProvider),
+      accounts: ref.watch(moneyAccountProvider),
     );
     final totals = WealthCalculator.calculate(
       filteredAssets,
@@ -1195,6 +1197,8 @@ class ZakatPage extends ConsumerWidget {
       settings: settings,
       payments: notifier.payments,
       today: DateTime.now(),
+      moneyEntries: ref.watch(moneyEntryProvider),
+      accounts: ref.watch(moneyAccountProvider),
     );
     final displayCurrency = ref.watch(displayCurrencyProvider);
     // The engine works in USD; the screen shows whatever the dashboard shows,
@@ -2536,6 +2540,7 @@ class _AssessmentTile extends StatelessWidget {
     final status = assessment.isIncluded
         ? 'Included in amount due'
         : assessment.exclusionReason ?? 'Excluded';
+    final note = assessment.valuationNote;
     return LedgerFrame(
       cardless: cardless,
       padding: cardless
@@ -2564,6 +2569,19 @@ class _AssessmentTile extends StatelessWidget {
                     fontSize: 11,
                   ),
                 ),
+                // A wallet is assessed on what stayed in it, which rarely
+                // matches the figure on the holding. Without a word about it
+                // the difference reads as an error.
+                if (note != null) ...[
+                  const SizedBox(height: 4),
+                  KineticText(
+                    note,
+                    key: Key('valuation_note_${assessment.asset.id}'),
+                    muted: true,
+                    uppercase: false,
+                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 11),
+                  ),
+                ],
               ],
             ),
           ),

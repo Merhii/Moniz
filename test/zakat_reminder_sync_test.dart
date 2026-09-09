@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 
 import 'package:moniz/models/asset.dart';
 import 'package:moniz/models/metal_price_snapshot.dart';
+import 'package:moniz/models/money_entry.dart';
 import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/notification_topic.dart';
 import 'package:moniz/models/zakat_settings.dart';
@@ -80,12 +81,19 @@ void main() {
     Hive.registerAdapter(ZakatSettingsAdapter());
     Hive.registerAdapter(ZakatPaymentRecordAdapter());
     Hive.registerAdapter(PortfolioSnapshotAdapter());
+    Hive.registerAdapter(MoneyDirectionAdapter());
+    Hive.registerAdapter(MoneyCategoryAdapter());
+    Hive.registerAdapter(MoneyAccountAdapter());
+    Hive.registerAdapter(MoneyEntryAdapter());
     await Hive.openBox<Asset>('assets');
     await Hive.openBox<MetalPriceSnapshot>('metalPrices');
     await Hive.openBox<ZakatSettings>('zakatSettings');
     await Hive.openBox<ZakatPaymentRecord>('zakatPayments');
     await Hive.openBox<PortfolioSnapshot>('portfolioSnapshots');
     await Hive.openBox<dynamic>('uiPreferences');
+    // Zakat now reads the wallets a cash holding was migrated into.
+    await Hive.openBox<MoneyEntry>('moneyEntries');
+    await Hive.openBox<MoneyAccount>('moneyAccounts');
   });
 
   setUp(() async {
