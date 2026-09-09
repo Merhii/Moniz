@@ -192,6 +192,123 @@ void main() {
     );
   });
 
+  testWidgets('one wallet is not a question worth asking', (tester) async {
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('add_money_entry')));
+    await _pump(tester);
+
+    // A picker with a single option is a tap that buys nothing.
+    expect(find.byKey(const Key('money_account_default')), findsNothing);
+  });
+
+  testWidgets('a migrated cash holding can be spent from', (tester) async {
+    await tester.runAsync(() async {
+      await Hive.box<MoneyAccount>('moneyAccounts').put(
+        'cash:chequing',
+        const MoneyAccount(
+          id: 'cash:chequing',
+          label: 'Chequing',
+          openingBalance: 5000,
+        ),
+      );
+    });
+
+    final entries = _recorder();
+    await tester.pumpWidget(_buildApp(entries: entries));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('add_money_entry')));
+    await _pump(tester);
+
+    expect(find.byKey(const Key('money_account_cash:chequing')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('money_amount_field')), '40');
+    await tester.tap(find.byKey(const Key('money_account_cash:chequing')));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('money_category_expense.eatingout')));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('money_save_button')));
+    await _pump(tester);
+
+    expect(entries.added.single.accountId, 'cash:chequing');
+  });
+
+  testWidgets('capture opens on the wallet the last entry came out of', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await Hive.box<MoneyAccount>('moneyAccounts').put(
+        'cash:chequing',
+        const MoneyAccount(id: 'cash:chequing', label: 'Chequing'),
+      );
+      // Landing on the wallet the app happened to create first would send
+      // every entry to an empty one.
+      await Hive.box<MoneyEntry>('moneyEntries').put(
+        'coffee',
+        MoneyEntry(
+          id: 'coffee',
+          amount: 4,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime.now(),
+          accountId: 'cash:chequing',
+        ),
+      );
+    });
+
+    final entries = _recorder();
+    await tester.pumpWidget(_buildApp(entries: entries));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('add_money_entry')));
+    await _pump(tester);
+
+    await tester.enterText(find.byKey(const Key('money_amount_field')), '9');
+    await tester.tap(find.byKey(const Key('money_category_expense.eatingout')));
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('money_save_button')));
+    await _pump(tester);
+
+    expect(entries.added.single.accountId, 'cash:chequing');
+  });
+
+  testWidgets('the wallet balance covers every wallet', (tester) async {
+    await tester.runAsync(() async {
+      await Hive.box<MoneyAccount>('moneyAccounts').put(
+        MoneyAccount.defaultId,
+        const MoneyAccount(
+          id: MoneyAccount.defaultId,
+          label: 'Wallet',
+          openingBalance: 1000,
+        ),
+      );
+      await Hive.box<MoneyAccount>('moneyAccounts').put(
+        'cash:chequing',
+        const MoneyAccount(
+          id: 'cash:chequing',
+          label: 'Chequing',
+          openingBalance: 5000,
+        ),
+      );
+      await Hive.box<MoneyEntry>('moneyEntries').put(
+        'lunch',
+        MoneyEntry(
+          id: 'lunch',
+          amount: 12,
+          direction: MoneyDirection.expense,
+          happenedAt: DateTime.now(),
+          accountId: 'cash:chequing',
+        ),
+      );
+    });
+
+    await tester.pumpWidget(_buildApp());
+    await _pump(tester);
+
+    expect(
+      tester.widget<KineticText>(find.byKey(const Key('wallet_balance'))).text,
+      'In the wallet: \$5,988.00',
+    );
+  });
+
   testWidgets('the entry shows up on Today and moves the total', (
     tester,
   ) async {

@@ -88,12 +88,14 @@ class _TodayPageState extends ConsumerState<TodayPage>
             displayCurrency: displayCurrency,
             prices: prices,
           );
-    final account = ref.watch(defaultAccountProvider);
-    final balance = MoneyLedger.balanceOf(
+    // Every wallet, not just the one entries started in: a migrated cash
+    // holding is a wallet too, and leaving it out would understate what is
+    // actually there.
+    final accounts = ref.watch(spendableAccountsProvider);
+    final balance = MoneyLedger.balanceAcross(
       entries,
-      accountId: MoneyAccount.defaultId,
+      accounts: accounts,
       currency: displayCurrency,
-      account: account,
       prices: prices,
     );
     final activeRepeats = ref
@@ -119,7 +121,9 @@ class _TodayPageState extends ConsumerState<TodayPage>
             widerTotals: widerTotals,
             balance: balance,
             balanceCurrency: CurrencyConverter.normalize(displayCurrency),
-            hasOpeningBalance: (account?.openingBalance ?? 0) != 0,
+            hasOpeningBalance: accounts.any(
+              (account) => account.openingBalance != 0,
+            ),
           ),
         ),
         SliverToBoxAdapter(

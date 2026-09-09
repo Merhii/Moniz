@@ -208,6 +208,31 @@ class MoneyLedger {
     return balance;
   }
 
+  /// The balance across several accounts.
+  ///
+  /// Once cash holdings are wallets of their own, "in the wallet" means all of
+  /// them, not the one entries happened to start in.
+  static double balanceAcross(
+    List<MoneyEntry> entries, {
+    required List<MoneyAccount> accounts,
+    required String currency,
+    DateTime? asOf,
+    MetalPriceSnapshot? prices,
+  }) {
+    var total = 0.0;
+    for (final account in accounts) {
+      total += balanceOf(
+        entries,
+        accountId: account.id,
+        currency: currency,
+        asOf: asOf,
+        prices: prices,
+        account: account,
+      );
+    }
+    return total;
+  }
+
   /// Categories for one direction, the ones used most recently first.
   ///
   /// The category tap is one of the three the capture budget allows, so the

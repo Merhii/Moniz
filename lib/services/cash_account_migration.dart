@@ -38,6 +38,9 @@ class CashAccountMigrationPlanner {
     required List<MoneyAccount> existingAccounts,
   }) {
     final existingIds = existingAccounts.map((account) => account.id).toSet();
+    final takenLabels = existingAccounts
+        .map((account) => account.label.trim().toLowerCase())
+        .toSet();
     final accounts = <MoneyAccount>[];
     final migrated = <String>[];
     final skipped = <String, String>{};
@@ -67,9 +70,12 @@ class CashAccountMigrationPlanner {
       accounts.add(
         MoneyAccount(
           id: accountId,
-          label: asset.note?.trim().isNotEmpty ?? false
-              ? asset.note!.trim()
-              : 'Cash',
+          label: _distinctLabel(
+            asset.note?.trim().isNotEmpty ?? false
+                ? asset.note!.trim()
+                : 'Cash',
+            takenLabels,
+          ),
           currency: asset.currency,
           openingBalance: asset.amount,
           // The date the money was known to be there. Without one, entries
@@ -91,4 +97,17 @@ class CashAccountMigrationPlanner {
   /// Derived from the holding, so running the migration twice lands on the
   /// same account rather than making another.
   static String accountIdFor(String assetId) => 'cash:$assetId';
+
+  /// A label nothing else is already using.
+  ///
+  /// Two holdings with no note would both be called 'Cash', and a picker of
+  /// identical chips is not a choice. The holding offers nothing else to tell
+  /// them apart, so they get numbered.
+  static String _distinctLabel(String wanted, Set<String> taken) {
+    if (taken.add(wanted.toLowerCase())) return wanted;
+    for (var suffix = 2; ; suffix++) {
+      final candidate = '$wanted $suffix';
+      if (taken.add(candidate.toLowerCase())) return candidate;
+    }
+  }
 }

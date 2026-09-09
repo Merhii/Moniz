@@ -150,7 +150,22 @@ final moneyAccountProvider =
       (ref) => MoneyAccountNotifier(),
     );
 
-/// The default wallet, which is the only account that exists so far.
+/// Accounts in a stable order, so a picker built from them does not reshuffle
+/// as Hive hands them back. The wallet somebody started with leads, then the
+/// rest by label.
+final spendableAccountsProvider = Provider<List<MoneyAccount>>((ref) {
+  final accounts = ref.watch(moneyAccountProvider).toList()
+    ..sort((a, b) {
+      if (a.id == b.id) return 0;
+      if (a.id == MoneyAccount.defaultId) return -1;
+      if (b.id == MoneyAccount.defaultId) return 1;
+      final byLabel = a.label.toLowerCase().compareTo(b.label.toLowerCase());
+      return byLabel != 0 ? byLabel : a.id.compareTo(b.id);
+    });
+  return List.unmodifiable(accounts);
+});
+
+/// The wallet somebody started with.
 final defaultAccountProvider = Provider<MoneyAccount?>((ref) {
   final accounts = ref.watch(moneyAccountProvider);
   for (final account in accounts) {
