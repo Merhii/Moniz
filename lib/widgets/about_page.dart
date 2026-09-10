@@ -134,7 +134,7 @@ class _AboutPageState extends State<AboutPage> {
                     icon: Icons.shield_outlined,
                     title: 'Your data stays yours',
                     detail:
-                        'Your holdings, Zakat settings, and preferences are stored locally on this device. MONIZ only contacts public market-data services to refresh gold and silver prices; your holding details are not included in those requests.',
+                        'Your holdings, spending, Zakat settings and preferences are stored encrypted on this device and are never uploaded. MONIZ only contacts public services to look up metal prices and exchange rates; nothing about you or your money is included in those requests.',
                   ),
                 ),
               ),
