@@ -92,7 +92,7 @@ void main() {
         today: DateTime(2026, 1, 1),
       );
 
-      expect(result.includedAssessments.map((item) => item.asset.id), [
+      expect(result.includedAssessments.map((item) => item.referenceId), [
         'mature-cash',
       ]);
       expect(result.amountDueUsd, 25);

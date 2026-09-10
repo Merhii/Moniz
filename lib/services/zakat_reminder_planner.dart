@@ -118,7 +118,7 @@ class ZakatReminderPlanner {
       }
       dates.add(
         _DueDate(
-          key: assessment.asset.id,
+          key: assessment.referenceId,
           date: date,
           subject: 'Zakat on your ${_describe(assessment)} is due',
         ),
@@ -129,6 +129,8 @@ class ZakatReminderPlanner {
 
   String _describe(ZakatAssetAssessment assessment) {
     final asset = assessment.asset;
+    // A wallet has no unit or weight to quote, only what it is called.
+    if (asset == null) return assessment.label.toLowerCase();
     final amount = _trim(asset.amount);
     return asset.type.isMetal
         ? '$amount ${asset.unit} of ${asset.type.label.toLowerCase()}'

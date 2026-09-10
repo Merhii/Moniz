@@ -704,6 +704,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       settings: zakatSettings,
       payments: ref.read(zakatProvider.notifier).payments,
       today: DateTime.now(),
+      moneyEntries: ref.watch(moneyEntryProvider),
+      accounts: ref.watch(moneyAccountProvider),
     );
     final totals = WealthCalculator.calculate(
       filteredAssets,
@@ -1195,6 +1197,8 @@ class ZakatPage extends ConsumerWidget {
       settings: settings,
       payments: notifier.payments,
       today: DateTime.now(),
+      moneyEntries: ref.watch(moneyEntryProvider),
+      accounts: ref.watch(moneyAccountProvider),
     );
     final displayCurrency = ref.watch(displayCurrencyProvider);
     // The engine works in USD; the screen shows whatever the dashboard shows,
@@ -2536,6 +2540,7 @@ class _AssessmentTile extends StatelessWidget {
     final status = assessment.isIncluded
         ? 'Included in amount due'
         : assessment.exclusionReason ?? 'Excluded';
+    final note = assessment.valuationNote;
     return LedgerFrame(
       cardless: cardless,
       padding: cardless
@@ -2548,7 +2553,7 @@ class _AssessmentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 KineticText(
-                  assessment.asset.type.label,
+                  assessment.label,
                   style: AppTheme.titleStyle(
                     colors,
                   ).copyWith(fontSize: 17, fontWeight: FontWeight.bold),
@@ -2564,6 +2569,19 @@ class _AssessmentTile extends StatelessWidget {
                     fontSize: 11,
                   ),
                 ),
+                // A wallet is assessed on what stayed in it, which rarely
+                // matches the figure on the holding. Without a word about it
+                // the difference reads as an error.
+                if (note != null) ...[
+                  const SizedBox(height: 4),
+                  KineticText(
+                    note,
+                    key: Key('valuation_note_${assessment.referenceId}'),
+                    muted: true,
+                    uppercase: false,
+                    style: AppTheme.bodyStyle(colors).copyWith(fontSize: 11),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2849,10 +2867,11 @@ Future<void> _editWalletBalance(
   WidgetRef ref,
   MoneyAccount? account,
 ) async {
-  final entered = await showDialog<double>(
+  final entered = await showDialog<_WalletBalanceEdit>(
     context: context,
     builder: (_) => _WalletBalanceDialog(
       initial: account?.openingBalance ?? 0,
+      initialOpenedOn: account?.openedOn,
     ),
   );
   if (entered == null) return;
@@ -2863,16 +2882,28 @@ Future<void> _editWalletBalance(
       MoneyAccount(
         id: MoneyAccount.defaultId,
         label: 'Wallet',
-        openingBalance: entered,
+        openingBalance: entered.balance,
+        openedOn: entered.openedOn,
       ),
     );
   } else {
     await notifier.setOpeningBalance(
       account.id,
-      openingBalance: entered,
-      openedOn: account.openedOn,
+      openingBalance: entered.balance,
+      openedOn: entered.openedOn,
     );
   }
+}
+
+/// What the wallet balance dialog came back with.
+class _WalletBalanceEdit {
+  const _WalletBalanceEdit(this.balance, this.openedOn);
+
+  final double balance;
+
+  /// The day the balance was true on. Zakat measures the lunar year from it,
+  /// so without one the wallet can never come due.
+  final DateTime? openedOn;
 }
 
 /// Owns its own controller.
@@ -2881,9 +2912,10 @@ Future<void> _editWalletBalance(
 /// tears it down while the field still depends on it, which asserts and takes
 /// the screen with it.
 class _WalletBalanceDialog extends StatefulWidget {
-  const _WalletBalanceDialog({required this.initial});
+  const _WalletBalanceDialog({required this.initial, this.initialOpenedOn});
 
   final double initial;
+  final DateTime? initialOpenedOn;
 
   @override
   State<_WalletBalanceDialog> createState() => _WalletBalanceDialogState();
@@ -2893,6 +2925,7 @@ class _WalletBalanceDialogState extends State<_WalletBalanceDialog> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initial == 0 ? '' : _trimNumber(widget.initial),
   );
+  late DateTime? _openedOn = widget.initialOpenedOn;
 
   @override
   void dispose() {
@@ -2904,12 +2937,24 @@ class _WalletBalanceDialogState extends State<_WalletBalanceDialog> {
     final text = _controller.text.trim();
     // A blank field means zero, which is how somebody clears it.
     if (text.isEmpty) {
-      Navigator.of(context).pop(0.0);
+      Navigator.of(context).pop(_WalletBalanceEdit(0, _openedOn));
       return;
     }
     final value = double.tryParse(text.replaceAll(',', ''));
     if (value == null || !value.isFinite || value < 0) return;
-    Navigator.of(context).pop(value);
+    Navigator.of(context).pop(_WalletBalanceEdit(value, _openedOn));
+  }
+
+  Future<void> _pickOpenedOn() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _openedOn ?? now,
+      firstDate: DateTime(2000),
+      lastDate: now,
+    );
+    if (picked == null) return;
+    setState(() => _openedOn = picked);
   }
 
   @override
@@ -2932,6 +2977,23 @@ class _WalletBalanceDialogState extends State<_WalletBalanceDialog> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(labelText: 'Amount'),
             onSubmitted: (_) => _save(),
+          ),
+          const SizedBox(height: 16),
+          // Zakat measures the lunar year from this date. Left unset the
+          // wallet still adds up, but it can never come due.
+          const Text('The day that was true, if you know it.'),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('wallet_opened_on'),
+              onPressed: _pickOpenedOn,
+              child: Text(
+                _openedOn == null
+                    ? 'Set a start date'
+                    : 'Since ${_formatDate(_openedOn!)}',
+              ),
+            ),
           ),
         ],
       ),

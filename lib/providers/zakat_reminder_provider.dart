@@ -6,6 +6,7 @@ import '../services/zakat_engine.dart';
 import '../services/zakat_reminder_planner.dart';
 import 'asset_provider.dart';
 import 'metal_price_provider.dart';
+import 'money_entry_provider.dart';
 import 'notification_preferences_provider.dart';
 import 'zakat_provider.dart';
 
@@ -31,6 +32,8 @@ final zakatReminderPlanProvider = Provider<List<ScheduledReminder>>((ref) {
     settings: settings,
     payments: ref.read(zakatProvider.notifier).payments,
     today: now,
+    moneyEntries: ref.watch(moneyEntryProvider),
+    accounts: ref.watch(moneyAccountProvider),
   );
   return const ZakatReminderPlanner().plan(
     result: result,

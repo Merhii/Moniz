@@ -59,9 +59,9 @@ class ZakatNotifier extends StateNotifier<ZakatSettings> {
 
     for (final assessment in result.includedAssessments) {
       await _paymentBox.put(
-        assessment.asset.id,
+        assessment.referenceId,
         ZakatPaymentRecord(
-          referenceId: assessment.asset.id,
+          referenceId: assessment.referenceId,
           paidAt: paidAt,
           amountUsd: (assessment.valueUsd ?? 0) * 0.025,
         ),

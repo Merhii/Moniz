@@ -208,6 +208,60 @@ class MoneyLedger {
     return balance;
   }
 
+  /// The lowest the balance got between [from] and [to], inclusive.
+  ///
+  /// Zakat is owed on wealth that sat through the whole lunar year, and money
+  /// that left partway through did not sit through it. Only the low-water mark
+  /// was held the entire time, so that is the part the hawl completed on.
+  ///
+  /// The balance only moves when something is logged, so the low point is
+  /// either where the window opened or the moment just after one of the
+  /// entries inside it — there is nothing to check in between.
+  static double minimumBalanceOf(
+    List<MoneyEntry> entries, {
+    required String accountId,
+    required String currency,
+    required DateTime from,
+    required DateTime to,
+    MoneyAccount? account,
+    MetalPriceSnapshot? prices,
+  }) {
+    final target = CurrencyConverter.normalize(currency);
+    var running = balanceOf(
+      entries,
+      accountId: accountId,
+      currency: target,
+      asOf: from,
+      account: account,
+      prices: prices,
+    );
+    var lowest = running;
+
+    final window =
+        entries
+            .where(
+              (entry) =>
+                  entry.accountId == accountId &&
+                  entry.happenedAt.isAfter(from) &&
+                  !entry.happenedAt.isAfter(to),
+            )
+            .toList()
+          ..sort((a, b) => a.happenedAt.compareTo(b.happenedAt));
+
+    for (final entry in window) {
+      // Already inside the opening balance, so it never moved anything.
+      if (account?.openedOn != null &&
+          entry.happenedAt.isBefore(account!.openedOn!)) {
+        continue;
+      }
+      final converted = valueOf(entry, displayCurrency: target, prices: prices);
+      if (converted == null) continue;
+      running += converted * entry.direction.sign;
+      if (running < lowest) lowest = running;
+    }
+    return lowest;
+  }
+
   /// The balance across several accounts.
   ///
   /// Once cash holdings are wallets of their own, "in the wallet" means all of
