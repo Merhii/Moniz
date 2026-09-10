@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moniz — Privacy Policy</title>
+<style>
+  :root {
+    --ink: #10233d;
+    --muted: #55627a;
+    --rule: #dde3ec;
+    --bg: #ffffff;
+    --panel: #f4f7fb;
+    --accent: #0A2447;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8edf5;
+      --muted: #9aa7bd;
+      --rule: #24344f;
+      --bg: #0b1626;
+      --panel: #122034;
+      --accent: #f0a83c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 20px 96px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 1.12rem;
+    margin: 40px 0 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    letter-spacing: -0.01em;
+  }
+  .updated { color: var(--muted); font-size: 0.92rem; margin: 0 0 28px; }
+  .summary {
+    background: var(--panel);
+    border-left: 3px solid var(--accent);
+    padding: 18px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 0 0 8px;
+  }
+  .summary p { margin: 0; }
+  ul { padding-left: 1.25rem; }
+  li { margin: 6px 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    background: var(--panel);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  a { color: var(--accent); }
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Moniz Privacy Policy</h1>
+<p class="updated">Last updated: 11 September 2026</p>
+
+<div class="summary">
+  <p><strong>Moniz has no accounts and no servers of its own.</strong> Everything you enter — your
+  holdings, your spending, your zakat settings — is stored on your device, encrypted, and is never
+  uploaded anywhere. Moniz makes no attempt to identify you.</p>
+</div>
+
+<h2>What Moniz stores, and where</h2>
+<p>Moniz stores the following on your device only:</p>
+<ul>
+  <li>Holdings you record — gold, silver and cash, with amounts, purities, dates and notes</li>
+  <li>Money entries you log, their categories, the wallets they came from, and any repeating rules you set up</li>
+  <li>Zakat settings, and a record of zakat you mark as paid</li>
+  <li>Snapshots of your portfolio value over time, used to draw the charts</li>
+  <li>Preferences: display currency, theme, notification choices, reminder times</li>
+  <li>An optional PIN, if you turn on the app lock</li>
+</ul>
+<p>This data is written to encrypted storage on the device. It is not transmitted to the developer or
+to any third party, and no copy of it exists outside your device.</p>
+
+<h2>What leaves your device</h2>
+<p>Moniz makes network requests to exactly two services, both of them public and neither of them
+operated by the developer:</p>
+<ul>
+  <li><code>api.gold-api.com</code> — to look up the current gold and silver price</li>
+  <li><code>open.er-api.com</code> — to look up currency exchange rates</li>
+</ul>
+<p>These are plain price lookups. <strong>Nothing about you or your holdings is included in them.</strong>
+No account identifier, no device identifier, and no API key is sent, because Moniz has none. As with
+any internet request, the operators of those services may record your IP address in their own server
+logs; their handling of that is governed by their own policies, not this one.</p>
+
+<h2>What Moniz does not do</h2>
+<ul>
+  <li>No advertising, and no advertising identifiers</li>
+  <li>No analytics, usage tracking or behavioural profiling</li>
+  <li>No crash or diagnostic reporting to the developer</li>
+  <li>No third-party SDKs that collect data</li>
+  <li>No selling, renting or sharing of your data — there is nothing collected to sell</li>
+</ul>
+
+<h2>Notifications</h2>
+<p>Reminders — zakat due dates, price alerts, the end-of-day nudge — are generated on your device and
+scheduled locally. Moniz does not use push notifications, so no notification token or message content
+is sent to any server. You can turn any of them off in Settings, or revoke the notification permission
+in Android or iOS settings.</p>
+
+<h2>Security</h2>
+<p>Moniz's local databases are encrypted with AES. The encryption key is held in the platform's secure
+credential store — the Android Keystore or the iOS Keychain — rather than in the app's own files. You
+can additionally require a PIN or your device biometrics to open the app, from Settings.</p>
+<p>No security measure is absolute: someone with unlocked physical access to your device, or with
+administrator access to it, may be able to reach data stored on it.</p>
+
+<h2>Deleting your data</h2>
+<p>Uninstalling Moniz, or clearing its storage from your device's app settings, permanently deletes
+everything it holds. There is no server-side copy to request the deletion of, and no way for the
+developer to recover it for you. If your data matters to you, keep your own record of it.</p>
+
+<h2>Children</h2>
+<p>Moniz is a personal finance tool and is not directed at children under 13. It does not knowingly
+collect information from anyone, of any age.</p>
+
+<h2>Changes to this policy</h2>
+<p>If this policy changes, the updated version will be published at this address with a new "last
+updated" date. Material changes will also be noted in the app's release notes.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy, or about privacy in Moniz, can be raised at
+<a href="https://github.com/Merhii/Moniz/issues">github.com/Merhii/Moniz/issues</a>, or by email to
+<strong>[ADD YOUR CONTACT EMAIL]</strong>.</p>
+
+<footer>
+  Moniz — track gold, silver and cash holdings, and work out the zakat due on them.
+</footer>
+
+</main>
+</body>
+</html>
