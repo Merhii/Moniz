@@ -14,6 +14,7 @@ import 'package:moniz/models/portfolio_snapshot.dart';
 import 'package:moniz/models/zakat_settings.dart';
 import 'package:moniz/providers/app_lock_provider.dart';
 import 'package:moniz/providers/metal_price_provider.dart';
+import 'package:moniz/providers/coach_tour_provider.dart';
 import 'package:moniz/providers/money_entry_provider.dart';
 import 'package:moniz/services/app_lock_service.dart';
 import 'package:moniz/services/biometric_auth_service.dart';
@@ -47,6 +48,12 @@ void main() {
     await Hive.box<MoneyAccount>('moneyAccounts').clear();
     await Hive.box<RecurringEntry>('moneyRecurrences').clear();
     await Hive.box<dynamic>('uiPreferences').clear();
+    // These tests drive Today. The first-run walkthrough deliberately covers
+    // it and swallows taps, so it is dismissed up front — it has tests of its
+    // own.
+    await Hive.box<dynamic>(
+      'uiPreferences',
+    ).put(TourSeenNotifier.storageKey, true);
     await seedMoneyDefaults();
   });
 

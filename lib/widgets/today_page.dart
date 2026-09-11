@@ -8,7 +8,9 @@ import '../providers/money_entry_provider.dart';
 import '../providers/recurring_entry_provider.dart';
 import '../services/currency_converter.dart';
 import '../services/launch_action_service.dart';
+import '../providers/coach_tour_provider.dart';
 import '../services/money_ledger.dart';
+import 'coach_tour.dart';
 import '../theme/app_theme.dart';
 import '../ui/kinetic/kinetic_widgets.dart';
 import 'category_breakdown.dart';
@@ -108,7 +110,9 @@ class _TodayPageState extends ConsumerState<TodayPage>
       displayCurrency: displayCurrency,
       prices: prices,
     );
-    final labels = {for (final category in categories) category.id: category.label};
+    final labels = {
+      for (final category in categories) category.id: category.label,
+    };
 
     return CustomScrollView(
       key: const Key('today_scroll'),
@@ -129,21 +133,27 @@ class _TodayPageState extends ConsumerState<TodayPage>
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: _PeriodSelector(
-              period: _period,
-              onChanged: (period) => setState(() => _period = period),
+            child: TourAnchor(
+              stop: TourStop.period,
+              child: _PeriodSelector(
+                period: _period,
+                onChanged: (period) => setState(() => _period = period),
+              ),
             ),
           ),
         ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-            child: BrutalistButton(
-              key: const Key('add_money_entry'),
-              label: 'Add entry',
-              tone: BrutalistButtonTone.primary,
-              expand: true,
-              onPressed: () => captureMoneyEntry(context, ref),
+            child: TourAnchor(
+              stop: TourStop.addEntry,
+              child: BrutalistButton(
+                key: const Key('add_money_entry'),
+                label: 'Add entry',
+                tone: BrutalistButtonTone.primary,
+                expand: true,
+                onPressed: () => captureMoneyEntry(context, ref),
+              ),
             ),
           ),
         ),
@@ -153,23 +163,26 @@ class _TodayPageState extends ConsumerState<TodayPage>
         SliverToBoxAdapter(
           child: Align(
             alignment: Alignment.centerLeft,
-            child: TextButton(
-              key: const Key('open_recurring_entries'),
-              onPressed: () => Navigator.of(context).push<void>(
-                PageRouteBuilder<void>(
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
-                  pageBuilder: (_, _, _) => const RecurringEntriesScreen(),
+            child: TourAnchor(
+              stop: TourStop.repeats,
+              child: TextButton(
+                key: const Key('open_recurring_entries'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  PageRouteBuilder<void>(
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                    pageBuilder: (_, _, _) => const RecurringEntriesScreen(),
+                  ),
                 ),
-              ),
-              child: KineticText(
-                activeRepeats == 0
-                    ? 'Set up something that repeats'
-                    : '$activeRepeats repeating',
-                uppercase: false,
-                style: AppTheme.bodyStyle(
-                  colors,
-                ).copyWith(color: colors.accent, fontSize: 13),
+                child: KineticText(
+                  activeRepeats == 0
+                      ? 'Set up something that repeats'
+                      : '$activeRepeats repeating',
+                  uppercase: false,
+                  style: AppTheme.bodyStyle(
+                    colors,
+                  ).copyWith(color: colors.accent, fontSize: 13),
+                ),
               ),
             ),
           ),

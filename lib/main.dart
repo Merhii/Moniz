@@ -13,6 +13,7 @@ import 'models/metal_price_snapshot.dart';
 import 'models/portfolio_snapshot.dart';
 import 'models/zakat_settings.dart';
 import 'providers/asset_provider.dart';
+import 'providers/coach_tour_provider.dart';
 import 'providers/display_currency_provider.dart';
 import 'providers/metal_price_provider.dart';
 import 'providers/money_entry_provider.dart';
@@ -41,6 +42,7 @@ import 'services/zakat_engine.dart';
 import 'theme/app_theme.dart';
 import 'ui/kinetic/kinetic_widgets.dart';
 import 'widgets/about_page.dart';
+import 'widgets/coach_tour.dart';
 import 'widgets/today_page.dart';
 import 'widgets/asset_form_dialog.dart';
 import 'widgets/app_lock_gate.dart';
@@ -227,9 +229,7 @@ Future<void> materialiseDueRecurrences({DateTime? now}) async {
       usdRate: CurrencyConverter.usdRateFor(rule.currency, prices: prices),
     );
     if (result.entries.isEmpty) continue;
-    await entries.putAll({
-      for (final entry in result.entries) entry.id: entry,
-    });
+    await entries.putAll({for (final entry in result.entries) entry.id: entry});
     await rules.put(rule.id, result.rule);
   }
 }
@@ -468,9 +468,7 @@ class MonizApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       home: const PriceAlertSync(
-        child: ZakatReminderSync(
-          child: DailyNudgeSync(child: KineticHome()),
-        ),
+        child: ZakatReminderSync(child: DailyNudgeSync(child: KineticHome())),
       ),
       builder: (context, child) =>
           AppLockGate(child: child ?? const SizedBox.shrink()),
@@ -497,6 +495,16 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
     });
   }
 
+  /// Sends somebody who asked for the tour again back to Today, since that is
+  /// where four of its five stops are.
+  void _followTourReplay() {
+    ref.listen<bool>(tourSeenProvider, (previous, next) {
+      if (previous == true && next == false && _selectedPage != 0) {
+        setState(() => _selectedPage = 0);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -506,8 +514,9 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
       const SettingsPage(),
       const AboutPage(),
     ];
+    _followTourReplay();
     final colors = context.kinetic;
-    return Scaffold(
+    final shell = Scaffold(
       appBar: AppBar(
         toolbarHeight: 68,
         backgroundColor: colors.background,
@@ -549,6 +558,15 @@ class _KineticHomeState extends ConsumerState<KineticHome> {
         onSelected: _setPage,
       ),
     );
+
+    // Above the Scaffold rather than inside its body, so the spotlight can
+    // reach the nav bar — two of the five stops live there.
+    return Stack(
+      children: [
+        shell,
+        CoachTour(isActive: _selectedPage == 0),
+      ],
+    );
   }
 
   void _setPage(int index) {
@@ -576,11 +594,7 @@ class _KineticNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const _tabs = [
-    (
-      label: 'Today',
-      icon: Icons.receipt_long_outlined,
-      key: Key('today_nav'),
-    ),
+    (label: 'Today', icon: Icons.receipt_long_outlined, key: Key('today_nav')),
     (
       label: 'Wealth',
       icon: Icons.account_balance_wallet_outlined,
@@ -619,14 +633,23 @@ class _KineticNav extends StatelessWidget {
                 children: [
                   for (var index = 0; index < _tabs.length; index++)
                     Expanded(
-                      child: PressableScale(
-                        key: _tabs[index].key,
-                        onTap: () => onSelected(index),
-                        scale: 0.98,
-                        child: _NavItem(
-                          label: _tabs[index].label,
-                          icon: _tabs[index].icon,
-                          selected: selectedIndex == index,
+                      child: _maybeAnchor(
+                        // Only the two tabs the tour explains; the rest need
+                        // no introduction.
+                        stop: switch (index) {
+                          1 => TourStop.wealth,
+                          2 => TourStop.zakat,
+                          _ => null,
+                        },
+                        child: PressableScale(
+                          key: _tabs[index].key,
+                          onTap: () => onSelected(index),
+                          scale: 0.98,
+                          child: _NavItem(
+                            label: _tabs[index].label,
+                            icon: _tabs[index].icon,
+                            selected: selectedIndex == index,
+                          ),
                         ),
                       ),
                     ),
@@ -638,6 +661,13 @@ class _KineticNav extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wraps only the tabs the tour points at, so the others keep the exact tree
+/// they had.
+Widget _maybeAnchor({required TourStop? stop, required Widget child}) {
+  if (stop == null) return child;
+  return TourAnchor(stop: stop, child: child);
 }
 
 class _NavItem extends StatelessWidget {
@@ -1546,6 +1576,8 @@ class SettingsPage extends ConsumerWidget {
                     color: colors.border.withValues(alpha: 0.15),
                   ),
                   const _SettingsWalletBalanceRow(),
+                  const SizedBox(height: 12),
+                  const _SettingsTourRow(),
                 ],
               ),
               const SizedBox(height: 28),
@@ -1790,11 +1822,7 @@ class NotificationsScreen extends StatelessWidget {
 }
 
 class _PageHeader extends StatelessWidget {
-  const _PageHeader({
-    this.eyebrow,
-    required this.title,
-    required this.detail,
-  });
+  const _PageHeader({this.eyebrow, required this.title, required this.detail});
 
   final String? eyebrow;
   final String title;
@@ -2816,6 +2844,49 @@ String _trimNumber(double value) {
 ///
 /// A one-time setup value, so it sits with the other preferences rather than
 /// on the daily surface.
+/// Puts the walkthrough back within reach.
+///
+/// A tour you can only see on the very first launch is no use to somebody who
+/// dismissed it in ten seconds and wants it back later.
+class _SettingsTourRow extends ConsumerWidget {
+  const _SettingsTourRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.kinetic;
+    return _SettingsSurface(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KineticText(
+                  'Show me around',
+                  style: AppTheme.titleStyle(colors).copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 4),
+                KineticText(
+                  'Run the walkthrough again',
+                  muted: true,
+                  uppercase: false,
+                  style: AppTheme.bodyStyle(colors).copyWith(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          BrutalistButton(
+            key: const Key('settings_replay_tour'),
+            label: 'Replay',
+            onPressed: () => ref.read(tourSeenProvider.notifier).replay(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SettingsWalletBalanceRow extends ConsumerWidget {
   const _SettingsWalletBalanceRow();
 
